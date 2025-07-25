@@ -28,6 +28,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
+import { buildApiUrl } from '../utils/api'
 
 interface PaymentSource {
   id: number
@@ -49,8 +50,8 @@ const form = ref({
 
 const fetchPaymentSources = async () => {
   try {
-    const res = await fetch('http://localhost:8000/payment_sources')
-    if (!res.ok) throw new Error('取得に失敗しました')
+    const res = await fetch(buildApiUrl('/payment_sources'))
+    if (!res.ok) throw new Error('支出元取得に失敗しました')
     paymentSources.value = await res.json()
   } catch (e: any) {
     error.value = e.message
@@ -60,13 +61,13 @@ const fetchPaymentSources = async () => {
 const addPaymentSource = async () => {
   error.value = ''
   try {
-    const res = await fetch('http://localhost:8000/payment_sources', {
+    const res = await fetch(buildApiUrl('/payment_sources'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value),
+      body: JSON.stringify({ name: form.value.name }),
     })
     if (!res.ok) throw new Error('登録に失敗しました')
-    form.value = { name: '', closing_day: 0, pay_month_diff: 0, pay_day: 0 }
+    form.value.name = ''
     await fetchPaymentSources()
   } catch (e: any) {
     error.value = e.message

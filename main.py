@@ -19,7 +19,13 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # フロントのURL
+    allow_origins=[
+        "http://localhost:5173",  # localhost
+        "http://127.0.0.1:5173",  # 127.0.0.1
+        "http://0.0.0.0:5173",    # 0.0.0.0
+        # 開発環境ではすべてのオリジンを許可（本番環境では削除することを推奨）
+        "*"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,3 +57,14 @@ def read_transaction(tx_id: int, db: Session = Depends(get_db)):
     if db_tx is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return db_tx
+
+# 開発サーバー起動用の設定
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",  # すべてのIPアドレスでアクセス可能
+        port=8000,
+        reload=True,     # 開発時の自動リロード
+        log_level="info"
+    )
