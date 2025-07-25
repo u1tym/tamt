@@ -58,6 +58,20 @@ def read_transaction(tx_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Transaction not found")
     return db_tx
 
+@app.put("/transactions/{tx_id}", response_model=schemas.Transaction)
+def update_transaction(tx_id: int, tx: schemas.TransactionUpdate, db: Session = Depends(get_db)):
+    db_tx = crud.update_transaction(db, tx_id, tx)
+    if db_tx is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return db_tx
+
+@app.delete("/transactions/{tx_id}")
+def delete_transaction(tx_id: int, db: Session = Depends(get_db)):
+    success = crud.delete_transaction(db, tx_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return {"message": "Transaction deleted successfully"}
+
 # 開発サーバー起動用の設定
 if __name__ == "__main__":
     import uvicorn

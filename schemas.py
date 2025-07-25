@@ -26,6 +26,13 @@ class TransactionBase(BaseModel):
 class TransactionCreate(TransactionBase):
     pass
 
+class TransactionUpdate(BaseModel):
+    used_date: Optional[date] = None
+    purpose: Optional[str] = None
+    memo: Optional[str] = None
+    amount: Optional[float] = None
+    payment_source_id: Optional[int] = None
+
 class Transaction(TransactionBase):
     id: int
     paid_date: date

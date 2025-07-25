@@ -12,23 +12,53 @@
           <th style="text-align:center;">金額</th>
           <th>支出元</th>
           <th>支払日</th>
+          <th class="action-header">操作</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="tx in sortedTransactions" :key="tx.id">
+        <tr 
+          v-for="tx in sortedTransactions" 
+          :key="tx.id" 
+          class="table-row"
+          @mouseenter="hoveredRow = tx.id"
+          @mouseleave="hoveredRow = null"
+        >
           <td>{{ tx.used_date }}</td>
           <td style="text-align:left;">{{ tx.purpose }}</td>
           <td style="text-align:left;"><span style="white-space: pre-line;">{{ tx.memo }}</span></td>
           <td style="text-align:right;">{{ formatAmount(tx.amount) }}円</td>
           <td>{{ getPaymentSourceName(tx.payment_source_id) }}</td>
           <td>{{ tx.paid_date }}</td>
+          <td class="action-cell">
+            <div v-if="hoveredRow === tx.id" class="action-buttons">
+              <button 
+                @click="editTransaction(tx)"
+                class="action-btn edit-btn"
+                title="編集"
+              >
+                ✏️
+              </button>
+              <button 
+                @click="deleteTransactionDirect(tx)"
+                class="action-btn delete-btn"
+                title="削除"
+              >
+                🗑️
+              </button>
+            </div>
+          </td>
         </tr>
       </tbody>
     </table>
     
     <!-- スマホ用のカード表示 -->
     <div v-else class="mobile-transactions">
-      <div v-for="tx in sortedTransactions" :key="tx.id" class="transaction-card">
+      <div 
+        v-for="tx in sortedTransactions" 
+        :key="tx.id" 
+        class="transaction-card"
+        @click="editTransaction(tx)"
+      >
         <div class="card-header">
           <span class="date">{{ tx.used_date }}</span>
           <span class="amount">{{ formatAmount(tx.amount) }}円</span>
@@ -49,15 +79,15 @@
       </button>
     </div>
 
-    <!-- 全画面モーダルダイアログ -->
+    <!-- 全画面モーダルダイアログ（新規登録・編集共通） -->
     <div v-if="showDialog" class="modal-overlay" @click="closeDialog">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h3>新規取引登録</h3>
+          <h3>{{ isEditing ? '取引編集' : '新規取引登録' }}</h3>
           <button class="close-button" @click="closeDialog">&times;</button>
         </div>
         
-        <form @submit.prevent="addTransaction" class="modal-form">
+        <form @submit.prevent="isEditing ? updateTransaction() : addTransaction()" class="modal-form">
           <div class="form-group">
             <label for="used_date">使用日 *</label>
             <input 
@@ -128,11 +158,20 @@
               キャンセル
             </button>
             <button 
+              v-if="isEditing"
+              type="button"
+              @click="deleteTransaction"
+              class="btn btn-danger"
+              :disabled="isSubmitting"
+            >
+              削除
+            </button>
+            <button 
               type="submit"
               class="btn btn-primary"
               :disabled="isSubmitting"
             >
-              {{ isSubmitting ? '登録中...' : '登録' }}
+              {{ isSubmitting ? (isEditing ? '更新中...' : '登録中...') : (isEditing ? '更新' : '登録') }}
             </button>
           </div>
         </form>
@@ -169,6 +208,9 @@ const paymentSources = ref<PaymentSource[]>([])
 const error = ref('')
 const isSubmitting = ref(false)
 const isMobile = ref(false)
+const isEditing = ref(false)
+const editingId = ref<number | null>(null)
+const hoveredRow = ref<number | null>(null)
 
 const form = ref({
   used_date: '',
@@ -217,9 +259,7 @@ const formatAmount = (amount: number) => {
   return amount.toLocaleString()
 }
 
-const closeDialog = () => {
-  showDialog.value = false
-  // フォームをリセット
+const resetForm = () => {
   form.value = { 
     used_date: '', 
     purpose: '', 
@@ -227,7 +267,47 @@ const closeDialog = () => {
     amount: 0, 
     payment_source_id: paymentSources.value[0]?.id || 0 
   }
+  isEditing.value = false
+  editingId.value = null
+}
+
+const closeDialog = () => {
+  showDialog.value = false
+  resetForm()
   error.value = ''
+}
+
+const editTransaction = (transaction: Transaction) => {
+  isEditing.value = true
+  editingId.value = transaction.id
+  form.value = {
+    used_date: transaction.used_date,
+    purpose: transaction.purpose,
+    memo: transaction.memo || '',
+    amount: transaction.amount,
+    payment_source_id: transaction.payment_source_id,
+  }
+  showDialog.value = true
+}
+
+const deleteTransactionDirect = async (transaction: Transaction) => {
+  if (!confirm(`「${transaction.purpose}」を削除しますか？`)) return
+  
+  error.value = ''
+  isSubmitting.value = true
+  
+  try {
+    const res = await fetch(buildApiUrl(`/transactions/${transaction.id}`), {
+      method: 'DELETE',
+    })
+    if (!res.ok) throw new Error('削除に失敗しました')
+    
+    await fetchTransactions()
+  } catch (e: any) {
+    error.value = e.message
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 const addTransaction = async () => {
@@ -241,6 +321,54 @@ const addTransaction = async () => {
       body: JSON.stringify(form.value),
     })
     if (!res.ok) throw new Error('登録に失敗しました')
+    
+    // 成功時の処理
+    closeDialog()
+    await fetchTransactions()
+  } catch (e: any) {
+    error.value = e.message
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+const updateTransaction = async () => {
+  if (!editingId.value) return
+  
+  error.value = ''
+  isSubmitting.value = true
+  
+  try {
+    const res = await fetch(buildApiUrl(`/transactions/${editingId.value}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form.value),
+    })
+    if (!res.ok) throw new Error('更新に失敗しました')
+    
+    // 成功時の処理
+    closeDialog()
+    await fetchTransactions()
+  } catch (e: any) {
+    error.value = e.message
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+const deleteTransaction = async () => {
+  if (!editingId.value) return
+  
+  if (!confirm('この取引を削除しますか？')) return
+  
+  error.value = ''
+  isSubmitting.value = true
+  
+  try {
+    const res = await fetch(buildApiUrl(`/transactions/${editingId.value}`), {
+      method: 'DELETE',
+    })
+    if (!res.ok) throw new Error('削除に失敗しました')
     
     // 成功時の処理
     closeDialog()
@@ -301,6 +429,56 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
+.action-header {
+  width: 80px;
+  text-align: center;
+}
+
+.action-cell {
+  width: 80px;
+  text-align: center;
+  padding: 8px 4px !important;
+}
+
+.table-row {
+  transition: background-color 0.2s;
+}
+
+.table-row:hover {
+  background-color: #f8f9fa;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 16px;
+  transition: all 0.2s;
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-btn:hover {
+  background-color: #e3f2fd;
+  transform: scale(1.1);
+}
+
+.delete-btn:hover {
+  background-color: #ffebee;
+  transform: scale(1.1);
+}
+
 .register-button-container {
   text-align: center;
   margin: 20px 0;
@@ -333,6 +511,18 @@ onUnmounted(() => {
   border-radius: 8px;
   margin-bottom: 12px;
   padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.transaction-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.transaction-card:active {
+  transform: translateY(0);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -505,6 +695,20 @@ onUnmounted(() => {
 
 .btn-secondary:hover {
   background-color: #e8e8e8;
+}
+
+.btn-danger {
+  background-color: #f44336;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #d32f2f;
+}
+
+.btn-danger:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
 }
 
 .error-message {
