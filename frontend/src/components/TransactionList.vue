@@ -66,8 +66,8 @@
         <div class="card-body">
           <div class="purpose">{{ tx.purpose }}</div>
         </div>
-      </div>
-    </div>
+        </div>
+        </div>
     
     <!-- 登録ボタン -->
     <div class="register-button-container">
@@ -100,14 +100,46 @@
           </div>
           
           <div class="form-group">
-            <label for="purpose">用途 *</label>
-            <input 
-              id="purpose"
-              v-model="form.purpose" 
-              required 
-              class="form-input"
-              placeholder="例: 食費、交通費、雑費など"
-            />
+            <label for="purpose">用途:</label>
+            <div class="input-with-camera">
+              <input 
+                id="purpose" 
+                v-model="form.purpose" 
+                type="text" 
+                required 
+                class="form-input"
+                placeholder="例: 食費、交通費、雑費など"
+              />
+              <button 
+                v-if="!isEditing && isMobile && cameraSupported" 
+                type="button" 
+                @click="openCamera" 
+                class="camera-button"
+                title="レシート撮影"
+              >
+                📷
+              </button>
+              <button 
+                v-if="!isEditing && isMobile && !cameraSupported" 
+                type="button" 
+                @click="showManualInputHelp" 
+                class="help-button"
+                title="手動入力のヒント"
+              >
+                💡
+              </button>
+            </div>
+            <div v-if="isMobile" class="camera-note">
+              <small v-if="cameraSupported">📱 iOSの場合はSafariブラウザをご利用ください</small>
+              <small v-else>📱 カメラ機能が利用できません。手動で入力してください</small>
+              <button 
+                v-if="!cameraSupported" 
+                @click="forceEnableCamera" 
+                class="force-camera-btn"
+              >
+                カメラ機能を強制有効化
+              </button>
+            </div>
           </div>
           
           <div class="form-group">
@@ -147,7 +179,7 @@
                 {{ source.name }}
               </option>
             </select>
-          </div>
+        </div>
           
           <div class="form-actions">
             <button 
@@ -173,8 +205,118 @@
             >
               {{ isSubmitting ? (isEditing ? '更新中...' : '登録中...') : (isEditing ? '更新' : '登録') }}
             </button>
+        </div>
+      </form>
+      </div>
+    </div>
+
+    <!-- カメラモーダル -->
+    <div v-if="showCamera" class="modal-overlay" @click="closeCamera">
+      <div class="camera-modal" @click.stop>
+        <div class="camera-header">
+          <h3>レシート撮影</h3>
+          <button class="close-button" @click="closeCamera">&times;</button>
+        </div>
+        
+        <div class="camera-content">
+          <!-- デバッグ情報表示 -->
+          <div v-if="cameraDebugInfo" class="debug-info">
+            <h4>デバッグ情報</h4>
+            <pre>{{ cameraDebugInfo }}</pre>
+            <button @click="cameraDebugInfo = ''" class="debug-close-btn">閉じる</button>
           </div>
-        </form>
+          
+          <div class="camera-preview">
+            <video 
+              v-if="!capturedImage"
+              ref="videoElement" 
+              autoplay 
+              playsinline
+              muted
+              class="camera-video"
+            ></video>
+            <canvas 
+              ref="canvasElement" 
+              class="camera-canvas"
+              style="display: none;"
+            ></canvas>
+            <div v-if="capturedImage" class="captured-image">
+              <img :src="capturedImage" alt="撮影画像" @load="onImageLoad" @error="onImageError" />
+              <div class="image-debug">
+                <p>画像サイズ: {{ capturedImage.length }} バイト</p>
+                <p>画像URL: {{ capturedImage.substring(0, 50) }}...</p>
+              </div>
+            </div>
+            <div v-if="!cameraReady && !capturedImage" class="camera-loading">
+              <div class="loading-spinner"></div>
+              <p>カメラを起動中...</p>
+              <p v-if="cameraStatus" class="camera-status">{{ cameraStatus }}</p>
+              <button @click="showDebugInfo" class="debug-btn">デバッグ情報</button>
+            </div>
+          </div>
+          
+          <div class="camera-controls">
+            <button 
+              v-if="!capturedImage"
+              @click="captureImage"
+              class="capture-btn"
+              :disabled="!cameraReady"
+            >
+              📸 撮影
+            </button>
+            <button 
+              v-if="capturedImage"
+              @click="retakePhoto"
+              class="retake-btn"
+            >
+              🔄 再撮影
+            </button>
+            <button 
+              v-if="capturedImage"
+              @click="analyzeReceipt"
+              class="analyze-btn"
+              :disabled="isAnalyzing"
+            >
+              {{ isAnalyzing ? '解析中...' : '🔍 レシート解析' }}
+            </button>
+          </div>
+          
+          <!-- 解析結果表示 -->
+          <div v-if="ocrResult" class="ocr-result">
+            <h4>解析結果</h4>
+            <div class="ocr-result-content">
+              <div class="ocr-item">
+                <label>使用日:</label>
+                <span>{{ ocrResult.used_date || '未検出' }}</span>
+              </div>
+              <div class="ocr-item">
+                <label>用途:</label>
+                <span>{{ ocrResult.purpose || '未検出' }}</span>
+              </div>
+              <div class="ocr-item">
+                <label>金額:</label>
+                <span>{{ ocrResult.amount ? `¥${ocrResult.amount.toLocaleString()}` : '未検出' }}</span>
+              </div>
+              <div class="ocr-item">
+                <label>信頼度:</label>
+                <span>{{ Math.round(ocrResult.confidence * 100) }}%</span>
+              </div>
+              <div v-if="ocrResult.note" class="ocr-note">
+                <label>メモ:</label>
+                <span>{{ ocrResult.note }}</span>
+              </div>
+            </div>
+            <div class="ocr-actions">
+              <button @click="applyOcrResult" class="apply-btn">
+                ✅ 結果を適用
+              </button>
+              <button @click="ocrResult = null" class="btn btn-secondary">
+                ❌ 結果を破棄
+              </button>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
     
@@ -203,6 +345,15 @@ interface PaymentSource {
   name: string
 }
 
+interface OcrResult {
+  used_date: string | null
+  purpose: string | null
+  amount: number | null
+  raw_text: string
+  confidence: number
+  note?: string
+}
+
 const transactions = ref<Transaction[]>([])
 const paymentSources = ref<PaymentSource[]>([])
 const error = ref('')
@@ -211,6 +362,19 @@ const isMobile = ref(false)
 const isEditing = ref(false)
 const editingId = ref<number | null>(null)
 const hoveredRow = ref<number | null>(null)
+
+// カメラ関連
+const showCamera = ref(false)
+const cameraReady = ref(false)
+const capturedImage = ref<string | null>(null)
+const isAnalyzing = ref(false)
+const ocrResult = ref<OcrResult | null>(null)
+const videoElement = ref<HTMLVideoElement | null>(null)
+const canvasElement = ref<HTMLCanvasElement | null>(null)
+const cameraDebugInfo = ref('')
+const cameraStatus = ref('')
+const cameraSupported = ref(false)
+let stream: MediaStream | null = null
 
 const form = ref({
   used_date: '',
@@ -227,26 +391,66 @@ const checkMobile = () => {
   isMobile.value = window.innerWidth <= 768
 }
 
-const fetchTransactions = async () => {
-  try {
-    const res = await fetch(buildApiUrl('/transactions'))
-    if (!res.ok) throw new Error('取引取得に失敗しました')
-    transactions.value = await res.json()
-  } catch (e: any) {
-    error.value = e.message
-  }
-}
-
+// データ取得
 const fetchPaymentSources = async () => {
   try {
-    const res = await fetch(buildApiUrl('/payment_sources'))
-    if (!res.ok) throw new Error('支出元取得に失敗しました')
-    paymentSources.value = await res.json()
+    console.log('支払い元データ取得開始')
+    const response = await fetch(buildApiUrl('/payment_sources'))
+    console.log('支払い元データ取得レスポンス:', response.status, response.statusText)
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    console.log('支払い元データ取得成功:', data)
+    paymentSources.value = data
+    
+    // 支払い元が存在する場合、最初のものを選択
     if (paymentSources.value.length > 0 && form.value.payment_source_id === 0) {
       form.value.payment_source_id = paymentSources.value[0].id
     }
   } catch (e: any) {
-    error.value = e.message
+    console.error('支払い元データ取得エラー:', e)
+    error.value = `支払い元データの取得に失敗しました: ${e.message}`
+  }
+}
+
+const fetchTransactions = async () => {
+  try {
+    console.log('取引データ取得開始')
+    const apiUrl = buildApiUrl('/transactions')
+    console.log('API URL:', apiUrl)
+    console.log('現在のプロトコル:', window.location.protocol)
+    console.log('現在のホスト:', window.location.host)
+    
+    const response = await fetch(apiUrl)
+    console.log('取引データ取得レスポンス:', response.status, response.statusText)
+    console.log('レスポンスヘッダー:', Object.fromEntries(response.headers.entries()))
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    console.log('取引データ取得成功:', data)
+    console.log('データ件数:', data.length)
+    transactions.value = data
+  } catch (e: any) {
+    console.error('取引データ取得エラー:', e)
+    console.error('エラータイプ:', e.constructor.name)
+    console.error('エラーメッセージ:', e.message)
+    error.value = `取引データの取得に失敗しました: ${e.message}`
+    
+    // より詳細なエラー情報を追加
+    if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
+      error.value += '\n\nネットワークエラーの可能性があります：\n1. バックエンドサーバーが起動しているか確認\n2. HTTPS証明書が信頼されているか確認\n3. ネットワーク接続を確認\n4. ファイアウォールの設定を確認'
+    }
+    
+    // HTTPS関連のエラー
+    if (window.location.protocol === 'https:') {
+      error.value += '\n\nHTTPS環境での問題の可能性：\n1. スマホの設定 > 一般 > VPNとデバイス管理 > 証明書で信頼設定\n2. Safariで「詳細設定」→「安全でないサイトにアクセス」を選択'
+    }
   }
 }
 
@@ -380,6 +584,524 @@ const deleteTransaction = async () => {
   }
 }
 
+// カメラ機能
+const openCamera = async () => {
+  console.log('カメラ起動開始')
+  console.log('isMobile:', isMobile.value)
+  console.log('isEditing:', isEditing.value)
+  
+  if (!isMobile.value || isEditing.value) {
+    console.log('モバイルでないか、編集中のためカメラを起動しません')
+    return
+  }
+  
+  // まずモーダルを表示
+  showCamera.value = true
+  capturedImage.value = null
+  ocrResult.value = null
+  error.value = ''
+  
+  // 少し待ってからカメラを初期化（DOMの準備を待つ）
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  try {
+    console.log('カメラAPIサポート確認中...')
+    
+    // ブラウザ検出
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
+    const isIOSSafari = isIOS && isSafari
+    const isIOSChrome = isIOS && /Chrome/.test(navigator.userAgent)
+    
+    console.log('ブラウザ情報:', { isIOS, isSafari, isIOSSafari, isIOSChrome })
+    
+    if (isIOSChrome) {
+      error.value = 'お使いのブラウザはカメラ機能をサポートしていません。iOSの場合はSafariブラウザをご利用ください。'
+      return
+    }
+    
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      error.value = 'お使いのブラウザはカメラ機能をサポートしていません。iOSの場合はSafariブラウザをご利用ください。'
+      return
+    }
+    
+    console.log('カメラ権限確認中...')
+    
+    // Safari用の特別な処理
+    if (isIOSSafari) {
+      console.log('iOS Safari用のカメラ初期化')
+      
+      // 基本的な制約でカメラを取得
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment', // 背面カメラ
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      })
+      
+      console.log('iOS Safari カメラストリーム取得完了')
+      
+      if (videoElement.value) {
+        videoElement.value.srcObject = stream
+        
+        // Safari用のイベントリスナー
+        videoElement.value.onloadedmetadata = () => {
+          console.log('iOS Safari: onloadedmetadata')
+          console.log('ビデオサイズ:', videoElement.value?.videoWidth, 'x', videoElement.value?.videoHeight)
+          videoElement.value?.play()
+        }
+        
+        videoElement.value.oncanplay = () => {
+          console.log('iOS Safari: oncanplay')
+          console.log('ビデオ再生可能, サイズ:', videoElement.value?.videoWidth, 'x', videoElement.value?.videoHeight)
+          cameraReady.value = true
+        }
+        
+        videoElement.value.onplay = () => {
+          console.log('iOS Safari: onplay')
+        }
+        
+        videoElement.value.onerror = (e) => {
+          console.error('iOS Safari ビデオエラー:', e)
+        }
+        
+        // 手動で再生を試行
+        try {
+          await videoElement.value.play()
+          console.log('iOS Safari: 手動再生成功')
+        } catch (iosError) {
+          console.error('iOS Safari: 手動再生エラー:', iosError)
+        }
+      }
+    } else {
+      console.log('通常のカメラ初期化')
+      
+      // 通常のカメラ初期化
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      })
+      
+      console.log('通常カメラストリーム取得完了')
+      
+      if (videoElement.value) {
+        videoElement.value.srcObject = stream
+        
+        // ビデオ要素の準備を待つ
+        videoElement.value.onloadedmetadata = () => {
+          console.log('通常: onloadedmetadata')
+          console.log('ビデオサイズ:', videoElement.value?.videoWidth, 'x', videoElement.value?.videoHeight)
+          videoElement.value?.play()
+        }
+        
+        videoElement.value.oncanplay = () => {
+          console.log('通常: oncanplay')
+          console.log('ビデオ再生可能, サイズ:', videoElement.value?.videoWidth, 'x', videoElement.value?.videoHeight)
+          cameraReady.value = true
+        }
+        
+        videoElement.value.onplay = () => {
+          console.log('通常: onplay')
+        }
+        
+        videoElement.value.onerror = (e) => {
+          console.error('ビデオエラー:', e)
+        }
+      }
+    }
+    
+    console.log('カメラ起動完了')
+    
+  } catch (error: any) {
+    console.error('カメラ起動エラー:', error)
+    error.value = `カメラの起動に失敗しました: ${error.message}`
+    
+    // Safari用の権限チェック
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
+    const isIOSSafari = isIOS && isSafari
+    
+    if (isIOSSafari) {
+      try {
+        await navigator.mediaDevices.getUserMedia({ video: true })
+        console.log('Safari権限チェック成功')
+      } catch (permError) {
+        console.error('Safari権限エラー:', permError)
+        error.value = 'カメラ権限が許可されていません。Safariの設定でカメラを許可してください。'
+      }
+    }
+  }
+}
+
+const closeCamera = () => {
+  showCamera.value = false
+  cameraReady.value = false
+  capturedImage.value = null
+  ocrResult.value = null
+  
+  // カメラストリームを停止
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop())
+    stream = null
+  }
+  
+  // ビデオ要素をクリア
+  if (videoElement.value) {
+    videoElement.value.srcObject = null
+  }
+}
+
+const captureImage = () => {
+  console.log('撮影開始')
+  console.log('videoElement:', videoElement.value)
+  console.log('canvasElement:', canvasElement.value)
+  
+  if (!videoElement.value || !canvasElement.value) {
+    console.error('ビデオまたはキャンバス要素が見つかりません')
+    return
+  }
+  
+  const video = videoElement.value
+  const canvas = canvasElement.value
+  const context = canvas.getContext('2d')
+  
+  if (!context) {
+    console.error('キャンバスコンテキストが取得できません')
+    return
+  }
+  
+  console.log('ビデオサイズ:', video.videoWidth, 'x', video.videoHeight)
+  console.log('ビデオ準備状態:', video.readyState)
+  console.log('ビデオ再生状態:', !video.paused)
+  console.log('ビデオの現在時刻:', video.currentTime)
+  
+  // ビデオが準備できていない場合は待機
+  if (video.readyState < 2) {
+    console.log('ビデオが準備できていません。待機します...')
+    video.addEventListener('loadeddata', () => {
+      console.log('ビデオデータ読み込み完了')
+      captureImage()
+    })
+    return
+  }
+  
+  // ビデオサイズが0の場合は待機
+  if (video.videoWidth === 0 || video.videoHeight === 0) {
+    console.log('ビデオサイズが0です。待機します...')
+    setTimeout(() => {
+      console.log('再試行: ビデオサイズ:', video.videoWidth, 'x', video.videoHeight)
+      captureImage()
+    }, 500)
+    return
+  }
+  
+  // キャンバスサイズをビデオサイズに設定
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+  console.log('キャンバスサイズ設定:', canvas.width, 'x', canvas.height)
+  
+  try {
+    // ビデオフレームをキャンバスに描画
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    console.log('画像描画完了')
+    
+    // キャンバスから画像データを取得
+    const imageData = canvas.toDataURL('image/jpeg', 0.8)
+    console.log('画像データURL生成完了, サイズ:', imageData.length)
+    
+    // 画像データが有効かチェック（黒い画像でないか）
+    if (imageData.length < 1000) {
+      console.error('生成された画像データが小さすぎます')
+      error.value = '画像の取得に失敗しました。もう一度お試しください。'
+      return
+    }
+    
+    // 画像データの内容を確認
+    console.log('画像データの先頭部分:', imageData.substring(0, 100))
+    
+    // 画像データを直接設定（テストは後で行う）
+    capturedImage.value = imageData
+    console.log('撮影完了 - 画像データ設定済み')
+    
+    // 撮影後にカメラを停止
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop())
+      console.log('カメラストリーム停止')
+    }
+    
+    // カメラ状態を更新
+    cameraReady.value = false
+    
+    // 画像が実際に表示可能かテスト（非同期）
+    const testImg = new Image()
+    testImg.onload = () => {
+      console.log('テスト画像読み込み成功, サイズ:', testImg.naturalWidth, 'x', testImg.naturalHeight)
+    }
+    testImg.onerror = () => {
+      console.error('テスト画像読み込み失敗')
+      error.value = '画像データの生成に失敗しました'
+    }
+    testImg.src = imageData
+    
+  } catch (error: any) {
+    console.error('撮影エラー:', error)
+    error.value = `撮影に失敗しました: ${error.message}`
+  }
+}
+
+const retakePhoto = () => {
+  capturedImage.value = null
+  ocrResult.value = null
+  
+  // 再撮影時にカメラを再起動
+  cameraReady.value = false
+  openCamera()
+}
+
+// 画像読み込みイベントハンドラー
+const onImageLoad = (event: Event) => {
+  console.log('画像読み込み成功:', event)
+  const img = event.target as HTMLImageElement
+  console.log('画像の実際のサイズ:', img.naturalWidth, 'x', img.naturalHeight)
+}
+
+const onImageError = (event: Event) => {
+  console.error('画像読み込みエラー:', event)
+  error.value = '画像の表示に失敗しました'
+}
+
+// レシート解析関数
+const parseReceipt = async (imageBlob: Blob) => {
+  try {
+    console.log('レシート解析開始')
+    
+    // FormDataを作成
+    const formData = new FormData()
+    formData.append('file', imageBlob, 'receipt.jpg')
+    
+    // APIに送信
+    const apiUrl = buildApiUrl('/parse-receipt')
+    console.log('レシート解析API URL:', apiUrl)
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      body: formData
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const result = await response.json()
+    console.log('OCR解析結果:', result)
+    
+    // 解析結果をocrResultに保存
+    ocrResult.value = result
+    
+    // デバッグ用に生テキストも表示（開発環境のみ）
+    if (import.meta.env.DEV && result.raw_text) {
+      console.log('OCR生テキスト:', result.raw_text)
+    }
+    
+    return result
+    
+  } catch (error: any) {
+    console.error('レシート解析エラー:', error)
+    alert(`レシート解析に失敗しました: ${error.message}`)
+    throw error
+  }
+}
+
+const analyzeReceipt = async () => {
+  if (!capturedImage.value) {
+    alert('先にレシートを撮影してください')
+    return
+  }
+  
+  isAnalyzing.value = true
+  error.value = ''
+  
+  try {
+    // 画像をBlobに変換
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      throw new Error('Canvas context not available')
+    }
+    
+    // 画像要素を作成してサイズを取得
+    const img = new Image()
+    img.src = capturedImage.value
+    await new Promise((resolve) => {
+      img.onload = resolve
+    })
+    
+    canvas.width = img.width
+    canvas.height = img.height
+    ctx.drawImage(img, 0, 0)
+    
+    // Blobに変換して解析を実行
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob)
+        } else {
+          reject(new Error('Failed to create blob from canvas'))
+        }
+      }, 'image/jpeg', 0.8)
+    })
+    
+    // レシート解析を実行
+    const result = await parseReceipt(blob)
+    console.log('解析完了:', result)
+    
+  } catch (e: any) {
+    console.error('レシート解析エラー:', e)
+    error.value = 'レシート解析に失敗しました: ' + e.message
+  } finally {
+    isAnalyzing.value = false
+  }
+}
+
+const applyOcrResult = () => {
+  if (!ocrResult.value) return
+  
+  form.value.purpose = ocrResult.value.purpose || ''
+  form.value.amount = ocrResult.value.amount || 0
+  form.value.used_date = ocrResult.value.used_date || ''
+  
+  closeCamera()
+}
+
+const showManualInputHelp = () => {
+  const helpText = `カメラ機能が利用できない場合の代替案：
+
+1. 手動入力
+   - 使用日: 2023-10-27
+   - 用途: 食費
+   - 金額: 1,200円
+   - メモ: コンビニでの買い物
+
+2. 別のブラウザでカメラ機能をテスト：
+   - Chrome: http://[PCのIPアドレス]:5173
+   - Firefox: http://[PCのIPアドレス]:5173
+   - これらのブラウザではHTTP環境でもカメラ機能が利用可能
+
+3. Safariでカメラ機能を使用する場合：
+   - HTTPS環境が必要（本番環境でのみ利用可能）
+   - 設定 > Safari > カメラで許可
+
+現在の環境: ${window.location.protocol}${window.location.host}`
+
+  alert(helpText)
+}
+
+const showDebugInfo = () => {
+  const oldGetUserMedia = (navigator as any).getUserMedia || 
+                         (navigator as any).webkitGetUserMedia || 
+                         (navigator as any).mozGetUserMedia || 
+                         (navigator as any).msGetUserMedia
+  
+  const debugInfo = {
+    isMobile: isMobile.value,
+    cameraReady: cameraReady.value,
+    showCamera: showCamera.value,
+    stream: stream ? 'Active' : 'None',
+    videoElement: videoElement.value ? 'Found' : 'Not found',
+    videoReadyState: videoElement.value?.readyState || 'N/A',
+    videoWidth: videoElement.value?.videoWidth || 'N/A',
+    videoHeight: videoElement.value?.videoHeight || 'N/A',
+    error: error.value || 'None',
+    userAgent: navigator.userAgent,
+    isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+    isSafari: /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent),
+    mediaDevices: !!navigator.mediaDevices,
+    getUserMedia: !!navigator.mediaDevices?.getUserMedia,
+    oldGetUserMedia: !!oldGetUserMedia,
+    permissions: !!navigator.permissions,
+    currentUrl: window.location.href,
+    protocol: window.location.protocol,
+    host: window.location.host,
+    cameraSupported: cameraSupported.value,
+    timestamp: new Date().toISOString(),
+    // ネットワーク情報
+    connection: (navigator as any).connection ? {
+      effectiveType: (navigator as any).connection.effectiveType,
+      downlink: (navigator as any).connection.downlink,
+      rtt: (navigator as any).connection.rtt
+    } : 'Not supported',
+    // 画面情報
+    screen: {
+      width: window.screen.width,
+      height: window.screen.height,
+      availWidth: window.screen.availWidth,
+      availHeight: window.screen.availHeight
+    },
+    // ウィンドウ情報
+    window: {
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      outerWidth: window.outerWidth,
+      outerHeight: window.outerHeight
+    }
+  }
+  
+  cameraDebugInfo.value = JSON.stringify(debugInfo, null, 2)
+}
+
+// カメラサポートの検出
+const checkCameraSupport = () => {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
+  const isIOSSafari = isIOS && isSafari
+  
+  // 基本的なカメラAPIのサポートチェック
+  const hasMediaDevices = !!navigator.mediaDevices
+  const hasGetUserMedia = !!navigator.mediaDevices?.getUserMedia
+  
+  // 古いAPIのサポートチェック
+  const oldGetUserMedia = (navigator as any).getUserMedia || 
+                         (navigator as any).webkitGetUserMedia || 
+                         (navigator as any).mozGetUserMedia || 
+                         (navigator as any).msGetUserMedia
+  
+  // HTTPS環境のチェック
+  const isHTTPS = window.location.protocol === 'https:'
+  
+  // スマホのSafariでは、HTTP環境でもカメラ機能を試す
+  if (isIOSSafari) {
+    console.log('スマホSafari: カメラ機能を試してみます')
+    // スマホSafariでは強制的に有効化を試す
+    cameraSupported.value = true
+    return
+  }
+  
+  // カメラAPIが利用可能かチェック
+  cameraSupported.value = hasMediaDevices || !!oldGetUserMedia
+  
+  console.log('カメラサポート検出:', {
+    isIOS,
+    isSafari,
+    isIOSSafari,
+    hasMediaDevices,
+    hasGetUserMedia,
+    oldGetUserMedia: !!oldGetUserMedia,
+    isHTTPS,
+    cameraSupported: cameraSupported.value
+  })
+}
+
+const forceEnableCamera = () => {
+  console.log('カメラ機能を強制有効化をクリックしました')
+  // ブラウザの設定を開く
+  const url = `https://${window.location.host}/settings/camera`
+  window.open(url, '_blank')
+}
+
 const sortedTransactions = computed(() => {
   return [...transactions.value].sort((a, b) => {
     if (a.used_date > b.used_date) return -1
@@ -391,7 +1113,9 @@ const sortedTransactions = computed(() => {
   })
 })
 
+// コンポーネントマウント時にカメラサポートをチェック
 onMounted(() => {
+  checkCameraSupport()
   checkMobile()
   window.addEventListener('resize', checkMobile)
   fetchPaymentSources()
@@ -400,6 +1124,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop())
+  }
 })
 </script>
 
@@ -497,6 +1224,329 @@ onUnmounted(() => {
 }
 
 .register-button:hover {
+  background-color: #45a049;
+}
+
+/* カメラボタン */
+.input-with-camera {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.camera-button {
+  padding: 8px 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-button:hover {
+  background-color: #0056b3;
+}
+
+.help-button {
+  padding: 8px 12px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-button:hover {
+  background-color: #5a6268;
+}
+
+.camera-note {
+  margin-top: 4px;
+  color: #666;
+  font-size: 12px;
+}
+
+.camera-note small {
+  color: #888;
+}
+
+.force-camera-btn {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background-color: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.force-camera-btn:hover {
+  background-color: #f57c00;
+}
+
+/* カメラモーダル */
+.camera-modal {
+  background: white;
+  border-radius: 8px;
+  width: 95%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.camera-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 0 24px;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 20px;
+}
+
+.camera-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 20px;
+}
+
+.camera-content {
+  padding: 0 24px 24px 24px;
+}
+
+.camera-preview {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.camera-video,
+.camera-canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.captured-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  position: relative;
+}
+
+.captured-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.image-debug {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 10;
+}
+
+.image-debug p {
+  margin: 2px 0;
+}
+
+.camera-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  z-index: 1;
+}
+
+.camera-status {
+  font-size: 14px;
+  margin-top: 8px;
+  text-align: center;
+  max-width: 90%;
+  word-break: break-word;
+}
+
+.debug-btn {
+  margin-top: 12px;
+  padding: 8px 16px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.debug-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.debug-info {
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.debug-info h4 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.debug-info pre {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}
+
+.debug-close-btn {
+  margin-top: 8px;
+  padding: 4px 8px;
+  background-color: #666;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.debug-close-btn:hover {
+  background-color: #555;
+}
+
+.loading-spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.camera-controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.capture-btn,
+.retake-btn,
+.analyze-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.capture-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.capture-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.retake-btn {
+  background-color: #ff9800;
+  color: white;
+}
+
+.retake-btn:hover {
+  background-color: #f57c00;
+}
+
+.analyze-btn {
+  background-color: #2196F3;
+  color: white;
+}
+
+.analyze-btn:hover:not(:disabled) {
+  background-color: #1976D2;
+}
+
+.analyze-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.apply-btn {
+  padding: 12px 24px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  flex: 1;
+  min-width: 120px;
+  max-width: 150px;
+}
+
+.apply-btn:hover {
   background-color: #45a049;
 }
 
@@ -727,13 +1777,16 @@ onUnmounted(() => {
     margin: 12px 0 20px 0;
   }
   
-  .modal-content {
+  .modal-content,
+  .camera-modal {
     width: 95%;
     margin: 10px;
   }
   
   .modal-header,
-  .modal-form {
+  .modal-form,
+  .camera-header,
+  .camera-content {
     padding-left: 16px;
     padding-right: 16px;
   }
@@ -750,5 +1803,90 @@ onUnmounted(() => {
     width: 100%;
     max-width: 300px;
   }
+  
+  .camera-controls {
+  flex-direction: column;
+}
+
+.capture-btn,
+.retake-btn,
+.analyze-btn {
+  width: 100%;
+}
+
+/* OCR解析結果表示 */
+.ocr-result {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.ocr-result h4 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ocr-result-content {
+  margin-bottom: 16px;
+}
+
+.ocr-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.ocr-item:last-child {
+  border-bottom: none;
+}
+
+.ocr-item label {
+  font-weight: 500;
+  color: #495057;
+  min-width: 80px;
+}
+
+.ocr-item span {
+  color: #333;
+  font-weight: 500;
+}
+
+.ocr-note {
+  margin-top: 8px;
+  padding: 8px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+}
+
+.ocr-note label {
+  font-weight: 500;
+  color: #856404;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.ocr-note span {
+  color: #856404;
+  font-size: 14px;
+}
+
+.ocr-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.ocr-actions .btn {
+  flex: 1;
+  min-width: 120px;
+  max-width: 150px;
+}
 }
 </style>

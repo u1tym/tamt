@@ -1,13 +1,36 @@
-from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy.orm import Session
-import models
-import schemas
-import crud
-from database import SessionLocal, engine
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from typing import List
+import base64
+import io
+from PIL import Image
+import cv2
+import numpy as np
+import pytesseract
+import re
+from datetime import datetime
 
+from database import SessionLocal, engine
+import models
+import crud
+import schemas
+
+# データベーステーブルを作成
 models.Base.metadata.create_all(bind=engine)
 
+app = FastAPI()
+
+# CORS設定
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# データベースセッションの依存関係
 def get_db():
     db = SessionLocal()
     try:
@@ -15,70 +38,302 @@ def get_db():
     finally:
         db.close()
 
-app = FastAPI()
+# レシート解析関数
+def parse_receipt(image_data: bytes) -> dict:
+    """
+    レシート画像を解析して取引情報を抽出
+    """
+    try:
+        # Tesseractが利用可能かチェック
+        try:
+            # Tesseractのパスを明示的に指定
+            pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+            # テスト実行
+            version = pytesseract.get_tesseract_version()
+            print(f"Tesseractバージョン: {version}")
+            
+            # 利用可能な言語を確認
+            try:
+                langs = pytesseract.get_languages()
+                print(f"利用可能な言語: {langs}")
+            except Exception as lang_error:
+                print(f"言語確認エラー: {lang_error}")
+        except Exception as e:
+            print(f"Tesseractエラー: {e}")
+            # モックデータを返す
+            return {
+                'used_date': '2024-07-26',
+                'purpose': 'テスト店舗',
+                'amount': 1000,
+                'raw_text': 'テストレシート\n2024年7月26日\nテスト店舗\n合計: ¥1,000',
+                'confidence': 0.8,
+                'note': 'Tesseractがインストールされていないため、モックデータを返しています'
+            }
+        
+        # 画像をPILで読み込み
+        image = Image.open(io.BytesIO(image_data))
+        
+        # OpenCVで処理するためにnumpy配列に変換
+        cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        
+        # グレースケールに変換
+        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        
+        # ノイズ除去
+        denoised = cv2.medianBlur(gray, 3)
+        
+        # コントラスト改善
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        enhanced = clahe.apply(denoised)
+        
+        # OCRでテキスト抽出
+        text = pytesseract.image_to_string(enhanced, lang='jpn+eng')
+        
+        # 解析結果
+        result = {
+            'used_date': None,
+            'purpose': None,
+            'amount': None,
+            'raw_text': text,
+            'confidence': 0.0
+        }
+        
+        # 日付の抽出（レシート上部を優先的に検索）
+        date_patterns = [
+            # 日本語形式
+            r'(\d{4})年(\d{1,2})月(\d{1,2})日',  # 2024年1月1日
+            r'(\d{1,2})月(\d{1,2})日',  # 1月1日
+            r'(\d{4})年(\d{1,2})月(\d{1,2})',  # 2024年1月1
+            
+            # スラッシュ形式
+            r'(\d{4})/(\d{1,2})/(\d{1,2})',  # 2024/01/01
+            r'(\d{1,2})/(\d{1,2})',  # 01/01
+            
+            # ハイフン形式
+            r'(\d{4})-(\d{1,2})-(\d{1,2})',  # 2024-01-01
+            r'(\d{1,2})-(\d{1,2})',  # 01-01
+            
+            # ドット形式
+            r'(\d{4})\.(\d{1,2})\.(\d{1,2})',  # 2024.01.01
+            r'(\d{1,2})\.(\d{1,2})',  # 01.01
+            
+            # スペース区切り
+            r'(\d{4})\s+(\d{1,2})\s+(\d{1,2})',  # 2024 01 01
+            
+            # より柔軟なパターン
+            r'(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})',  # 1/1/24, 1-1-2024
+            r'(\d{2,4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})',  # 24/1/1, 2024/1/1
+            
+            # 日本語の日付表現
+            r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日',  # 2024年 1月 1日
+            r'(\d{1,2})月\s*(\d{1,2})日',  # 1月 1日
+            
+            # 英語形式
+            r'(\d{1,2})/(\d{1,2})/(\d{2,4})',  # 1/1/24, 1/1/2024
+            r'(\d{2,4})/(\d{1,2})/(\d{1,2})',  # 24/1/1, 2024/1/1
+        ]
+        
+        # レシートの上部部分（最初の15行）を優先的に検索
+        lines = text.split('\n')
+        upper_text = '\n'.join(lines[:15])  # 最初の15行
+        
+        print(f"OCR結果の上部15行: {upper_text}")
+        
+        # 上部部分で日付を検索
+        for i, pattern in enumerate(date_patterns):
+            match = re.search(pattern, upper_text)
+            if match:
+                print(f"日付パターン {i+1} でマッチ: {match.group()}")
+                if len(match.groups()) == 3:
+                    year, month, day = match.groups()
+                    if len(year) == 2:  # 2桁の年の場合
+                        year = '20' + year
+                    result['used_date'] = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                    print(f"3グループ日付抽出: {result['used_date']}")
+                elif len(match.groups()) == 2:
+                    month, day = match.groups()
+                    # 現在の年を使用
+                    current_year = datetime.now().year
+                    result['used_date'] = f"{current_year}-{month.zfill(2)}-{day.zfill(2)}"
+                    print(f"2グループ日付抽出: {result['used_date']}")
+                break
+        
+        # 上部で見つからない場合は全体を検索
+        if not result['used_date']:
+            print("上部で日付が見つからないため、全体を検索")
+            for i, pattern in enumerate(date_patterns):
+                match = re.search(pattern, text)
+                if match:
+                    print(f"全体検索で日付パターン {i+1} でマッチ: {match.group()}")
+                    if len(match.groups()) == 3:
+                        year, month, day = match.groups()
+                        if len(year) == 2:  # 2桁の年の場合
+                            year = '20' + year
+                        result['used_date'] = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                        print(f"全体検索3グループ日付抽出: {result['used_date']}")
+                    elif len(match.groups()) == 2:
+                        month, day = match.groups()
+                        # 現在の年を使用
+                        current_year = datetime.now().year
+                        result['used_date'] = f"{current_year}-{month.zfill(2)}-{day.zfill(2)}"
+                        print(f"全体検索2グループ日付抽出: {result['used_date']}")
+                    break
+        
+        if not result['used_date']:
+            print("日付が見つかりませんでした")
+            print(f"OCR結果全体: {text}")
+        
+        # 金額の抽出
+        amount_patterns = [
+            r'合計[：:]\s*¥?([0-9,]+)',  # 合計: ¥1,000
+            r'税込[：:]\s*¥?([0-9,]+)',  # 税込: ¥1,000
+            r'小計[：:]\s*¥?([0-9,]+)',  # 小計: ¥1,000
+            r'¥([0-9,]+)',  # ¥1,000
+            r'([0-9,]+)円',  # 1,000円
+            r'([0-9,]+)\s*円',  # 1,000 円
+            r'([0-9,]+)',  # 1,000（単独の数字）
+        ]
+        
+        print(f"金額抽出開始 - テキスト: {text}")
+        
+        for i, pattern in enumerate(amount_patterns):
+            matches = re.findall(pattern, text)
+            if matches:
+                print(f"金額パターン {i+1} でマッチ: {matches}")
+                for match in matches:
+                    amount_str = match.replace(',', '')
+                    try:
+                        amount = int(amount_str)
+                        # 妥当な金額範囲かチェック（100円〜100万円）
+                        if 100 <= amount <= 1000000:
+                            result['amount'] = amount
+                            print(f"金額抽出成功: {amount}")
+                            break
+                    except ValueError:
+                        continue
+                if result['amount']:
+                    break
+        
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # localhost
-        "http://127.0.0.1:5173",  # 127.0.0.1
-        "http://0.0.0.0:5173",    # 0.0.0.0
-        # 開発環境ではすべてのオリジンを許可（本番環境では削除することを推奨）
-        "*"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+        
+        # 店舗名/用途の抽出
+        lines = text.split('\n')
+        print(f"店舗名抽出開始 - 行数: {len(lines)}")
+        
+        for i, line in enumerate(lines):
+            line = line.strip()
+            print(f"行 {i+1}: '{line}'")
+            
+            # 店舗名らしき文字列を探す（長すぎず短すぎない行）
+            if 3 <= len(line) <= 30 and not re.search(r'[0-9]', line):
+                # 一般的なレシートの除外語
+                exclude_words = ['レシート', '領収書', '合計', '税込', '小計', '消費税', 'お釣り', '現金', 'カード', 'TAF', 'GS', 'DST']
+                if not any(word in line for word in exclude_words):
+                    result['purpose'] = line
+                    print(f"店舗名抽出成功: {line}")
+                    break
+        
+        # 信頼度の計算（抽出できた項目数で判定）
+        extracted_count = sum(1 for v in [result['used_date'], result['purpose'], result['amount']] if v is not None)
+        result['confidence'] = extracted_count / 3.0
+        
+        return result
+        
+    except Exception as e:
+        return {
+            'used_date': None,
+            'purpose': None,
+            'amount': None,
+            'raw_text': '',
+            'confidence': 0.0,
+            'error': str(e)
+        }
 
-@app.get("/")
-def read_root():
-    return {"message": "Hello, world!"}
+@app.post("/parse-receipt")
+async def parse_receipt_endpoint(file: UploadFile = File(...)):
+    """
+    レシート画像をアップロードして解析
+    """
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="画像ファイルをアップロードしてください")
+    
+    try:
+        # 画像データを読み込み
+        image_data = await file.read()
+        
+        # レシート解析
+        result = parse_receipt(image_data)
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"レシート解析中にエラーが発生しました: {str(e)}")
 
-@app.post("/payment_sources", response_model=schemas.PaymentSource)
-def create_payment_source(source: schemas.PaymentSourceCreate, db: Session = Depends(get_db)):
-    return crud.create_payment_source(db, source)
-
-@app.get("/payment_sources", response_model=list[schemas.PaymentSource])
-def read_payment_sources(db: Session = Depends(get_db)):
-    return crud.get_payment_sources(db)
+# 既存のエンドポイント
+@app.get("/transactions", response_model=List[schemas.Transaction])
+def read_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    transactions = crud.get_transactions(db, skip=skip, limit=limit)
+    return transactions
 
 @app.post("/transactions", response_model=schemas.Transaction)
-def create_transaction(tx: schemas.TransactionCreate, db: Session = Depends(get_db)):
-    return crud.create_transaction(db, tx)
+def create_transaction(transaction: schemas.TransactionCreate, db: Session = Depends(get_db)):
+    return crud.create_transaction(db=db, transaction=transaction)
 
-@app.get("/transactions", response_model=list[schemas.Transaction])
-def read_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_transactions(db, skip=skip, limit=limit)
-
-@app.get("/transactions/{tx_id}", response_model=schemas.Transaction)
-def read_transaction(tx_id: int, db: Session = Depends(get_db)):
-    db_tx = crud.get_transaction(db, tx_id)
-    if db_tx is None:
+@app.put("/transactions/{transaction_id}", response_model=schemas.Transaction)
+def update_transaction(transaction_id: int, transaction: schemas.TransactionUpdate, db: Session = Depends(get_db)):
+    db_transaction = crud.get_transaction(db, transaction_id=transaction_id)
+    if db_transaction is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    return db_tx
+    return crud.update_transaction(db=db, transaction_id=transaction_id, transaction=transaction)
 
-@app.put("/transactions/{tx_id}", response_model=schemas.Transaction)
-def update_transaction(tx_id: int, tx: schemas.TransactionUpdate, db: Session = Depends(get_db)):
-    db_tx = crud.update_transaction(db, tx_id, tx)
-    if db_tx is None:
+@app.delete("/transactions/{transaction_id}")
+def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
+    db_transaction = crud.get_transaction(db, transaction_id=transaction_id)
+    if db_transaction is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    return db_tx
-
-@app.delete("/transactions/{tx_id}")
-def delete_transaction(tx_id: int, db: Session = Depends(get_db)):
-    success = crud.delete_transaction(db, tx_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Transaction not found")
+    crud.delete_transaction(db=db, transaction_id=transaction_id)
     return {"message": "Transaction deleted successfully"}
 
-# 開発サーバー起動用の設定
+@app.get("/payment_sources", response_model=List[schemas.PaymentSource])
+def read_payment_sources(db: Session = Depends(get_db)):
+    payment_sources = crud.get_payment_sources(db)
+    return payment_sources
+
+@app.post("/payment_sources", response_model=schemas.PaymentSource)
+def create_payment_source(payment_source: schemas.PaymentSourceCreate, db: Session = Depends(get_db)):
+    return crud.create_payment_source(db=db, payment_source=payment_source)
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",  # すべてのIPアドレスでアクセス可能
-        port=8000,
-        reload=True,     # 開発時の自動リロード
-        log_level="info"
-    )
+    import ssl
+    import os
+    
+    # 現在のディレクトリを取得
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    cert_file = os.path.join(current_dir, "frontend", "localhost.pem")
+    key_file = os.path.join(current_dir, "frontend", "localhost-key.pem")
+    
+    # 証明書ファイルの存在確認
+    if os.path.exists(cert_file) and os.path.exists(key_file):
+        print("HTTPS証明書を読み込みました")
+        print(f"証明書: {cert_file}")
+        print(f"鍵: {key_file}")
+        uvicorn.run(
+            "main:app", 
+            host="0.0.0.0", 
+            port=8000, 
+            reload=True,
+            ssl_certfile=cert_file,
+            ssl_keyfile=key_file
+        )
+    else:
+        print("HTTPS証明書が見つかりません")
+        print(f"証明書ファイル: {cert_file}")
+        print(f"鍵ファイル: {key_file}")
+        print("HTTPで起動します")
+        uvicorn.run(
+            "main:app", 
+            host="0.0.0.0", 
+            port=8000, 
+            reload=True
+        )

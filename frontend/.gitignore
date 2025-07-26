@@ -14,6 +14,11 @@ dist-ssr
 
 .vite/*
 
+ca.crt
+ca.key
+localhost.pem
+localhost-key.pem
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
