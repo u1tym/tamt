@@ -9,17 +9,17 @@ export const getApiBaseUrl = (): string => {
     // フロントエンドがHTTPSの場合、バックエンドもHTTPS
     if (currentProtocol === 'https:') {
       if (currentPort === '5173') {
-        return `https://${currentHost}:8000`
+        return `https://${currentHost}:8001`
       }
-      return `https://${currentHost}:8000`
+      return `https://${currentHost}:8001`
     }
     
     // フロントエンドが5173ポートの場合、バックエンドは8000ポート
     if (currentPort === '5173') {
-      return `http://${currentHost}:8000`
+      return `http://${currentHost}:8001`
     }
-    // その他の場合はlocalhost:8000を使用
-    return 'http://localhost:8000'
+    // その他の場合はlocalhost:8001を使用
+    return 'http://localhost:8001'
   }
   // 本番環境では相対パスを使用
   return ''
