@@ -1,6 +1,15 @@
 <template>
   <div>
     <h2 class="page-title">取引一覧</h2>
+    <!-- 登録ボタン（表の上に移動） -->
+    <div class="register-button-container">
+      <button 
+        @click="showDialog = true"
+        class="register-button"
+      >
+        ＋ 新規取引登録
+      </button>
+    </div>
     
     <!-- デスクトップ用のテーブル -->
     <table v-if="!isMobile" border="1" cellspacing="0" cellpadding="4" class="transaction-table">
@@ -69,16 +78,6 @@
         </div>
         </div>
     
-    <!-- 登録ボタン -->
-    <div class="register-button-container">
-      <button 
-        @click="showDialog = true"
-        class="register-button"
-      >
-        ＋ 新規取引登録
-      </button>
-    </div>
-
     <!-- 全画面モーダルダイアログ（新規登録・編集共通） -->
     <div v-if="showDialog" class="modal-overlay" @click="closeDialog">
       <div class="modal-content" @click.stop>
