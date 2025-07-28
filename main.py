@@ -277,7 +277,7 @@ def read_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get
 
 @app.post("/transactions", response_model=schemas.Transaction)
 def create_transaction(transaction: schemas.TransactionCreate, db: Session = Depends(get_db)):
-    return crud.create_transaction(db=db, transaction=transaction)
+    return crud.create_transaction(db=db, tx=transaction)
 
 @app.put("/transactions/{transaction_id}", response_model=schemas.Transaction)
 def update_transaction(transaction_id: int, transaction: schemas.TransactionUpdate, db: Session = Depends(get_db)):
