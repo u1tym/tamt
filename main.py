@@ -281,14 +281,14 @@ def create_transaction(transaction: schemas.TransactionCreate, db: Session = Dep
 
 @app.put("/transactions/{transaction_id}", response_model=schemas.Transaction)
 def update_transaction(transaction_id: int, transaction: schemas.TransactionUpdate, db: Session = Depends(get_db)):
-    db_transaction = crud.get_transaction(db, transaction_id=transaction_id)
+    db_transaction = crud.get_transaction(db, tx_id=transaction_id)
     if db_transaction is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    return crud.update_transaction(db=db, transaction_id=transaction_id, transaction=transaction)
+    return crud.update_transaction(db=db, tx_id=transaction_id, tx=transaction)
 
 @app.delete("/transactions/{transaction_id}")
 def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
-    db_transaction = crud.get_transaction(db, transaction_id=transaction_id)
+    db_transaction = crud.get_transaction(db, tx_id=transaction_id)
     if db_transaction is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
     crud.delete_transaction(db=db, transaction_id=transaction_id)
