@@ -384,6 +384,33 @@ def read_payment_sources(db: Session = Depends(get_db)):
 def create_payment_source(payment_source: schemas.PaymentSourceCreate, db: Session = Depends(get_db)):
     return crud.create_payment_source(db=db, source=payment_source)
 
+@app.put("/payment_sources/{payment_source_id}", response_model=schemas.PaymentSource)
+def update_payment_source(payment_source_id: int, payment_source: schemas.PaymentSourceCreate, db: Session = Depends(get_db)):
+    db_payment_source = crud.get_payment_source(db, source_id=payment_source_id)
+    if db_payment_source is None:
+        raise HTTPException(status_code=404, detail="Payment source not found")
+    return crud.update_payment_source(db=db, source_id=payment_source_id, source=payment_source)
+
+@app.delete("/payment_sources/{payment_source_id}")
+def delete_payment_source(payment_source_id: int, db: Session = Depends(get_db)):
+    db_payment_source = crud.get_payment_source(db, source_id=payment_source_id)
+    if db_payment_source is None:
+        raise HTTPException(status_code=404, detail="Payment source not found")
+
+    # 関連する取引があるかチェック
+    related_transactions = db.query(models.Transaction).filter(
+        models.Transaction.payment_source_id == payment_source_id
+    ).first()
+
+    if related_transactions:
+        raise HTTPException(
+            status_code=400,
+            detail="この支出元に関連する取引が存在するため削除できません。先に関連する取引を削除してください。"
+        )
+
+    crud.delete_payment_source(db=db, source_id=payment_source_id)
+    return {"message": "Payment source deleted successfully"}
+
 if __name__ == "__main__":
     import uvicorn
     import ssl

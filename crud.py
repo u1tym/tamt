@@ -42,6 +42,28 @@ def get_payment_sources(db: Session):
 def get_payment_source(db: Session, source_id: int):
     return db.query(models.PaymentSource).filter(models.PaymentSource.id == source_id).first()
 
+def update_payment_source(db: Session, source_id: int, source: schemas.PaymentSourceCreate):
+    db_source = get_payment_source(db, source_id)
+    if db_source is None:
+        return None
+
+    # データベースのレコードを更新
+    for field, value in source.dict().items():
+        setattr(db_source, field, value)
+
+    db.commit()
+    db.refresh(db_source)
+    return db_source
+
+def delete_payment_source(db: Session, source_id: int):
+    db_source = get_payment_source(db, source_id)
+    if db_source is None:
+        return False
+
+    db.delete(db_source)
+    db.commit()
+    return True
+
 # Transaction CRUD
 
 def create_transaction(db: Session, tx: schemas.TransactionCreate):
@@ -63,21 +85,21 @@ def update_transaction(db: Session, tx_id: int, tx: schemas.TransactionUpdate):
     db_tx = get_transaction(db, tx_id)
     if db_tx is None:
         return None
-    
+
     # 更新データを辞書に変換
     update_data = tx.dict(exclude_unset=True)
-    
+
     # 支払日の再計算が必要な場合
     if 'used_date' in update_data or 'payment_source_id' in update_data:
         source = get_payment_source(db, update_data.get('payment_source_id', db_tx.payment_source_id))
         used_date = update_data.get('used_date', db_tx.used_date)
         paid_date = calculate_paid_date(used_date, source.closing_day, source.pay_month_diff, source.pay_day)
         update_data['paid_date'] = paid_date
-    
+
     # データベースのレコードを更新
     for field, value in update_data.items():
         setattr(db_tx, field, value)
-    
+
     db.commit()
     db.refresh(db_tx)
     return db_tx
@@ -86,7 +108,7 @@ def delete_transaction(db: Session, tx_id: int):
     db_tx = get_transaction(db, tx_id)
     if db_tx is None:
         return False
-    
+
     db.delete(db_tx)
     db.commit()
     return True
