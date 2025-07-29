@@ -531,6 +531,13 @@ def calculate_payment_date(request: schemas.PaymentDateRequest, db: Session = De
         print(f"DEBUG: Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error calculating payment date: {e}")
 
+@app.get("/budget-names")
+def get_budget_names(year: int, month: int, db: Session = Depends(get_db)):
+    """指定年月の予算名称一覧を取得"""
+    budgets = crud.get_budgets_by_year_month(db, target_year=year, target_month=month)
+    names = [b.name for b in budgets]
+    return {"names": names}
+
 if __name__ == "__main__":
     import uvicorn
     import ssl

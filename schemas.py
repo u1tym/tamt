@@ -22,6 +22,7 @@ class TransactionBase(BaseModel):
     memo: Optional[str] = None
     amount: float
     payment_source_id: int
+    budget_name: Optional[str] = '未分類'
 
 class TransactionCreate(TransactionBase):
     paid_date: Optional[date] = None
@@ -33,6 +34,7 @@ class TransactionUpdate(BaseModel):
     amount: Optional[float] = None
     payment_source_id: Optional[int] = None
     paid_date: Optional[date] = None
+    budget_name: Optional[str] = '未分類'
 
 class Transaction(TransactionBase):
     id: int

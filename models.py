@@ -23,6 +23,7 @@ class Transaction(Base):
     payment_source_id = Column(Integer, ForeignKey('payment_sources.id'), nullable=False)  # 支出元
     payment_source = relationship("PaymentSource", back_populates="transactions")
     paid_date = Column(Date, nullable=False)  # 支払日（自動計算）
+    budget_name = Column(String, nullable=False, default='未分類')  # 予算名称（追加）
     created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
 

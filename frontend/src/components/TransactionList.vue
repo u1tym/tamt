@@ -47,6 +47,7 @@
           <th style="text-align:center;">金額</th>
           <th>支出元</th>
           <th>支払日</th>
+          <th>予算名称</th>
           <th class="action-header">操作</th>
         </tr>
       </thead>
@@ -64,6 +65,7 @@
           <td style="text-align:right;">{{ formatAmount(tx.amount) }}円</td>
           <td>{{ getPaymentSourceName(tx.payment_source_id) }}</td>
           <td>{{ tx.paid_date }}</td>
+          <td>{{ tx.budget_name || '未分類' }}</td>
           <td class="action-cell">
             <div v-if="hoveredRow === tx.id" class="action-buttons">
               <button
@@ -100,6 +102,7 @@
         </div>
         <div class="card-body">
           <div class="purpose">{{ tx.purpose }}</div>
+          <div class="budget-name">予算: {{ tx.budget_name || '未分類' }}</div>
         </div>
         </div>
         </div>
@@ -214,6 +217,13 @@
               <span v-if="form.paid_date" class="payment-date-text">{{ form.paid_date }}</span>
               <span v-else class="payment-date-placeholder">使用日と支出元を選択すると自動計算されます</span>
             </div>
+          </div>
+
+          <div class="form-group">
+            <label for="budget_name">予算名称</label>
+            <select id="budget_name" v-model="form.budget_name" class="form-select">
+              <option v-for="name in budgetNameOptions" :key="name" :value="name">{{ name }}</option>
+            </select>
           </div>
 
           <div class="form-actions">
@@ -360,7 +370,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { buildApiUrl } from '../utils/api'
 
 interface Transaction {
@@ -373,6 +383,7 @@ interface Transaction {
   paid_date: string
   created_at: string
   updated_at: string
+  budget_name?: string
 }
 
 interface PaymentSource {
@@ -443,7 +454,10 @@ const form = ref({
   amount: 0,
   payment_source_id: 0,
   paid_date: '',
+  budget_name: '未分類',
 })
+
+const budgetNameOptions = ref<string[]>(['未分類'])
 
 const showDialog = ref(false)
 
@@ -584,7 +598,8 @@ const resetForm = () => {
     memo: '',
     amount: 0,
     payment_source_id: paymentSources.value[0]?.id || 0,
-    paid_date: ''
+    paid_date: '',
+    budget_name: '未分類',
   }
   isEditing.value = false
   editingId.value = null
@@ -606,6 +621,7 @@ const editTransaction = (transaction: Transaction) => {
     amount: transaction.amount,
     payment_source_id: transaction.payment_source_id,
     paid_date: transaction.paid_date || '',
+    budget_name: transaction.budget_name || '未分類',
   }
   showDialog.value = true
 }
@@ -1222,6 +1238,33 @@ const forceEnableCamera = () => {
   window.open(url, '_blank')
 }
 
+// 支払日が確定したら予算名称一覧を取得
+const fetchBudgetNames = async () => {
+  if (!form.value.paid_date) {
+    budgetNameOptions.value = ['未分類']
+    form.value.budget_name = '未分類'
+    return
+  }
+  const paid = new Date(form.value.paid_date)
+  const year = paid.getFullYear()
+  const month = paid.getMonth() + 1
+  try {
+    const res = await fetch(buildApiUrl(`/budget-names?year=${year}&month=${month}`))
+    if (!res.ok) throw new Error('予算名称取得に失敗')
+    const data = await res.json()
+    budgetNameOptions.value = ['未分類', ...(data.names || [])]
+    if (!budgetNameOptions.value.includes(form.value.budget_name)) {
+      form.value.budget_name = '未分類'
+    }
+  } catch {
+    budgetNameOptions.value = ['未分類']
+    form.value.budget_name = '未分類'
+  }
+}
+
+// 支払日が確定したら呼ぶ
+watch(() => form.value.paid_date, fetchBudgetNames)
+
 const sortedTransactions = computed(() => {
   return [...transactions.value].sort((a, b) => {
     if (a.used_date > b.used_date) return -1
@@ -1725,6 +1768,12 @@ onUnmounted(() => {
   color: #333;
   font-weight: 500;
   line-height: 1.4;
+}
+
+.budget-name {
+  font-size: 14px;
+  color: #666;
+  margin-top: 4px;
 }
 
 /* モーダル関連のスタイル */

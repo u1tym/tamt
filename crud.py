@@ -262,7 +262,7 @@ def create_transaction(db: Session, tx: schemas.TransactionCreate):
     else:
         paid_date = tx.paid_date
 
-    db_tx = models.Transaction(**tx.dict(exclude={'paid_date'}), paid_date=paid_date)
+    db_tx = models.Transaction(**tx.dict(exclude={'paid_date', 'budget_name'}), paid_date=paid_date, budget_name=tx.budget_name or '未分類')
     db.add(db_tx)
     db.commit()
     db.refresh(db_tx)
@@ -296,6 +296,9 @@ def update_transaction(db: Session, tx_id: int, tx: schemas.TransactionUpdate):
     # データベースのレコードを更新
     for field, value in update_data.items():
         setattr(db_tx, field, value)
+    # budget_nameが未設定なら'未分類'に
+    if not getattr(db_tx, 'budget_name', None):
+        db_tx.budget_name = '未分類'
 
     db.commit()
     db.refresh(db_tx)

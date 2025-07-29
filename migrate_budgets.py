@@ -46,5 +46,37 @@ def migrate_budgets_table():
             conn.rollback()
             raise
 
+def migrate_transactions_table():
+    """transactionsテーブルにbudget_nameカラムを追加"""
+    engine = create_engine(DATABASE_URL)
+
+    with engine.connect() as conn:
+        try:
+            # budget_nameカラムが存在するかチェック
+            result = conn.execute(text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'transactions' AND column_name = 'budget_name'
+            """))
+
+            if result.fetchone():
+                print("budget_nameカラムは既に存在します")
+                return
+
+            # budget_nameカラムを追加
+            conn.execute(text("""
+                ALTER TABLE transactions
+                ADD COLUMN budget_name VARCHAR NOT NULL DEFAULT '未分類'
+            """))
+
+            conn.commit()
+            print("budget_nameカラムを正常に追加しました")
+
+        except Exception as e:
+            print(f"マイグレーションエラー: {e}")
+            conn.rollback()
+            raise
+
 if __name__ == "__main__":
     migrate_budgets_table()
+    migrate_transactions_table()
