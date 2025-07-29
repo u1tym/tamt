@@ -11,6 +11,7 @@ import pytesseract
 import re
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
+from sqlalchemy import func
 
 from database import SessionLocal, engine
 import models
@@ -537,6 +538,28 @@ def get_budget_names(year: int, month: int, db: Session = Depends(get_db)):
     budgets = crud.get_budgets_by_year_month(db, target_year=year, target_month=month)
     names = [b.name for b in budgets]
     return {"names": names}
+
+@app.get("/budgets/{year}/{month}/summary")
+def get_budget_summaries(year: int, month: int, db: Session = Depends(get_db)):
+    """指定年月の各予算名称ごとに支払日が対象期間内の取引合計金額を返す"""
+    # 期間計算（24日～翌月23日）
+    from datetime import date
+    from dateutil.relativedelta import relativedelta
+    start_date = date(year, month, 24)
+    if month == 12:
+        end_date = date(year + 1, 1, 23)
+    else:
+        end_date = date(year, month + 1, 23)
+    # 取引を集計
+    results = db.query(
+        models.Transaction.budget_name,
+        func.sum(models.Transaction.amount).label('total')
+    ).filter(
+        models.Transaction.paid_date >= start_date,
+        models.Transaction.paid_date <= end_date
+    ).group_by(models.Transaction.budget_name).all()
+    # 返却形式を整形
+    return [{"name": r.budget_name, "total": float(r.total or 0)} for r in results]
 
 if __name__ == "__main__":
     import uvicorn

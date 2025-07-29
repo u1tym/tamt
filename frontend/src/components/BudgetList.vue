@@ -45,9 +45,10 @@
     <table border="1" cellspacing="0" cellpadding="4" class="budget-table">
       <thead>
         <tr>
-          <th style="text-align:center;">名称</th>
-          <th style="text-align:center;">金額</th>
-          <th class="action-header">操作</th>
+          <th style="text-align:center; width: 40%;">名称</th>
+          <th style="text-align:center; width: 15%;">金額</th>
+          <th style="text-align:center; width: 15%;">集計金額</th>
+          <th class="action-header" style="width: 15%;">操作</th>
         </tr>
       </thead>
       <tbody>
@@ -58,9 +59,10 @@
           @mouseenter="hoveredRow = budget.id"
           @mouseleave="hoveredRow = null"
         >
-          <td>{{ budget.name }}</td>
-          <td style="text-align:right;">{{ formatAmount(budget.amount) }}円</td>
-                    <td class="action-cell">
+          <td style="width: 40%;">{{ budget.name }}</td>
+          <td style="text-align:right; width: 15%;">{{ formatAmount(budget.amount) }}円</td>
+          <td style="text-align:right; width: 15%;">{{ formatAmount(getSummaryAmount(budget.name)) }}円</td>
+          <td class="action-cell" style="width: 15%;">
             <div v-if="hoveredRow === budget.id" class="action-buttons">
                             <button
                 @click="moveBudgetUp(budget)"
@@ -94,6 +96,12 @@
               </button>
             </div>
           </td>
+        </tr>
+        <tr class="table-row unclassified-row">
+          <td style="width: 40%;">未分類</td>
+          <td style="width: 15%;"></td>
+          <td style="text-align:right; width: 15%;">{{ formatAmount(getSummaryAmount('未分類')) }}円</td>
+          <td class="action-cell" style="width: 15%;"></td>
         </tr>
       </tbody>
     </table>
@@ -267,6 +275,7 @@ const editingId = ref<number | null>(null)
 const hoveredRow = ref<number | null>(null)
 const showDialog = ref(false)
 const showCopyDialog = ref(false)
+const budgetSummaries = ref<{ [name: string]: number }>({})
 
 // 現在の年月を初期値に設定
 const currentDate = new Date()
@@ -295,11 +304,32 @@ const copyForm = ref({
   targetMonth: currentDate.getMonth() + 1,
 })
 
+const fetchBudgetSummaries = async () => {
+  try {
+    const res = await fetch(buildApiUrl(`/budgets/${selectedYear.value}/${selectedMonth.value}/summary`))
+    if (!res.ok) throw new Error('集計取得に失敗')
+    const data = await res.json()
+    const map: { [name: string]: number } = {}
+    for (const item of data) {
+      map[item.name] = item.total
+    }
+    budgetSummaries.value = map
+  } catch {
+    budgetSummaries.value = {}
+  }
+}
+
+const getSummaryAmount = (name: string) => {
+  return budgetSummaries.value[name] || 0
+}
+
+// fetchBudgetsの後にfetchBudgetSummariesも呼ぶ
 const fetchBudgets = async () => {
   try {
     const res = await fetch(buildApiUrl(`/budgets/${selectedYear.value}/${selectedMonth.value}`))
     if (!res.ok) throw new Error('予算取得に失敗しました')
     budgets.value = await res.json()
+    await fetchBudgetSummaries()
   } catch (e: any) {
     error.value = e.message
   }
@@ -642,12 +672,12 @@ onMounted(() => {
 }
 
 .action-header {
-  width: 120px;
+  width: 15%;
   text-align: center;
 }
 
 .action-cell {
-  width: 120px;
+  width: 15%;
   text-align: center;
   padding: 8px 4px !important;
 }
@@ -925,6 +955,11 @@ onMounted(() => {
   border-radius: 4px;
   margin-top: 16px;
   border: 1px solid #ffcdd2;
+}
+
+.unclassified-row td {
+  background: #f8f9fa;
+  font-weight: 600;
 }
 
 /* レスポンシブ対応 */
