@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h2 class="page-title">取引一覧</h2>
+
 
     <!-- 支払い額集計表示 -->
     <div v-if="paymentSummary" class="payment-summary">
@@ -2184,5 +2184,20 @@ onUnmounted(() => {
   min-width: 120px;
   max-width: 150px;
 }
+}
+.back-btn {
+  margin-bottom: 24px;
+  padding: 12px 32px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #4CAF50;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.back-btn:hover {
+  background: #388e3c;
 }
 </style>

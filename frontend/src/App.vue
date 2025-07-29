@@ -26,40 +26,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app-container">
-    <!-- スマホ用の小さなタイトル -->
-    <h1 class="app-title">出納管理</h1>
-
-    <!-- デスクトップ用のタブ切り替え -->
-    <div v-if="!isMobile" class="tab-container">
-      <button
-        @click="currentTab = 'transaction'"
-        :class="{ active: currentTab === 'transaction' }"
-        class="tab-button"
-      >
-        取引管理
-      </button>
-      <button
-        @click="currentTab = 'budget'"
-        :class="{ active: currentTab === 'budget' }"
-        class="tab-button"
-      >
-        予算管理
-      </button>
-      <button
-        @click="currentTab = 'payment'"
-        :class="{ active: currentTab === 'payment' }"
-        class="tab-button"
-      >
-        支出元管理
-      </button>
-    </div>
-
-    <!-- コンテンツ表示 -->
-    <PaymentSourceList v-if="!isMobile && currentTab === 'payment'" />
-    <BudgetList v-else-if="!isMobile && currentTab === 'budget'" />
-    <TransactionList v-else />
-  </div>
+  <router-view />
 </template>
 
 <style scoped>
