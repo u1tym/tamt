@@ -105,7 +105,9 @@ def create_budget(db: Session, budget: schemas.BudgetCreate):
 
     new_order = (max_order or -1) + 1
 
-    db_budget = models.Budget(**budget.dict(), order_index=new_order)
+    budget_data = budget.dict()
+    budget_data.pop("order_index", None)  # 既存の order_index を除外
+    db_budget = models.Budget(**budget_data, order_index=new_order)
     db.add(db_budget)
     db.commit()
     db.refresh(db_budget)
