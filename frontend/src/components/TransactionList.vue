@@ -1,16 +1,42 @@
 <template>
   <div>
     <h2 class="page-title">取引一覧</h2>
+
+    <!-- 支払い額集計表示 -->
+    <div v-if="paymentSummary" class="payment-summary">
+      <h3 class="summary-title">支払い額集計</h3>
+      <div class="summary-grid">
+        <div class="summary-card current-month">
+          <div class="summary-label">当月</div>
+          <div class="summary-period">{{ paymentSummary.current_month?.period }}</div>
+          <div class="summary-amount">{{ formatAmount(paymentSummary.current_month?.total_amount || 0) }}円</div>
+          <div class="summary-count">({{ paymentSummary.current_month?.transaction_count || 0 }}件)</div>
+        </div>
+        <div class="summary-card next-month">
+          <div class="summary-label">翌月</div>
+          <div class="summary-period">{{ paymentSummary.next_month?.period }}</div>
+          <div class="summary-amount">{{ formatAmount(paymentSummary.next_month?.total_amount || 0) }}円</div>
+          <div class="summary-count">({{ paymentSummary.next_month?.transaction_count || 0 }}件)</div>
+        </div>
+        <div class="summary-card next-next-month">
+          <div class="summary-label">翌々月</div>
+          <div class="summary-period">{{ paymentSummary.next_next_month?.period }}</div>
+          <div class="summary-amount">{{ formatAmount(paymentSummary.next_next_month?.total_amount || 0) }}円</div>
+          <div class="summary-count">({{ paymentSummary.next_next_month?.transaction_count || 0 }}件)</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 登録ボタン（表の上に移動） -->
     <div class="register-button-container">
-      <button 
+      <button
         @click="showDialog = true"
         class="register-button"
       >
         ＋ 新規取引登録
       </button>
     </div>
-    
+
     <!-- デスクトップ用のテーブル -->
     <table v-if="!isMobile" border="1" cellspacing="0" cellpadding="4" class="transaction-table">
       <thead>
@@ -25,9 +51,9 @@
         </tr>
       </thead>
       <tbody>
-        <tr 
-          v-for="tx in sortedTransactions" 
-          :key="tx.id" 
+        <tr
+          v-for="tx in sortedTransactions"
+          :key="tx.id"
           class="table-row"
           @mouseenter="hoveredRow = tx.id"
           @mouseleave="hoveredRow = null"
@@ -40,14 +66,14 @@
           <td>{{ tx.paid_date }}</td>
           <td class="action-cell">
             <div v-if="hoveredRow === tx.id" class="action-buttons">
-              <button 
+              <button
                 @click="editTransaction(tx)"
                 class="action-btn edit-btn"
                 title="編集"
               >
                 ✏️
               </button>
-              <button 
+              <button
                 @click="deleteTransactionDirect(tx)"
                 class="action-btn delete-btn"
                 title="削除"
@@ -59,12 +85,12 @@
         </tr>
       </tbody>
     </table>
-    
+
     <!-- スマホ用のカード表示 -->
     <div v-else class="mobile-transactions">
-      <div 
-        v-for="tx in sortedTransactions" 
-        :key="tx.id" 
+      <div
+        v-for="tx in sortedTransactions"
+        :key="tx.id"
         class="transaction-card"
         @click="editTransaction(tx)"
       >
@@ -77,7 +103,7 @@
         </div>
         </div>
         </div>
-    
+
     <!-- 全画面モーダルダイアログ（新規登録・編集共通） -->
     <div v-if="showDialog" class="modal-overlay" @click="closeDialog">
       <div class="modal-content" @click.stop>
@@ -85,43 +111,43 @@
           <h3>{{ isEditing ? '取引編集' : '新規取引登録' }}</h3>
           <button class="close-button" @click="closeDialog">&times;</button>
         </div>
-        
+
         <form @submit.prevent="isEditing ? updateTransaction() : addTransaction()" class="modal-form">
           <div class="form-group">
             <label for="used_date">使用日 *</label>
-            <input 
+            <input
               id="used_date"
-              type="date" 
-              v-model="form.used_date" 
-              required 
+              type="date"
+              v-model="form.used_date"
+              required
               class="form-input"
             />
           </div>
-          
+
           <div class="form-group">
             <label for="purpose">用途:</label>
             <div class="input-with-camera">
-              <input 
-                id="purpose" 
-                v-model="form.purpose" 
-                type="text" 
-                required 
+              <input
+                id="purpose"
+                v-model="form.purpose"
+                type="text"
+                required
                 class="form-input"
                 placeholder="例: 食費、交通費、雑費など"
               />
-              <button 
-                v-if="!isEditing && isMobile && cameraSupported" 
-                type="button" 
-                @click="openCamera" 
+              <button
+                v-if="!isEditing && isMobile && cameraSupported"
+                type="button"
+                @click="openCamera"
                 class="camera-button"
                 title="レシート撮影"
               >
                 📷
               </button>
-              <button 
-                v-if="!isEditing && isMobile && !cameraSupported" 
-                type="button" 
-                @click="showManualInputHelp" 
+              <button
+                v-if="!isEditing && isMobile && !cameraSupported"
+                type="button"
+                @click="showManualInputHelp"
                 class="help-button"
                 title="手動入力のヒント"
               >
@@ -131,46 +157,46 @@
             <div v-if="isMobile" class="camera-note">
               <small v-if="cameraSupported">📱 iOSの場合はSafariブラウザをご利用ください</small>
               <small v-else>📱 カメラ機能が利用できません。手動で入力してください</small>
-              <button 
-                v-if="!cameraSupported" 
-                @click="forceEnableCamera" 
+              <button
+                v-if="!cameraSupported"
+                @click="forceEnableCamera"
                 class="force-camera-btn"
               >
                 カメラ機能を強制有効化
               </button>
             </div>
           </div>
-          
+
           <div class="form-group">
             <label for="memo">メモ</label>
-            <textarea 
+            <textarea
               id="memo"
-              v-model="form.memo" 
-              rows="3" 
+              v-model="form.memo"
+              rows="3"
               class="form-textarea"
               placeholder="詳細なメモがあれば入力してください"
             ></textarea>
           </div>
-          
+
           <div class="form-group">
             <label for="amount">金額 *</label>
-            <input 
+            <input
               id="amount"
-              type="number" 
-              v-model.number="form.amount" 
-              required 
+              type="number"
+              v-model.number="form.amount"
+              required
               class="form-input"
               placeholder="0"
               min="0"
             />
           </div>
-          
+
           <div class="form-group">
             <label for="payment_source">支出元 *</label>
-            <select 
+            <select
               id="payment_source"
-              v-model.number="form.payment_source_id" 
-              required 
+              v-model.number="form.payment_source_id"
+              required
               class="form-select"
             >
               <option value="">選択してください</option>
@@ -179,16 +205,16 @@
               </option>
             </select>
         </div>
-          
+
           <div class="form-actions">
-            <button 
-              type="button" 
+            <button
+              type="button"
               @click="closeDialog"
               class="btn btn-secondary"
             >
               キャンセル
             </button>
-            <button 
+            <button
               v-if="isEditing"
               type="button"
               @click="deleteTransaction"
@@ -197,7 +223,7 @@
             >
               削除
             </button>
-            <button 
+            <button
               type="submit"
               class="btn btn-primary"
               :disabled="isSubmitting"
@@ -216,7 +242,7 @@
           <h3>レシート撮影</h3>
           <button class="close-button" @click="closeCamera">&times;</button>
         </div>
-        
+
         <div class="camera-content">
           <!-- デバッグ情報表示 -->
           <div v-if="cameraDebugInfo" class="debug-info">
@@ -224,18 +250,18 @@
             <pre>{{ cameraDebugInfo }}</pre>
             <button @click="cameraDebugInfo = ''" class="debug-close-btn">閉じる</button>
           </div>
-          
+
           <div class="camera-preview">
-            <video 
+            <video
               v-if="!capturedImage"
-              ref="videoElement" 
-              autoplay 
+              ref="videoElement"
+              autoplay
               playsinline
               muted
               class="camera-video"
             ></video>
-            <canvas 
-              ref="canvasElement" 
+            <canvas
+              ref="canvasElement"
               class="camera-canvas"
               style="display: none;"
             ></canvas>
@@ -253,9 +279,9 @@
               <button @click="showDebugInfo" class="debug-btn">デバッグ情報</button>
             </div>
           </div>
-          
+
           <div class="camera-controls">
-            <button 
+            <button
               v-if="!capturedImage"
               @click="captureImage"
               class="capture-btn"
@@ -263,14 +289,14 @@
             >
               📸 撮影
             </button>
-            <button 
+            <button
               v-if="capturedImage"
               @click="retakePhoto"
               class="retake-btn"
             >
               🔄 再撮影
             </button>
-            <button 
+            <button
               v-if="capturedImage"
               @click="analyzeReceipt"
               class="analyze-btn"
@@ -279,7 +305,7 @@
               {{ isAnalyzing ? '解析中...' : '🔍 レシート解析' }}
             </button>
           </div>
-          
+
           <!-- 解析結果表示 -->
           <div v-if="ocrResult" class="ocr-result">
             <h4>解析結果</h4>
@@ -318,7 +344,7 @@
         </div>
       </div>
     </div>
-    
+
     <div v-if="error" class="error-message">{{ error }}</div>
   </div>
 </template>
@@ -344,6 +370,30 @@ interface PaymentSource {
   name: string
 }
 
+interface PaymentSummary {
+  current_month?: {
+    period: string
+    start_date: string
+    end_date: string
+    total_amount: number
+    transaction_count: number
+  }
+  next_month?: {
+    period: string
+    start_date: string
+    end_date: string
+    total_amount: number
+    transaction_count: number
+  }
+  next_next_month?: {
+    period: string
+    start_date: string
+    end_date: string
+    total_amount: number
+    transaction_count: number
+  }
+}
+
 interface OcrResult {
   used_date: string | null
   purpose: string | null
@@ -355,6 +405,7 @@ interface OcrResult {
 
 const transactions = ref<Transaction[]>([])
 const paymentSources = ref<PaymentSource[]>([])
+const paymentSummary = ref<PaymentSummary | null>(null)
 const error = ref('')
 const isSubmitting = ref(false)
 const isMobile = ref(false)
@@ -396,15 +447,15 @@ const fetchPaymentSources = async () => {
     console.log('支払い元データ取得開始')
     const response = await fetch(buildApiUrl('/payment_sources'))
     console.log('支払い元データ取得レスポンス:', response.status, response.statusText)
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
-    
+
     const data = await response.json()
     console.log('支払い元データ取得成功:', data)
     paymentSources.value = data
-    
+
     // 支払い元が存在する場合、最初のものを選択
     if (paymentSources.value.length > 0 && form.value.payment_source_id === 0) {
       form.value.payment_source_id = paymentSources.value[0].id
@@ -422,15 +473,15 @@ const fetchTransactions = async () => {
     console.log('API URL:', apiUrl)
     console.log('現在のプロトコル:', window.location.protocol)
     console.log('現在のホスト:', window.location.host)
-    
+
     const response = await fetch(apiUrl)
     console.log('取引データ取得レスポンス:', response.status, response.statusText)
     console.log('レスポンスヘッダー:', Object.fromEntries(response.headers.entries()))
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
-    
+
     const data = await response.json()
     console.log('取引データ取得成功:', data)
     console.log('データ件数:', data.length)
@@ -440,16 +491,38 @@ const fetchTransactions = async () => {
     console.error('エラータイプ:', e.constructor.name)
     console.error('エラーメッセージ:', e.message)
     error.value = `取引データの取得に失敗しました: ${e.message}`
-    
+
     // より詳細なエラー情報を追加
     if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
       error.value += '\n\nネットワークエラーの可能性があります：\n1. バックエンドサーバーが起動しているか確認\n2. HTTPS証明書が信頼されているか確認\n3. ネットワーク接続を確認\n4. ファイアウォールの設定を確認'
     }
-    
+
     // HTTPS関連のエラー
     if (window.location.protocol === 'https:') {
       error.value += '\n\nHTTPS環境での問題の可能性：\n1. スマホの設定 > 一般 > VPNとデバイス管理 > 証明書で信頼設定\n2. Safariで「詳細設定」→「安全でないサイトにアクセス」を選択'
     }
+  }
+}
+
+const fetchPaymentSummary = async () => {
+  try {
+    console.log('支払い額集計取得開始')
+    const apiUrl = buildApiUrl('/payment-summary')
+    console.log('支払い額集計API URL:', apiUrl)
+
+    const response = await fetch(apiUrl)
+    console.log('支払い額集計取得レスポンス:', response.status, response.statusText)
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const data = await response.json()
+    console.log('支払い額集計取得成功:', data)
+    paymentSummary.value = data
+  } catch (e: any) {
+    console.error('支払い額集計取得エラー:', e)
+    // エラーが発生しても取引一覧の表示は継続するため、エラーはログのみ
   }
 }
 
@@ -463,12 +536,12 @@ const formatAmount = (amount: number) => {
 }
 
 const resetForm = () => {
-  form.value = { 
-    used_date: '', 
-    purpose: '', 
-    memo: '', 
-    amount: 0, 
-    payment_source_id: paymentSources.value[0]?.id || 0 
+  form.value = {
+    used_date: '',
+    purpose: '',
+    memo: '',
+    amount: 0,
+    payment_source_id: paymentSources.value[0]?.id || 0
   }
   isEditing.value = false
   editingId.value = null
@@ -495,17 +568,18 @@ const editTransaction = (transaction: Transaction) => {
 
 const deleteTransactionDirect = async (transaction: Transaction) => {
   if (!confirm(`「${transaction.purpose}」を削除しますか？`)) return
-  
+
   error.value = ''
   isSubmitting.value = true
-  
+
   try {
     const res = await fetch(buildApiUrl(`/transactions/${transaction.id}`), {
       method: 'DELETE',
     })
     if (!res.ok) throw new Error('削除に失敗しました')
-    
+
     await fetchTransactions()
+    await fetchPaymentSummary()
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -516,7 +590,7 @@ const deleteTransactionDirect = async (transaction: Transaction) => {
 const addTransaction = async () => {
   error.value = ''
   isSubmitting.value = true
-  
+
   try {
     const res = await fetch(buildApiUrl('/transactions'), {
       method: 'POST',
@@ -524,10 +598,11 @@ const addTransaction = async () => {
       body: JSON.stringify(form.value),
     })
     if (!res.ok) throw new Error('登録に失敗しました')
-    
+
     // 成功時の処理
     closeDialog()
     await fetchTransactions()
+    await fetchPaymentSummary()
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -537,10 +612,10 @@ const addTransaction = async () => {
 
 const updateTransaction = async () => {
   if (!editingId.value) return
-  
+
   error.value = ''
   isSubmitting.value = true
-  
+
   try {
     const res = await fetch(buildApiUrl(`/transactions/${editingId.value}`), {
       method: 'PUT',
@@ -548,10 +623,11 @@ const updateTransaction = async () => {
       body: JSON.stringify(form.value),
     })
     if (!res.ok) throw new Error('更新に失敗しました')
-    
+
     // 成功時の処理
     closeDialog()
     await fetchTransactions()
+    await fetchPaymentSummary()
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -561,21 +637,22 @@ const updateTransaction = async () => {
 
 const deleteTransaction = async () => {
   if (!editingId.value) return
-  
+
   if (!confirm('この取引を削除しますか？')) return
-  
+
   error.value = ''
   isSubmitting.value = true
-  
+
   try {
     const res = await fetch(buildApiUrl(`/transactions/${editingId.value}`), {
       method: 'DELETE',
     })
     if (!res.ok) throw new Error('削除に失敗しました')
-    
+
     // 成功時の処理
     closeDialog()
     await fetchTransactions()
+    await fetchPaymentSummary()
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -588,48 +665,48 @@ const openCamera = async () => {
   console.log('カメラ起動開始')
   console.log('isMobile:', isMobile.value)
   console.log('isEditing:', isEditing.value)
-  
+
   if (!isMobile.value || isEditing.value) {
     console.log('モバイルでないか、編集中のためカメラを起動しません')
     return
   }
-  
+
   // まずモーダルを表示
   showCamera.value = true
   capturedImage.value = null
   ocrResult.value = null
   error.value = ''
-  
+
   // 少し待ってからカメラを初期化（DOMの準備を待つ）
   await new Promise(resolve => setTimeout(resolve, 100))
-  
+
   try {
     console.log('カメラAPIサポート確認中...')
-    
+
     // ブラウザ検出
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
     const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
     const isIOSSafari = isIOS && isSafari
     const isIOSChrome = isIOS && /Chrome/.test(navigator.userAgent)
-    
+
     console.log('ブラウザ情報:', { isIOS, isSafari, isIOSSafari, isIOSChrome })
-    
+
     if (isIOSChrome) {
       error.value = 'お使いのブラウザはカメラ機能をサポートしていません。iOSの場合はSafariブラウザをご利用ください。'
       return
     }
-    
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       error.value = 'お使いのブラウザはカメラ機能をサポートしていません。iOSの場合はSafariブラウザをご利用ください。'
       return
     }
-    
+
     console.log('カメラ権限確認中...')
-    
+
     // Safari用の特別な処理
     if (isIOSSafari) {
       console.log('iOS Safari用のカメラ初期化')
-      
+
       // 基本的な制約でカメラを取得
       stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -638,33 +715,33 @@ const openCamera = async () => {
           height: { ideal: 720 }
         }
       })
-      
+
       console.log('iOS Safari カメラストリーム取得完了')
-      
+
       if (videoElement.value) {
         videoElement.value.srcObject = stream
-        
+
         // Safari用のイベントリスナー
         videoElement.value.onloadedmetadata = () => {
           console.log('iOS Safari: onloadedmetadata')
           console.log('ビデオサイズ:', videoElement.value?.videoWidth, 'x', videoElement.value?.videoHeight)
           videoElement.value?.play()
         }
-        
+
         videoElement.value.oncanplay = () => {
           console.log('iOS Safari: oncanplay')
           console.log('ビデオ再生可能, サイズ:', videoElement.value?.videoWidth, 'x', videoElement.value?.videoHeight)
           cameraReady.value = true
         }
-        
+
         videoElement.value.onplay = () => {
           console.log('iOS Safari: onplay')
         }
-        
+
         videoElement.value.onerror = (e) => {
           console.error('iOS Safari ビデオエラー:', e)
         }
-        
+
         // 手動で再生を試行
         try {
           await videoElement.value.play()
@@ -675,7 +752,7 @@ const openCamera = async () => {
       }
     } else {
       console.log('通常のカメラ初期化')
-      
+
       // 通常のカメラ初期化
       stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -684,46 +761,46 @@ const openCamera = async () => {
           height: { ideal: 720 }
         }
       })
-      
+
       console.log('通常カメラストリーム取得完了')
-      
+
       if (videoElement.value) {
         videoElement.value.srcObject = stream
-        
+
         // ビデオ要素の準備を待つ
         videoElement.value.onloadedmetadata = () => {
           console.log('通常: onloadedmetadata')
           console.log('ビデオサイズ:', videoElement.value?.videoWidth, 'x', videoElement.value?.videoHeight)
           videoElement.value?.play()
         }
-        
+
         videoElement.value.oncanplay = () => {
           console.log('通常: oncanplay')
           console.log('ビデオ再生可能, サイズ:', videoElement.value?.videoWidth, 'x', videoElement.value?.videoHeight)
           cameraReady.value = true
         }
-        
+
         videoElement.value.onplay = () => {
           console.log('通常: onplay')
         }
-        
+
         videoElement.value.onerror = (e) => {
           console.error('ビデオエラー:', e)
         }
       }
     }
-    
+
     console.log('カメラ起動完了')
-    
+
   } catch (error: any) {
     console.error('カメラ起動エラー:', error)
     error.value = `カメラの起動に失敗しました: ${error.message}`
-    
+
     // Safari用の権限チェック
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
     const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
     const isIOSSafari = isIOS && isSafari
-    
+
     if (isIOSSafari) {
       try {
         await navigator.mediaDevices.getUserMedia({ video: true })
@@ -741,13 +818,13 @@ const closeCamera = () => {
   cameraReady.value = false
   capturedImage.value = null
   ocrResult.value = null
-  
+
   // カメラストリームを停止
   if (stream) {
     stream.getTracks().forEach(track => track.stop())
     stream = null
   }
-  
+
   // ビデオ要素をクリア
   if (videoElement.value) {
     videoElement.value.srcObject = null
@@ -758,26 +835,26 @@ const captureImage = () => {
   console.log('撮影開始')
   console.log('videoElement:', videoElement.value)
   console.log('canvasElement:', canvasElement.value)
-  
+
   if (!videoElement.value || !canvasElement.value) {
     console.error('ビデオまたはキャンバス要素が見つかりません')
     return
   }
-  
+
   const video = videoElement.value
   const canvas = canvasElement.value
   const context = canvas.getContext('2d')
-  
+
   if (!context) {
     console.error('キャンバスコンテキストが取得できません')
     return
   }
-  
+
   console.log('ビデオサイズ:', video.videoWidth, 'x', video.videoHeight)
   console.log('ビデオ準備状態:', video.readyState)
   console.log('ビデオ再生状態:', !video.paused)
   console.log('ビデオの現在時刻:', video.currentTime)
-  
+
   // ビデオが準備できていない場合は待機
   if (video.readyState < 2) {
     console.log('ビデオが準備できていません。待機します...')
@@ -787,7 +864,7 @@ const captureImage = () => {
     })
     return
   }
-  
+
   // ビデオサイズが0の場合は待機
   if (video.videoWidth === 0 || video.videoHeight === 0) {
     console.log('ビデオサイズが0です。待機します...')
@@ -797,44 +874,44 @@ const captureImage = () => {
     }, 500)
     return
   }
-  
+
   // キャンバスサイズをビデオサイズに設定
   canvas.width = video.videoWidth
   canvas.height = video.videoHeight
   console.log('キャンバスサイズ設定:', canvas.width, 'x', canvas.height)
-  
+
   try {
     // ビデオフレームをキャンバスに描画
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
     console.log('画像描画完了')
-    
+
     // キャンバスから画像データを取得
     const imageData = canvas.toDataURL('image/jpeg', 0.8)
     console.log('画像データURL生成完了, サイズ:', imageData.length)
-    
+
     // 画像データが有効かチェック（黒い画像でないか）
     if (imageData.length < 1000) {
       console.error('生成された画像データが小さすぎます')
       error.value = '画像の取得に失敗しました。もう一度お試しください。'
       return
     }
-    
+
     // 画像データの内容を確認
     console.log('画像データの先頭部分:', imageData.substring(0, 100))
-    
+
     // 画像データを直接設定（テストは後で行う）
     capturedImage.value = imageData
     console.log('撮影完了 - 画像データ設定済み')
-    
+
     // 撮影後にカメラを停止
     if (stream) {
       stream.getTracks().forEach(track => track.stop())
       console.log('カメラストリーム停止')
     }
-    
+
     // カメラ状態を更新
     cameraReady.value = false
-    
+
     // 画像が実際に表示可能かテスト（非同期）
     const testImg = new Image()
     testImg.onload = () => {
@@ -845,7 +922,7 @@ const captureImage = () => {
       error.value = '画像データの生成に失敗しました'
     }
     testImg.src = imageData
-    
+
   } catch (error: any) {
     console.error('撮影エラー:', error)
     error.value = `撮影に失敗しました: ${error.message}`
@@ -855,7 +932,7 @@ const captureImage = () => {
 const retakePhoto = () => {
   capturedImage.value = null
   ocrResult.value = null
-  
+
   // 再撮影時にカメラを再起動
   cameraReady.value = false
   openCamera()
@@ -877,37 +954,37 @@ const onImageError = (event: Event) => {
 const parseReceipt = async (imageBlob: Blob) => {
   try {
     console.log('レシート解析開始')
-    
+
     // FormDataを作成
     const formData = new FormData()
     formData.append('file', imageBlob, 'receipt.jpg')
-    
+
     // APIに送信
     const apiUrl = buildApiUrl('/parse-receipt')
     console.log('レシート解析API URL:', apiUrl)
-    
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       body: formData
     })
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
-    
+
     const result = await response.json()
     console.log('OCR解析結果:', result)
-    
+
     // 解析結果をocrResultに保存
     ocrResult.value = result
-    
+
     // デバッグ用に生テキストも表示（開発環境のみ）
     if (import.meta.env.DEV && result.raw_text) {
       console.log('OCR生テキスト:', result.raw_text)
     }
-    
+
     return result
-    
+
   } catch (error: any) {
     console.error('レシート解析エラー:', error)
     alert(`レシート解析に失敗しました: ${error.message}`)
@@ -920,10 +997,10 @@ const analyzeReceipt = async () => {
     alert('先にレシートを撮影してください')
     return
   }
-  
+
   isAnalyzing.value = true
   error.value = ''
-  
+
   try {
     // 画像をBlobに変換
     const canvas = document.createElement('canvas')
@@ -931,18 +1008,18 @@ const analyzeReceipt = async () => {
     if (!ctx) {
       throw new Error('Canvas context not available')
     }
-    
+
     // 画像要素を作成してサイズを取得
     const img = new Image()
     img.src = capturedImage.value
     await new Promise((resolve) => {
       img.onload = resolve
     })
-    
+
     canvas.width = img.width
     canvas.height = img.height
     ctx.drawImage(img, 0, 0)
-    
+
     // Blobに変換して解析を実行
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((blob) => {
@@ -953,11 +1030,11 @@ const analyzeReceipt = async () => {
         }
       }, 'image/jpeg', 0.8)
     })
-    
+
     // レシート解析を実行
     const result = await parseReceipt(blob)
     console.log('解析完了:', result)
-    
+
   } catch (e: any) {
     console.error('レシート解析エラー:', e)
     error.value = 'レシート解析に失敗しました: ' + e.message
@@ -968,11 +1045,11 @@ const analyzeReceipt = async () => {
 
 const applyOcrResult = () => {
   if (!ocrResult.value) return
-  
+
   form.value.purpose = ocrResult.value.purpose || ''
   form.value.amount = ocrResult.value.amount || 0
   form.value.used_date = ocrResult.value.used_date || ''
-  
+
   closeCamera()
 }
 
@@ -1000,11 +1077,11 @@ const showManualInputHelp = () => {
 }
 
 const showDebugInfo = () => {
-  const oldGetUserMedia = (navigator as any).getUserMedia || 
-                         (navigator as any).webkitGetUserMedia || 
-                         (navigator as any).mozGetUserMedia || 
+  const oldGetUserMedia = (navigator as any).getUserMedia ||
+                         (navigator as any).webkitGetUserMedia ||
+                         (navigator as any).mozGetUserMedia ||
                          (navigator as any).msGetUserMedia
-  
+
   const debugInfo = {
     isMobile: isMobile.value,
     cameraReady: cameraReady.value,
@@ -1048,7 +1125,7 @@ const showDebugInfo = () => {
       outerHeight: window.outerHeight
     }
   }
-  
+
   cameraDebugInfo.value = JSON.stringify(debugInfo, null, 2)
 }
 
@@ -1057,20 +1134,20 @@ const checkCameraSupport = () => {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
   const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
   const isIOSSafari = isIOS && isSafari
-  
+
   // 基本的なカメラAPIのサポートチェック
   const hasMediaDevices = !!navigator.mediaDevices
   const hasGetUserMedia = !!navigator.mediaDevices?.getUserMedia
-  
+
   // 古いAPIのサポートチェック
-  const oldGetUserMedia = (navigator as any).getUserMedia || 
-                         (navigator as any).webkitGetUserMedia || 
-                         (navigator as any).mozGetUserMedia || 
+  const oldGetUserMedia = (navigator as any).getUserMedia ||
+                         (navigator as any).webkitGetUserMedia ||
+                         (navigator as any).mozGetUserMedia ||
                          (navigator as any).msGetUserMedia
-  
+
   // HTTPS環境のチェック
   const isHTTPS = window.location.protocol === 'https:'
-  
+
   // スマホのSafariでは、HTTP環境でもカメラ機能を試す
   if (isIOSSafari) {
     console.log('スマホSafari: カメラ機能を試してみます')
@@ -1078,10 +1155,10 @@ const checkCameraSupport = () => {
     cameraSupported.value = true
     return
   }
-  
+
   // カメラAPIが利用可能かチェック
   cameraSupported.value = hasMediaDevices || !!oldGetUserMedia
-  
+
   console.log('カメラサポート検出:', {
     isIOS,
     isSafari,
@@ -1119,6 +1196,7 @@ onMounted(() => {
   window.addEventListener('resize', checkMobile)
   fetchPaymentSources()
   fetchTransactions()
+  fetchPaymentSummary()
 })
 
 onUnmounted(() => {
@@ -1769,19 +1847,124 @@ onUnmounted(() => {
   border: 1px solid #ffcdd2;
 }
 
+/* 支払い額集計のスタイル */
+.payment-summary {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.summary-title {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: #333;
+  font-weight: 600;
+  text-align: center;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.summary-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.summary-card.current-month {
+  border-left: 4px solid #4CAF50;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e8f5e8 100%);
+}
+
+.summary-card.next-month {
+  border-left: 4px solid #2196F3;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%);
+}
+
+.summary-card.next-next-month {
+  border-left: 4px solid #FF9800;
+  background: linear-gradient(135deg, #f8f9fa 0%, #fff3e0 100%);
+}
+
+.summary-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-period {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.summary-amount {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.summary-count {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
   .page-title {
     font-size: 1.2rem;
     margin: 12px 0 20px 0;
   }
-  
+
+  .payment-summary {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .summary-title {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .summary-card {
+    padding: 12px;
+  }
+
+  .summary-amount {
+    font-size: 20px;
+  }
+
   .modal-content,
   .camera-modal {
     width: 95%;
     margin: 10px;
   }
-  
+
   .modal-header,
   .modal-form,
   .camera-header,
@@ -1789,20 +1972,20 @@ onUnmounted(() => {
     padding-left: 16px;
     padding-right: 16px;
   }
-  
+
   .form-actions {
     flex-direction: column;
   }
-  
+
   .btn {
     width: 100%;
   }
-  
+
   .register-button {
     width: 100%;
     max-width: 300px;
   }
-  
+
   .camera-controls {
   flex-direction: column;
 }

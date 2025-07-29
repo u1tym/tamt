@@ -9,7 +9,8 @@ import cv2
 import numpy as np
 import pytesseract
 import re
-from datetime import datetime
+from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
 
 from database import SessionLocal, engine
 import models
@@ -37,6 +38,86 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# 支払い期間の計算関数
+def calculate_payment_periods():
+    """現在日を基準に当月、翌月、翌々月の支払い期間を計算"""
+    today = date.today()
+
+    # 当月の期間（直近の過去の24日から直近の次の23日まで）
+    if today.day >= 24:
+        # 今月の24日から来月の23日まで
+        current_month_start = date(today.year, today.month, 24)
+        if today.month == 12:
+            current_month_end = date(today.year + 1, 1, 23)
+        else:
+            current_month_end = date(today.year, today.month + 1, 23)
+    else:
+        # 先月の24日から今月の23日まで
+        if today.month == 1:
+            current_month_start = date(today.year - 1, 12, 24)
+        else:
+            current_month_start = date(today.year, today.month - 1, 24)
+        current_month_end = date(today.year, today.month, 23)
+
+    # 翌月の期間
+    next_month_start = current_month_end + relativedelta(days=1)
+    next_month_end = next_month_start + relativedelta(months=1) - relativedelta(days=1)
+
+    # 翌々月の期間
+    next_next_month_start = next_month_end + relativedelta(days=1)
+    next_next_month_end = next_next_month_start + relativedelta(months=1) - relativedelta(days=1)
+
+    return {
+        'current_month': {
+            'start': current_month_start,
+            'end': current_month_end,
+            'label': f'{current_month_start.strftime("%m/%d")}～{current_month_end.strftime("%m/%d")}'
+        },
+        'next_month': {
+            'start': next_month_start,
+            'end': next_month_end,
+            'label': f'{next_month_start.strftime("%m/%d")}～{next_month_end.strftime("%m/%d")}'
+        },
+        'next_next_month': {
+            'start': next_next_month_start,
+            'end': next_next_month_end,
+            'label': f'{next_next_month_start.strftime("%m/%d")}～{next_next_month_end.strftime("%m/%d")}'
+        }
+    }
+
+@app.get("/payment-summary")
+def get_payment_summary(db: Session = Depends(get_db)):
+    """支払い額の集計を取得"""
+    try:
+        # 支払い期間を計算
+        periods = calculate_payment_periods()
+
+        # 各期間の支払い額を集計
+        summary = {}
+
+        for period_name, period_data in periods.items():
+            # 該当期間の取引を取得
+            transactions = db.query(models.Transaction).filter(
+                models.Transaction.paid_date >= period_data['start'],
+                models.Transaction.paid_date <= period_data['end']
+            ).all()
+
+            # 支払い額を集計
+            total_amount = sum(tx.amount for tx in transactions)
+
+            summary[period_name] = {
+                'period': period_data['label'],
+                'start_date': period_data['start'].isoformat(),
+                'end_date': period_data['end'].isoformat(),
+                'total_amount': total_amount,
+                'transaction_count': len(transactions)
+            }
+
+        return summary
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"支払い集計の取得に失敗しました: {str(e)}")
 
 # レシート解析関数
 def parse_receipt(image_data: bytes) -> dict:
