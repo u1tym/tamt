@@ -25,3 +25,14 @@ class Transaction(Base):
     paid_date = Column(Date, nullable=False)  # 支払日（自動計算）
     created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
+
+class Budget(Base):
+    __tablename__ = 'budgets'
+    id = Column(Integer, primary_key=True, index=True)
+    target_year = Column(Integer, nullable=False)  # 対象年
+    target_month = Column(Integer, nullable=False)  # 対象月
+    name = Column(String, nullable=False)  # 名称
+    amount = Column(Numeric, nullable=False)  # 金額
+    order_index = Column(Integer, nullable=False, default=0)  # 表示順序
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時

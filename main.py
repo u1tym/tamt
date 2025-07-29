@@ -411,6 +411,93 @@ def delete_payment_source(payment_source_id: int, db: Session = Depends(get_db))
     crud.delete_payment_source(db=db, source_id=payment_source_id)
     return {"message": "Payment source deleted successfully"}
 
+# Budget API endpoints
+
+@app.get("/budgets/{target_year}/{target_month}", response_model=List[schemas.Budget])
+def read_budgets_by_year_month(target_year: int, target_month: int, db: Session = Depends(get_db)):
+    """指定された年月の予算一覧を取得"""
+    if target_month < 1 or target_month > 12:
+        raise HTTPException(status_code=400, detail="月は1～12の範囲で指定してください")
+
+    budgets = crud.get_budgets_by_year_month(db, target_year=target_year, target_month=target_month)
+    return budgets
+
+@app.post("/budgets", response_model=schemas.Budget)
+def create_budget(budget: schemas.BudgetCreate, db: Session = Depends(get_db)):
+    """新規予算を作成"""
+    if budget.target_month < 1 or budget.target_month > 12:
+        raise HTTPException(status_code=400, detail="月は1～12の範囲で指定してください")
+
+    return crud.create_budget(db=db, budget=budget)
+
+@app.put("/budgets/{budget_id}", response_model=schemas.Budget)
+def update_budget(budget_id: int, budget: schemas.BudgetUpdate, db: Session = Depends(get_db)):
+    """予算を更新"""
+    db_budget = crud.get_budget(db, budget_id=budget_id)
+    if db_budget is None:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    # 月の範囲チェック
+    if budget.target_month is not None and (budget.target_month < 1 or budget.target_month > 12):
+        raise HTTPException(status_code=400, detail="月は1～12の範囲で指定してください")
+
+    return crud.update_budget(db=db, budget_id=budget_id, budget=budget)
+
+@app.delete("/budgets/{budget_id}")
+def delete_budget(budget_id: int, db: Session = Depends(get_db)):
+    """予算を削除"""
+    db_budget = crud.get_budget(db, budget_id=budget_id)
+    if db_budget is None:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    crud.delete_budget(db=db, budget_id=budget_id)
+    return {"message": "Budget deleted successfully"}
+
+@app.post("/budgets/copy")
+def copy_budgets(source_year: int, source_month: int, target_year: int, target_month: int, db: Session = Depends(get_db)):
+    """指定された年月の予算を別の年月にコピー"""
+    if source_month < 1 or source_month > 12 or target_month < 1 or target_month > 12:
+        raise HTTPException(status_code=400, detail="月は1～12の範囲で指定してください")
+
+    copied_budgets = crud.copy_budgets_from_year_month(
+        db=db,
+        source_year=source_year,
+        source_month=source_month,
+        target_year=target_year,
+        target_month=target_month
+    )
+
+    return {
+        "message": f"{source_year}年{source_month}月の予算を{target_year}年{target_month}月にコピーしました",
+        "copied_count": len(copied_budgets)
+    }
+
+@app.post("/budgets/{budget_id}/move-up")
+def move_budget_up(budget_id: int, db: Session = Depends(get_db)):
+    """予算を上に移動"""
+    db_budget = crud.get_budget(db, budget_id=budget_id)
+    if db_budget is None:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    updated_budget = crud.move_budget_up(db=db, budget_id=budget_id)
+    if updated_budget is None:
+        raise HTTPException(status_code=400, detail="既に最上部にあります")
+
+    return {"message": "予算を上に移動しました"}
+
+@app.post("/budgets/{budget_id}/move-down")
+def move_budget_down(budget_id: int, db: Session = Depends(get_db)):
+    """予算を下に移動"""
+    db_budget = crud.get_budget(db, budget_id=budget_id)
+    if db_budget is None:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    updated_budget = crud.move_budget_down(db=db, budget_id=budget_id)
+    if updated_budget is None:
+        raise HTTPException(status_code=400, detail="既に最下部にあります")
+
+    return {"message": "予算を下に移動しました"}
+
 if __name__ == "__main__":
     import uvicorn
     import ssl

@@ -40,3 +40,27 @@ class Transaction(TransactionBase):
     updated_at: datetime
     class Config:
         orm_mode = True
+
+class BudgetBase(BaseModel):
+    target_year: int
+    target_month: int
+    name: str
+    amount: float
+    order_index: int = 0
+
+class BudgetCreate(BudgetBase):
+    pass
+
+class BudgetUpdate(BaseModel):
+    target_year: Optional[int] = None
+    target_month: Optional[int] = None
+    name: Optional[str] = None
+    amount: Optional[float] = None
+    order_index: Optional[int] = None
+
+class Budget(BudgetBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    class Config:
+        orm_mode = True
