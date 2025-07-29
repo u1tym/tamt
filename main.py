@@ -42,24 +42,24 @@ def get_db():
 
 # 支払い期間の計算関数
 def calculate_payment_periods():
-    """現在日を基準に当月、翌月、翌々月の支払い期間を計算"""
+    """現在日を基準に当月、翌月、翌々月の支払い期間を計算（23日～翌月22日）"""
     today = date.today()
 
-    # 当月の期間（直近の過去の24日から直近の次の23日まで）
-    if today.day >= 24:
-        # 今月の24日から来月の23日まで
-        current_month_start = date(today.year, today.month, 24)
+    # 当月の期間（直近の過去の23日から直近の次の22日まで）
+    if today.day >= 23:
+        # 今月の23日から来月の22日まで
+        current_month_start = date(today.year, today.month, 23)
         if today.month == 12:
-            current_month_end = date(today.year + 1, 1, 23)
+            current_month_end = date(today.year + 1, 1, 22)
         else:
-            current_month_end = date(today.year, today.month + 1, 23)
+            current_month_end = date(today.year, today.month + 1, 22)
     else:
-        # 先月の24日から今月の23日まで
+        # 先月の23日から今月の22日まで
         if today.month == 1:
-            current_month_start = date(today.year - 1, 12, 24)
+            current_month_start = date(today.year - 1, 12, 23)
         else:
-            current_month_start = date(today.year, today.month - 1, 24)
-        current_month_end = date(today.year, today.month, 23)
+            current_month_start = date(today.year, today.month - 1, 23)
+        current_month_end = date(today.year, today.month, 22)
 
     # 翌月の期間
     next_month_start = current_month_end + relativedelta(days=1)
@@ -538,8 +538,8 @@ from datetime import date
 def get_budget_names(date_str: str, db: Session = Depends(get_db)):
     """指定日が属する予算名称一覧を取得"""
     target_date = date.fromisoformat(date_str)
-    # その日が属する予算期間（24日～翌月23日）を計算
-    if target_date.day >= 24:
+    # その日が属する予算期間（23日～翌月22日）を計算
+    if target_date.day >= 23:
         target_year = target_date.year
         target_month = target_date.month
     else:
@@ -556,14 +556,14 @@ def get_budget_names(date_str: str, db: Session = Depends(get_db)):
 @app.get("/budgets/{year}/{month}/summary")
 def get_budget_summaries(year: int, month: int, db: Session = Depends(get_db)):
     """指定年月の各予算名称ごとに支払日が対象期間内の取引合計金額を返す"""
-    # 期間計算（24日～翌月23日）
+    # 期間計算（23日～翌月22日）
     from datetime import date
     from dateutil.relativedelta import relativedelta
-    start_date = date(year, month, 24)
+    start_date = date(year, month, 23)
     if month == 12:
-        end_date = date(year + 1, 1, 23)
+        end_date = date(year + 1, 1, 22)
     else:
-        end_date = date(year, month + 1, 23)
+        end_date = date(year, month + 1, 22)
     # 取引を集計
     results = db.query(
         models.Transaction.budget_name,

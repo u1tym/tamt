@@ -571,9 +571,9 @@ const formatAmount = (amount: number) => {
 }
 
 const formatPeriod = (year: number, month: number) => {
-  // 対象月の24日から翌月の23日まで
-  const startDate = new Date(year, month - 1, 24) // monthは0ベースなので-1
-  const endDate = new Date(year, month, 23) // 翌月の23日
+  // 対象月の23日から翌月の22日まで
+  const startDate = new Date(year, month - 1, 23) // monthは0ベースなので-1
+  const endDate = new Date(year, month, 22) // 翌月の22日
 
   const startYear = startDate.getFullYear()
   const startMonth = startDate.getMonth() + 1
