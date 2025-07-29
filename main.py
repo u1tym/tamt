@@ -532,10 +532,24 @@ def calculate_payment_date(request: schemas.PaymentDateRequest, db: Session = De
         print(f"DEBUG: Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error calculating payment date: {e}")
 
+from datetime import date
+
 @app.get("/budget-names")
-def get_budget_names(year: int, month: int, db: Session = Depends(get_db)):
-    """指定年月の予算名称一覧を取得"""
-    budgets = crud.get_budgets_by_year_month(db, target_year=year, target_month=month)
+def get_budget_names(date_str: str, db: Session = Depends(get_db)):
+    """指定日が属する予算名称一覧を取得"""
+    target_date = date.fromisoformat(date_str)
+    # その日が属する予算期間（24日～翌月23日）を計算
+    if target_date.day >= 24:
+        target_year = target_date.year
+        target_month = target_date.month
+    else:
+        if target_date.month == 1:
+            target_year = target_date.year - 1
+            target_month = 12
+        else:
+            target_year = target_date.year
+            target_month = target_date.month - 1
+    budgets = crud.get_budgets_by_year_month(db, target_year=target_year, target_month=target_month)
     names = [b.name for b in budgets]
     return {"names": names}
 

@@ -1246,10 +1246,9 @@ const fetchBudgetNames = async () => {
     return
   }
   const paid = new Date(form.value.paid_date)
-  const year = paid.getFullYear()
-  const month = paid.getMonth() + 1
+  const dateStr = paid.toISOString().slice(0, 10)
   try {
-    const res = await fetch(buildApiUrl(`/budget-names?year=${year}&month=${month}`))
+    const res = await fetch(buildApiUrl(`/budget-names?date_str=${dateStr}`))
     if (!res.ok) throw new Error('予算名称取得に失敗')
     const data = await res.json()
     budgetNameOptions.value = ['未分類', ...(data.names || [])]

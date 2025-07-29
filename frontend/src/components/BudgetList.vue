@@ -103,15 +103,14 @@
           <td style="text-align:right; width: 15%;">{{ formatAmount(getSummaryAmount('未分類')) }}円</td>
           <td class="action-cell" style="width: 15%;"></td>
         </tr>
+        <tr class="table-row total-row">
+          <td style="width: 40%; text-align: right; font-weight: bold;">合計</td>
+          <td style="text-align:right; width: 15%; font-weight: bold;">{{ formatAmount(totalAmount) }}円</td>
+          <td style="text-align:right; width: 15%; font-weight: bold;">{{ formatAmount(totalSummaryAmount + getSummaryAmount('未分類')) }}円</td>
+          <td class="action-cell" style="width: 15%;"></td>
+        </tr>
       </tbody>
     </table>
-
-    <!-- 合計表示 -->
-    <div v-if="budgets.length > 0" class="total-section">
-      <div class="total-amount">
-        合計: {{ formatAmount(totalAmount) }}円
-      </div>
-    </div>
 
     <!-- 予算登録・編集モーダル -->
     <div v-if="showDialog" class="modal-overlay" @click="closeDialog">
@@ -265,6 +264,7 @@ interface Budget {
   amount: number
   created_at: string
   updated_at: string
+  order_index: number
 }
 
 const budgets = ref<Budget[]>([])
@@ -588,6 +588,13 @@ const formatPeriod = (year: number, month: number) => {
 
 const totalAmount = computed(() => {
   return budgets.value.reduce((sum, budget) => sum + budget.amount, 0)
+})
+
+const totalSummaryAmount = computed(() => {
+  // 予算名ごとの集計金額の合計（未分類は除く）
+  return Object.entries(budgetSummaries.value)
+    .filter(([name]) => name !== '未分類')
+    .reduce((sum, [, value]) => sum + value, 0)
 })
 
 onMounted(() => {
@@ -958,6 +965,11 @@ onMounted(() => {
 }
 
 .unclassified-row td {
+  background: #f8f9fa;
+  font-weight: 600;
+}
+
+.total-row td {
   background: #f8f9fa;
   font-weight: 600;
 }
