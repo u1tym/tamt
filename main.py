@@ -51,7 +51,7 @@ def parse_receipt(image_data: bytes) -> dict:
             # テスト実行
             version = pytesseract.get_tesseract_version()
             print(f"Tesseractバージョン: {version}")
-            
+
             # 利用可能な言語を確認
             try:
                 langs = pytesseract.get_languages()
@@ -69,26 +69,26 @@ def parse_receipt(image_data: bytes) -> dict:
                 'confidence': 0.8,
                 'note': 'Tesseractがインストールされていないため、モックデータを返しています'
             }
-        
+
         # 画像をPILで読み込み
         image = Image.open(io.BytesIO(image_data))
-        
+
         # OpenCVで処理するためにnumpy配列に変換
         cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-        
+
         # グレースケールに変換
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        
+
         # ノイズ除去
         denoised = cv2.medianBlur(gray, 3)
-        
+
         # コントラスト改善
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
         enhanced = clahe.apply(denoised)
-        
+
         # OCRでテキスト抽出
         text = pytesseract.image_to_string(enhanced, lang='jpn+eng')
-        
+
         # 解析結果
         result = {
             'used_date': None,
@@ -97,48 +97,48 @@ def parse_receipt(image_data: bytes) -> dict:
             'raw_text': text,
             'confidence': 0.0
         }
-        
+
         # 日付の抽出（レシート上部を優先的に検索）
         date_patterns = [
             # 日本語形式
             r'(\d{4})年(\d{1,2})月(\d{1,2})日',  # 2024年1月1日
             r'(\d{1,2})月(\d{1,2})日',  # 1月1日
             r'(\d{4})年(\d{1,2})月(\d{1,2})',  # 2024年1月1
-            
+
             # スラッシュ形式
             r'(\d{4})/(\d{1,2})/(\d{1,2})',  # 2024/01/01
             r'(\d{1,2})/(\d{1,2})',  # 01/01
-            
+
             # ハイフン形式
             r'(\d{4})-(\d{1,2})-(\d{1,2})',  # 2024-01-01
             r'(\d{1,2})-(\d{1,2})',  # 01-01
-            
+
             # ドット形式
             r'(\d{4})\.(\d{1,2})\.(\d{1,2})',  # 2024.01.01
             r'(\d{1,2})\.(\d{1,2})',  # 01.01
-            
+
             # スペース区切り
             r'(\d{4})\s+(\d{1,2})\s+(\d{1,2})',  # 2024 01 01
-            
+
             # より柔軟なパターン
             r'(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})',  # 1/1/24, 1-1-2024
             r'(\d{2,4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})',  # 24/1/1, 2024/1/1
-            
+
             # 日本語の日付表現
             r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日',  # 2024年 1月 1日
             r'(\d{1,2})月\s*(\d{1,2})日',  # 1月 1日
-            
+
             # 英語形式
             r'(\d{1,2})/(\d{1,2})/(\d{2,4})',  # 1/1/24, 1/1/2024
             r'(\d{2,4})/(\d{1,2})/(\d{1,2})',  # 24/1/1, 2024/1/1
         ]
-        
+
         # レシートの上部部分（最初の15行）を優先的に検索
         lines = text.split('\n')
         upper_text = '\n'.join(lines[:15])  # 最初の15行
-        
+
         print(f"OCR結果の上部15行: {upper_text}")
-        
+
         # 上部部分で日付を検索
         for i, pattern in enumerate(date_patterns):
             match = re.search(pattern, upper_text)
@@ -157,7 +157,7 @@ def parse_receipt(image_data: bytes) -> dict:
                     result['used_date'] = f"{current_year}-{month.zfill(2)}-{day.zfill(2)}"
                     print(f"2グループ日付抽出: {result['used_date']}")
                 break
-        
+
         # 上部で見つからない場合は全体を検索
         if not result['used_date']:
             print("上部で日付が見つからないため、全体を検索")
@@ -178,11 +178,11 @@ def parse_receipt(image_data: bytes) -> dict:
                         result['used_date'] = f"{current_year}-{month.zfill(2)}-{day.zfill(2)}"
                         print(f"全体検索2グループ日付抽出: {result['used_date']}")
                     break
-        
+
         if not result['used_date']:
             print("日付が見つかりませんでした")
             print(f"OCR結果全体: {text}")
-        
+
         # 金額の抽出
         amount_patterns = [
             r'合計[：:]\s*¥?([0-9,]+)',  # 合計: ¥1,000
@@ -193,9 +193,9 @@ def parse_receipt(image_data: bytes) -> dict:
             r'([0-9,]+)\s*円',  # 1,000 円
             r'([0-9,]+)',  # 1,000（単独の数字）
         ]
-        
+
         print(f"金額抽出開始 - テキスト: {text}")
-        
+
         for i, pattern in enumerate(amount_patterns):
             matches = re.findall(pattern, text)
             if matches:
@@ -213,17 +213,17 @@ def parse_receipt(image_data: bytes) -> dict:
                         continue
                 if result['amount']:
                     break
-        
 
-        
+
+
         # 店舗名/用途の抽出
         lines = text.split('\n')
         print(f"店舗名抽出開始 - 行数: {len(lines)}")
-        
+
         for i, line in enumerate(lines):
             line = line.strip()
             print(f"行 {i+1}: '{line}'")
-            
+
             # 店舗名らしき文字列を探す（長すぎず短すぎない行）
             if 3 <= len(line) <= 30 and not re.search(r'[0-9]', line):
                 # 一般的なレシートの除外語
@@ -232,13 +232,13 @@ def parse_receipt(image_data: bytes) -> dict:
                     result['purpose'] = line
                     print(f"店舗名抽出成功: {line}")
                     break
-        
+
         # 信頼度の計算（抽出できた項目数で判定）
         extracted_count = sum(1 for v in [result['used_date'], result['purpose'], result['amount']] if v is not None)
         result['confidence'] = extracted_count / 3.0
-        
+
         return result
-        
+
     except Exception as e:
         return {
             'used_date': None,
@@ -256,16 +256,16 @@ async def parse_receipt_endpoint(file: UploadFile = File(...)):
     """
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="画像ファイルをアップロードしてください")
-    
+
     try:
         # 画像データを読み込み
         image_data = await file.read()
-        
+
         # レシート解析
         result = parse_receipt(image_data)
-        
+
         return result
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"レシート解析中にエラーが発生しました: {str(e)}")
 
@@ -301,27 +301,27 @@ def read_payment_sources(db: Session = Depends(get_db)):
 
 @app.post("/payment_sources", response_model=schemas.PaymentSource)
 def create_payment_source(payment_source: schemas.PaymentSourceCreate, db: Session = Depends(get_db)):
-    return crud.create_payment_source(db=db, payment_source=payment_source)
+    return crud.create_payment_source(db=db, source=payment_source)
 
 if __name__ == "__main__":
     import uvicorn
     import ssl
     import os
-    
+
     # 現在のディレクトリを取得
     current_dir = os.path.dirname(os.path.abspath(__file__))
     cert_file = os.path.join(current_dir, "frontend", "localhost.pem")
     key_file = os.path.join(current_dir, "frontend", "localhost-key.pem")
-    
+
     # 証明書ファイルの存在確認
     if os.path.exists(cert_file) and os.path.exists(key_file):
         print("HTTPS証明書を読み込みました")
         print(f"証明書: {cert_file}")
         print(f"鍵: {key_file}")
         uvicorn.run(
-            "main:app", 
-            host="0.0.0.0", 
-            port=8001, 
+            "main:app",
+            host="0.0.0.0",
+            port=8001,
             reload=True,
             ssl_certfile=cert_file,
             ssl_keyfile=key_file
@@ -332,8 +332,8 @@ if __name__ == "__main__":
         print(f"鍵ファイル: {key_file}")
         print("HTTPで起動します")
         uvicorn.run(
-            "main:app", 
-            host="0.0.0.0", 
-            port=8001, 
+            "main:app",
+            host="0.0.0.0",
+            port=8001,
             reload=True
         )

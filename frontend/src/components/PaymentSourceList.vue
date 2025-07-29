@@ -64,10 +64,24 @@ const addPaymentSource = async () => {
     const res = await fetch(buildApiUrl('/payment_sources'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: form.value.name }),
+      body: JSON.stringify({
+        name: form.value.name,
+        closing_day: form.value.closing_day,
+        pay_month_diff: form.value.pay_month_diff,
+        pay_day: form.value.pay_day
+      }),
     })
-    if (!res.ok) throw new Error('登録に失敗しました')
-    form.value.name = ''
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(`登録に失敗しました: ${errorData.detail || '不明なエラー'}`)
+    }
+    // フォームをリセット
+    form.value = {
+      name: '',
+      closing_day: 0,
+      pay_month_diff: 0,
+      pay_day: 0,
+    }
     await fetchPaymentSources()
   } catch (e: any) {
     error.value = e.message
