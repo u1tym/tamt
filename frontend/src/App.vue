@@ -33,13 +33,6 @@ onUnmounted(() => {
     <!-- デスクトップ用のタブ切り替え -->
     <div v-if="!isMobile" class="tab-container">
       <button
-        @click="currentTab = 'payment'"
-        :class="{ active: currentTab === 'payment' }"
-        class="tab-button"
-      >
-        支出元管理
-      </button>
-      <button
         @click="currentTab = 'transaction'"
         :class="{ active: currentTab === 'transaction' }"
         class="tab-button"
@@ -52,6 +45,13 @@ onUnmounted(() => {
         class="tab-button"
       >
         予算管理
+      </button>
+      <button
+        @click="currentTab = 'payment'"
+        :class="{ active: currentTab === 'payment' }"
+        class="tab-button"
+      >
+        支出元管理
       </button>
     </div>
 

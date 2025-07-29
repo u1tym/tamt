@@ -41,13 +41,13 @@
     <table v-if="!isMobile" border="1" cellspacing="0" cellpadding="4" class="transaction-table">
       <thead>
         <tr>
-          <th>使用日</th>
+          <th style="text-align:center;">使用日</th>
           <th style="text-align:center;">用途</th>
           <th style="text-align:center;">メモ</th>
           <th style="text-align:center;">金額</th>
-          <th>支出元</th>
-          <th>支払日</th>
-          <th>予算名称</th>
+          <th style="text-align:center;">支出元</th>
+          <th style="text-align:center;">支払日</th>
+          <th style="text-align:center;">予算名称</th>
           <th class="action-header">操作</th>
         </tr>
       </thead>
@@ -59,13 +59,13 @@
           @mouseenter="hoveredRow = tx.id"
           @mouseleave="hoveredRow = null"
         >
-          <td>{{ tx.used_date }}</td>
+          <td style="text-align:center;">{{ tx.used_date }}</td>
           <td style="text-align:left;">{{ tx.purpose }}</td>
           <td style="text-align:left;"><span style="white-space: pre-line;">{{ tx.memo }}</span></td>
           <td style="text-align:right;">{{ formatAmount(tx.amount) }}円</td>
-          <td>{{ getPaymentSourceName(tx.payment_source_id) }}</td>
-          <td>{{ tx.paid_date }}</td>
-          <td>{{ tx.budget_name || '未分類' }}</td>
+          <td style="text-align:center;">{{ getPaymentSourceName(tx.payment_source_id) }}</td>
+          <td style="text-align:center;">{{ tx.paid_date }}</td>
+          <td style="text-align:center;">{{ tx.budget_name || '未分類' }}</td>
           <td class="action-cell">
             <div v-if="hoveredRow === tx.id" class="action-buttons">
               <button

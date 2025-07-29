@@ -45,7 +45,7 @@
     <table border="1" cellspacing="0" cellpadding="4" class="budget-table">
       <thead>
         <tr>
-          <th>名称</th>
+          <th style="text-align:center;">名称</th>
           <th style="text-align:center;">金額</th>
           <th class="action-header">操作</th>
         </tr>

@@ -16,7 +16,7 @@
     <table v-if="!isMobile" border="1" cellspacing="0" cellpadding="4" class="payment-source-table">
       <thead>
         <tr>
-          <th>名称</th>
+          <th style="text-align:center;">名称</th>
           <th style="text-align:center;">締め日</th>
           <th style="text-align:center;">支払い月差分</th>
           <th style="text-align:center;">支払い日</th>
