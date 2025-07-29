@@ -498,6 +498,39 @@ def move_budget_down(budget_id: int, db: Session = Depends(get_db)):
 
     return {"message": "予算を下に移動しました"}
 
+@app.post("/calculate-payment-date")
+def calculate_payment_date(request: schemas.PaymentDateRequest, db: Session = Depends(get_db)):
+    """使用日と支出元から支払日を計算"""
+    try:
+        print(f"DEBUG: Received request - used_date: {request.used_date}, payment_source_id: {request.payment_source_id}")
+
+        # 支出元を取得
+        payment_source = crud.get_payment_source(db, source_id=request.payment_source_id)
+        if not payment_source:
+            print(f"DEBUG: Payment source not found for ID: {request.payment_source_id}")
+            raise HTTPException(status_code=404, detail="Payment source not found")
+
+        print(f"DEBUG: Found payment source: {payment_source.name}")
+        print(f"DEBUG: Payment source details - closing_day: {payment_source.closing_day}, pay_month_diff: {payment_source.pay_month_diff}, pay_day: {payment_source.pay_day}")
+
+        # 使用日をdateオブジェクトに変換
+        used_date_obj = datetime.strptime(request.used_date, "%Y-%m-%d").date()
+        print(f"DEBUG: Parsed used_date: {used_date_obj}")
+
+        # 支払日を計算
+        paid_date = crud.calculate_payment_date(used_date_obj, payment_source)
+        print(f"DEBUG: Calculated paid_date: {paid_date}")
+
+        return {"paid_date": paid_date.strftime("%Y-%m-%d")}
+    except ValueError as e:
+        print(f"DEBUG: ValueError occurred: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {e}")
+    except Exception as e:
+        print(f"DEBUG: Unexpected error occurred: {e}")
+        import traceback
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Error calculating payment date: {e}")
+
 if __name__ == "__main__":
     import uvicorn
     import ssl

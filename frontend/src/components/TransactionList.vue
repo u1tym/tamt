@@ -121,6 +121,7 @@
               v-model="form.used_date"
               required
               class="form-input"
+              @change="fetchPaymentDate"
             />
           </div>
 
@@ -198,13 +199,22 @@
               v-model.number="form.payment_source_id"
               required
               class="form-select"
+              @change="fetchPaymentDate"
             >
               <option value="">選択してください</option>
               <option v-for="source in paymentSources" :key="source.id" :value="source.id">
                 {{ source.name }}
               </option>
             </select>
-        </div>
+          </div>
+
+          <div class="form-group">
+            <label for="paid_date">支払日</label>
+            <div class="payment-date-display">
+              <span v-if="form.paid_date" class="payment-date-text">{{ form.paid_date }}</span>
+              <span v-else class="payment-date-placeholder">使用日と支出元を選択すると自動計算されます</span>
+            </div>
+          </div>
 
           <div class="form-actions">
             <button
@@ -432,6 +442,7 @@ const form = ref({
   memo: '',
   amount: 0,
   payment_source_id: 0,
+  paid_date: '',
 })
 
 const showDialog = ref(false)
@@ -535,13 +546,45 @@ const formatAmount = (amount: number) => {
   return amount.toLocaleString()
 }
 
+const fetchPaymentDate = async () => {
+  // 使用日と支出元が両方選択されている場合のみ支払日を取得
+  if (!form.value.used_date || !form.value.payment_source_id) {
+    form.value.paid_date = ''
+    return
+  }
+
+  try {
+    const response = await fetch(buildApiUrl('/calculate-payment-date'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        used_date: form.value.used_date,
+        payment_source_id: form.value.payment_source_id,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error('支払日の計算に失敗しました')
+    }
+
+    const data = await response.json()
+    form.value.paid_date = data.paid_date
+  } catch (e: any) {
+    console.error('支払日取得エラー:', e)
+    form.value.paid_date = ''
+  }
+}
+
 const resetForm = () => {
   form.value = {
     used_date: '',
     purpose: '',
     memo: '',
     amount: 0,
-    payment_source_id: paymentSources.value[0]?.id || 0
+    payment_source_id: paymentSources.value[0]?.id || 0,
+    paid_date: ''
   }
   isEditing.value = false
   editingId.value = null
@@ -562,6 +605,7 @@ const editTransaction = (transaction: Transaction) => {
     memo: transaction.memo || '',
     amount: transaction.amount,
     payment_source_id: transaction.payment_source_id,
+    paid_date: transaction.paid_date || '',
   }
   showDialog.value = true
 }
@@ -1774,6 +1818,28 @@ onUnmounted(() => {
   outline: none;
   border-color: #4CAF50;
   box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+.payment-date-display {
+  padding: 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.payment-date-text {
+  color: #2e7d32;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.payment-date-placeholder {
+  color: #6c757d;
+  font-style: italic;
+  font-size: 14px;
 }
 
 .form-textarea {

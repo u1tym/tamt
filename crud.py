@@ -1,13 +1,18 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import date, timedelta
 import models
 import schemas
 
 # 支払日自動計算
 def calculate_paid_date(used_date: date, closing_day: int, pay_month_diff: int, pay_day: int) -> date:
+    print(f"DEBUG: calculate_paid_date called with used_date: {used_date}, closing_day: {closing_day}, pay_month_diff: {pay_month_diff}, pay_day: {pay_day}")
+
     if closing_day == 0:
         # 現金などは使用日が支払日
+        print(f"DEBUG: closing_day is 0, returning used_date: {used_date}")
         return used_date
+
     # 締め日をまたいでいるか判定
     if used_date.day > closing_day:
         # 翌月の支払い
@@ -16,16 +21,41 @@ def calculate_paid_date(used_date: date, closing_day: int, pay_month_diff: int, 
         if month > 12:
             month = 1
             year += 1
+        print(f"DEBUG: Used date day ({used_date.day}) > closing_day ({closing_day}), using next month")
     else:
         month = used_date.month
         year = used_date.year
+        print(f"DEBUG: Used date day ({used_date.day}) <= closing_day ({closing_day}), using current month")
+
+    print(f"DEBUG: Initial month: {month}, year: {year}")
+
     # 支払い月までの差分を加算
     month += pay_month_diff
     while month > 12:
         month -= 12
         year += 1
+
+    print(f"DEBUG: After adding pay_month_diff ({pay_month_diff}), month: {month}, year: {year}")
+
     paid_date = date(year, month, pay_day if pay_day > 0 else used_date.day)
+    print(f"DEBUG: Final paid_date: {paid_date}")
     return paid_date
+
+def calculate_payment_date(used_date: date, payment_source: models.PaymentSource) -> date:
+    """PaymentSourceオブジェクトから支払日を計算"""
+    print(f"DEBUG: calculate_payment_date called with used_date: {used_date}")
+    print(f"DEBUG: payment_source: {payment_source.name}")
+    print(f"DEBUG: closing_day: {payment_source.closing_day}, pay_month_diff: {payment_source.pay_month_diff}, pay_day: {payment_source.pay_day}")
+
+    result = calculate_paid_date(
+        used_date=used_date,
+        closing_day=payment_source.closing_day,
+        pay_month_diff=payment_source.pay_month_diff,
+        pay_day=payment_source.pay_day
+    )
+
+    print(f"DEBUG: calculate_payment_date result: {result}")
+    return result
 
 # PaymentSource CRUD
 
@@ -225,9 +255,14 @@ def copy_budgets_from_year_month(db: Session, source_year: int, source_month: in
 # Transaction CRUD
 
 def create_transaction(db: Session, tx: schemas.TransactionCreate):
-    source = get_payment_source(db, tx.payment_source_id)
-    paid_date = calculate_paid_date(tx.used_date, source.closing_day, source.pay_month_diff, source.pay_day)
-    db_tx = models.Transaction(**tx.dict(), paid_date=paid_date)
+    # フロントエンドから支払日が送信されていない場合は自動計算
+    if tx.paid_date is None:
+        source = get_payment_source(db, tx.payment_source_id)
+        paid_date = calculate_paid_date(tx.used_date, source.closing_day, source.pay_month_diff, source.pay_day)
+    else:
+        paid_date = tx.paid_date
+
+    db_tx = models.Transaction(**tx.dict(exclude={'paid_date'}), paid_date=paid_date)
     db.add(db_tx)
     db.commit()
     db.refresh(db_tx)
@@ -247,8 +282,12 @@ def update_transaction(db: Session, tx_id: int, tx: schemas.TransactionUpdate):
     # 更新データを辞書に変換
     update_data = tx.dict(exclude_unset=True)
 
-    # 支払日の再計算が必要な場合
-    if 'used_date' in update_data or 'payment_source_id' in update_data:
+    # 支払日の処理
+    if 'paid_date' in update_data:
+        # フロントエンドから支払日が送信された場合はそれを使用
+        paid_date = update_data['paid_date']
+    elif 'used_date' in update_data or 'payment_source_id' in update_data:
+        # 使用日または支出元が変更された場合は再計算
         source = get_payment_source(db, update_data.get('payment_source_id', db_tx.payment_source_id))
         used_date = update_data.get('used_date', db_tx.used_date)
         paid_date = calculate_paid_date(used_date, source.closing_day, source.pay_month_diff, source.pay_day)

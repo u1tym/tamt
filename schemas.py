@@ -24,7 +24,7 @@ class TransactionBase(BaseModel):
     payment_source_id: int
 
 class TransactionCreate(TransactionBase):
-    pass
+    paid_date: Optional[date] = None
 
 class TransactionUpdate(BaseModel):
     used_date: Optional[date] = None
@@ -32,6 +32,7 @@ class TransactionUpdate(BaseModel):
     memo: Optional[str] = None
     amount: Optional[float] = None
     payment_source_id: Optional[int] = None
+    paid_date: Optional[date] = None
 
 class Transaction(TransactionBase):
     id: int
@@ -64,3 +65,7 @@ class Budget(BudgetBase):
     updated_at: datetime
     class Config:
         orm_mode = True
+
+class PaymentDateRequest(BaseModel):
+    used_date: str
+    payment_source_id: int
