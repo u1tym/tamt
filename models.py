@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, func, Text, Boolean
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, func, Text, Boolean, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -72,3 +72,70 @@ class Knowhow(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
     middle_category = relationship("MiddleCategory", back_populates="knowhows")
+
+# GOODS管理システム用のテーブル
+class Person(Base):
+    __tablename__ = 'persons'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)  # 名前
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
+    # アーティストとの関係
+    artist_persons = relationship("ArtistPerson", back_populates="person")
+
+class Artist(Base):
+    __tablename__ = 'artists'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)  # アーティスト名
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
+    # パーソンとの関係
+    artist_persons = relationship("ArtistPerson", back_populates="artist")
+    # GOODSとの関係
+    goods = relationship("Goods", back_populates="artist")
+
+class ArtistPerson(Base):
+    __tablename__ = 'artist_persons'
+    id = Column(Integer, primary_key=True, index=True)
+    artist_id = Column(Integer, ForeignKey('artists.id'), nullable=False)  # アーティストID
+    person_id = Column(Integer, ForeignKey('persons.id'), nullable=False)  # パーソンID
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    # 関係
+    artist = relationship("Artist", back_populates="artist_persons")
+    person = relationship("Person", back_populates="artist_persons")
+
+class Media(Base):
+    __tablename__ = 'media'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)  # メディア名称
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
+    # GOODSとの関係
+    goods = relationship("Goods", back_populates="media")
+
+class Goods(Base):
+    __tablename__ = 'goods'
+    id = Column(Integer, primary_key=True, index=True)
+    media_id = Column(Integer, ForeignKey('media.id'), nullable=False)  # メディアID
+    artist_id = Column(Integer, ForeignKey('artists.id'), nullable=False)  # アーティストID
+    title = Column(String, nullable=False)  # タイトル
+    release_date = Column(Date, nullable=False)  # リリース年月日
+    memo = Column(Text)  # メモ
+    is_deleted = Column(Boolean, nullable=False, default=False)  # 削除フラグ
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
+    # 関係
+    media = relationship("Media", back_populates="goods")
+    artist = relationship("Artist", back_populates="goods")
+    images = relationship("GoodsImage", back_populates="goods", cascade="all, delete-orphan")
+
+class GoodsImage(Base):
+    __tablename__ = 'goods_images'
+    id = Column(Integer, primary_key=True, index=True)
+    goods_id = Column(Integer, ForeignKey('goods.id'), nullable=False)  # GOODS ID
+    image_data = Column(LargeBinary, nullable=False)  # 画像データ
+    image_type = Column(String, nullable=False)  # 画像タイプ（MIME type）
+    display_order = Column(Integer, nullable=False, default=0)  # 表示順序
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    # 関係
+    goods = relationship("Goods", back_populates="images")

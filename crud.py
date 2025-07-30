@@ -3,6 +3,9 @@ from sqlalchemy import func
 from datetime import date, timedelta
 import models
 import schemas
+from PIL import Image
+import io
+import base64
 
 # 支払日自動計算
 def calculate_paid_date(used_date: date, closing_day: int, pay_month_diff: int, pay_day: int) -> date:
@@ -57,6 +60,25 @@ def calculate_payment_date(used_date: date, payment_source: models.PaymentSource
     print(f"DEBUG: calculate_payment_date result: {result}")
     return result
 
+# 画像リサイズ関数
+def resize_image(image_data: bytes, max_size: int = 800) -> bytes:
+    """画像をリサイズしてバイトデータを返す"""
+    try:
+        # 画像を開く
+        image = Image.open(io.BytesIO(image_data))
+        
+        # アスペクト比を保ってリサイズ
+        if image.width > max_size or image.height > max_size:
+            image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+        
+        # JPEG形式で保存
+        output = io.BytesIO()
+        image.save(output, format='JPEG', quality=85, optimize=True)
+        return output.getvalue()
+    except Exception as e:
+        print(f"画像リサイズエラー: {e}")
+        return image_data
+
 # PaymentSource CRUD
 
 def create_payment_source(db: Session, source: schemas.PaymentSourceCreate):
@@ -98,16 +120,15 @@ def delete_payment_source(db: Session, source_id: int):
 
 def create_budget(db: Session, budget: schemas.BudgetCreate):
     # 新規作成時は最後の順序に追加
-    max_order = db.query(models.Budget).filter(
+    max_order = db.query(func.max(models.Budget.order_index)).filter(
         models.Budget.target_year == budget.target_year,
         models.Budget.target_month == budget.target_month
-    ).with_entities(func.max(models.Budget.order_index)).scalar()
-
-    new_order = (max_order or -1) + 1
-
-    budget_data = budget.dict()
-    budget_data.pop("order_index", None)  # 既存の order_index を除外
-    db_budget = models.Budget(**budget_data, order_index=new_order)
+    ).scalar()
+    
+    if max_order is None:
+        max_order = 0
+    
+    db_budget = models.Budget(**budget.dict(), order_index=max_order + 1)
     db.add(db_budget)
     db.commit()
     db.refresh(db_budget)
@@ -315,9 +336,8 @@ def delete_transaction(db: Session, tx_id: int):
     db.commit()
     return True
 
-# Knowhow CRUD
+# MajorCategory CRUD
 
-# 大項目管理
 def create_major_category(db: Session, major_category: schemas.MajorCategoryCreate):
     """大項目を作成"""
     max_order = db.query(models.MajorCategory).filter(
@@ -372,7 +392,8 @@ def delete_major_category(db: Session, major_category_id: int):
     db.commit()
     return True
 
-# 中項目管理
+# MiddleCategory CRUD
+
 def create_middle_category(db: Session, middle_category: schemas.MiddleCategoryCreate):
     """中項目を作成"""
     max_order = db.query(models.MiddleCategory).filter(
@@ -434,6 +455,8 @@ def delete_middle_category(db: Session, middle_category_id: int):
     db_middle_category.is_deleted = True
     db.commit()
     return True
+
+# Knowhow CRUD
 
 def create_knowhow(db: Session, knowhow: schemas.KnowhowCreate):
     # 新規作成時は同じ中項目内の最後の順序に追加
@@ -618,3 +641,252 @@ def normalize_knowhow_order_indexes(db: Session):
 
     db.commit()
     return knowhows
+
+# GOODS管理システム用のCRUD操作
+
+# Person CRUD
+def create_person(db: Session, person: schemas.PersonCreate):
+    db_person = models.Person(**person.dict())
+    db.add(db_person)
+    db.commit()
+    db.refresh(db_person)
+    return db_person
+
+def get_persons(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Person).order_by(models.Person.name).offset(skip).limit(limit).all()
+
+def get_person(db: Session, person_id: int):
+    return db.query(models.Person).filter(models.Person.id == person_id).first()
+
+def update_person(db: Session, person_id: int, person: schemas.PersonUpdate):
+    db_person = get_person(db, person_id)
+    if db_person is None:
+        return None
+
+    update_data = person.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_person, field, value)
+
+    db.commit()
+    db.refresh(db_person)
+    return db_person
+
+# Artist CRUD
+def create_artist(db: Session, artist: schemas.ArtistCreate):
+    db_artist = models.Artist(name=artist.name)
+    db.add(db_artist)
+    db.commit()
+    db.refresh(db_artist)
+    
+    # パーソンの関連付け
+    for person_id in artist.person_ids:
+        artist_person = models.ArtistPerson(
+            artist_id=db_artist.id,
+            person_id=person_id
+        )
+        db.add(artist_person)
+    
+    db.commit()
+    db.refresh(db_artist)
+    return db_artist
+
+def get_artists(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Artist).order_by(models.Artist.name).offset(skip).limit(limit).all()
+
+def get_artist(db: Session, artist_id: int):
+    return db.query(models.Artist).filter(models.Artist.id == artist_id).first()
+
+def get_artist_with_persons(db: Session, artist_id: int):
+    """パーソン情報を含むアーティストを取得"""
+    artist = get_artist(db, artist_id)
+    if artist is None:
+        return None
+    
+    # パーソン情報を取得
+    persons = db.query(models.Person).join(models.ArtistPerson).filter(
+        models.ArtistPerson.artist_id == artist_id
+    ).all()
+    
+    return {
+        'id': artist.id,
+        'name': artist.name,
+        'created_at': artist.created_at,
+        'updated_at': artist.updated_at,
+        'persons': persons
+    }
+
+def update_artist(db: Session, artist_id: int, artist: schemas.ArtistUpdate):
+    db_artist = get_artist(db, artist_id)
+    if db_artist is None:
+        return None
+
+    update_data = artist.dict(exclude_unset=True)
+    
+    # 名前の更新
+    if 'name' in update_data:
+        db_artist.name = update_data['name']
+    
+    # パーソンの関連付けを更新
+    if 'person_ids' in update_data:
+        # 既存の関連付けを削除
+        db.query(models.ArtistPerson).filter(
+            models.ArtistPerson.artist_id == artist_id
+        ).delete()
+        
+        # 新しい関連付けを作成
+        for person_id in update_data['person_ids']:
+            artist_person = models.ArtistPerson(
+                artist_id=artist_id,
+                person_id=person_id
+            )
+            db.add(artist_person)
+    
+    db.commit()
+    db.refresh(db_artist)
+    return db_artist
+
+# Media CRUD
+def create_media(db: Session, media: schemas.MediaCreate):
+    db_media = models.Media(**media.dict())
+    db.add(db_media)
+    db.commit()
+    db.refresh(db_media)
+    return db_media
+
+def get_media_list(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Media).order_by(models.Media.name).offset(skip).limit(limit).all()
+
+def get_media(db: Session, media_id: int):
+    return db.query(models.Media).filter(models.Media.id == media_id).first()
+
+def update_media(db: Session, media_id: int, media: schemas.MediaUpdate):
+    db_media = get_media(db, media_id)
+    if db_media is None:
+        return None
+
+    update_data = media.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_media, field, value)
+
+    db.commit()
+    db.refresh(db_media)
+    return db_media
+
+# Goods CRUD
+def create_goods(db: Session, goods: schemas.GoodsCreate):
+    db_goods = models.Goods(
+        media_id=goods.media_id,
+        artist_id=goods.artist_id,
+        title=goods.title,
+        release_date=goods.release_date,
+        memo=goods.memo
+    )
+    db.add(db_goods)
+    db.commit()
+    db.refresh(db_goods)
+    
+    # 画像の保存
+    for i, image_data in enumerate(goods.images):
+        # 画像をリサイズ
+        resized_image = resize_image(image_data.image_data)
+        
+        goods_image = models.GoodsImage(
+            goods_id=db_goods.id,
+            image_data=resized_image,
+            image_type=image_data.image_type,
+            display_order=i
+        )
+        db.add(goods_image)
+    
+    db.commit()
+    db.refresh(db_goods)
+    return db_goods
+
+def get_goods_list(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Goods).filter(
+        models.Goods.is_deleted == False
+    ).order_by(models.Goods.release_date.desc()).offset(skip).limit(limit).all()
+
+def get_goods(db: Session, goods_id: int):
+    return db.query(models.Goods).filter(
+        models.Goods.id == goods_id,
+        models.Goods.is_deleted == False
+    ).first()
+
+def get_goods_with_details(db: Session, goods_id: int):
+    """詳細情報を含むGOODSを取得"""
+    goods = get_goods(db, goods_id)
+    if goods is None:
+        return None
+    
+    # メディア情報を取得
+    media = get_media(db, goods.media_id)
+    
+    # アーティスト情報を取得（パーソン情報含む）
+    artist_with_persons = get_artist_with_persons(db, goods.artist_id)
+    
+    # 画像情報を取得
+    images = db.query(models.GoodsImage).filter(
+        models.GoodsImage.goods_id == goods_id
+    ).order_by(models.GoodsImage.display_order).all()
+    
+    return {
+        'id': goods.id,
+        'media_id': goods.media_id,
+        'artist_id': goods.artist_id,
+        'title': goods.title,
+        'release_date': goods.release_date,
+        'memo': goods.memo,
+        'is_deleted': goods.is_deleted,
+        'created_at': goods.created_at,
+        'updated_at': goods.updated_at,
+        'media': media,
+        'artist': artist_with_persons,
+        'images': images
+    }
+
+def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
+    db_goods = get_goods(db, goods_id)
+    if db_goods is None:
+        return None
+
+    update_data = goods.dict(exclude_unset=True)
+    
+    # 基本情報の更新
+    for field in ['media_id', 'artist_id', 'title', 'release_date', 'memo']:
+        if field in update_data:
+            setattr(db_goods, field, update_data[field])
+    
+    # 画像の更新
+    if 'images' in update_data:
+        # 既存の画像を削除
+        db.query(models.GoodsImage).filter(
+            models.GoodsImage.goods_id == goods_id
+        ).delete()
+        
+        # 新しい画像を保存
+        for i, image_data in enumerate(update_data['images']):
+            # 画像をリサイズ
+            resized_image = resize_image(image_data.image_data)
+            
+            goods_image = models.GoodsImage(
+                goods_id=goods_id,
+                image_data=resized_image,
+                image_type=image_data.image_type,
+                display_order=i
+            )
+            db.add(goods_image)
+    
+    db.commit()
+    db.refresh(db_goods)
+    return db_goods
+
+def delete_goods(db: Session, goods_id: int):
+    db_goods = get_goods(db, goods_id)
+    if db_goods is None:
+        return False
+
+    # 論理削除
+    db_goods.is_deleted = True
+    db.commit()
+    return True

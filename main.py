@@ -751,6 +751,138 @@ def delete_middle_category(middle_category_id: int, db: Session = Depends(get_db
         raise HTTPException(status_code=404, detail="Middle category not found")
     return {"message": "Middle category deleted successfully"}
 
+# GOODS管理システム用のAPIエンドポイント
+
+# Person API
+@app.get("/persons", response_model=List[schemas.Person])
+def read_persons(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_persons(db, skip=skip, limit=limit)
+
+@app.get("/persons/{person_id}", response_model=schemas.Person)
+def read_person(person_id: int, db: Session = Depends(get_db)):
+    person = crud.get_person(db, person_id=person_id)
+    if person is None:
+        raise HTTPException(status_code=404, detail="Person not found")
+    return person
+
+@app.post("/persons", response_model=schemas.Person)
+def create_person(person: schemas.PersonCreate, db: Session = Depends(get_db)):
+    return crud.create_person(db=db, person=person)
+
+@app.put("/persons/{person_id}", response_model=schemas.Person)
+def update_person(person_id: int, person: schemas.PersonUpdate, db: Session = Depends(get_db)):
+    updated_person = crud.update_person(db=db, person_id=person_id, person=person)
+    if updated_person is None:
+        raise HTTPException(status_code=404, detail="Person not found")
+    return updated_person
+
+# Artist API
+@app.get("/artists", response_model=List[schemas.Artist])
+def read_artists(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_artists(db, skip=skip, limit=limit)
+
+@app.get("/artists/{artist_id}", response_model=schemas.Artist)
+def read_artist(artist_id: int, db: Session = Depends(get_db)):
+    artist = crud.get_artist(db, artist_id=artist_id)
+    if artist is None:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    return artist
+
+@app.get("/artists/{artist_id}/with-persons")
+def read_artist_with_persons(artist_id: int, db: Session = Depends(get_db)):
+    artist_with_persons = crud.get_artist_with_persons(db, artist_id=artist_id)
+    if artist_with_persons is None:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    return artist_with_persons
+
+@app.post("/artists", response_model=schemas.Artist)
+def create_artist(artist: schemas.ArtistCreate, db: Session = Depends(get_db)):
+    return crud.create_artist(db=db, artist=artist)
+
+@app.put("/artists/{artist_id}", response_model=schemas.Artist)
+def update_artist(artist_id: int, artist: schemas.ArtistUpdate, db: Session = Depends(get_db)):
+    updated_artist = crud.update_artist(db=db, artist_id=artist_id, artist=artist)
+    if updated_artist is None:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    return updated_artist
+
+# Media API
+@app.get("/media", response_model=List[schemas.Media])
+def read_media_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_media_list(db, skip=skip, limit=limit)
+
+@app.get("/media/{media_id}", response_model=schemas.Media)
+def read_media(media_id: int, db: Session = Depends(get_db)):
+    media = crud.get_media(db, media_id=media_id)
+    if media is None:
+        raise HTTPException(status_code=404, detail="Media not found")
+    return media
+
+@app.post("/media", response_model=schemas.Media)
+def create_media(media: schemas.MediaCreate, db: Session = Depends(get_db)):
+    return crud.create_media(db=db, media=media)
+
+@app.put("/media/{media_id}", response_model=schemas.Media)
+def update_media(media_id: int, media: schemas.MediaUpdate, db: Session = Depends(get_db)):
+    updated_media = crud.update_media(db=db, media_id=media_id, media=media)
+    if updated_media is None:
+        raise HTTPException(status_code=404, detail="Media not found")
+    return updated_media
+
+# Goods API
+@app.get("/goods", response_model=List[schemas.Goods])
+def read_goods_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_goods_list(db, skip=skip, limit=limit)
+
+@app.get("/goods/{goods_id}", response_model=schemas.Goods)
+def read_goods(goods_id: int, db: Session = Depends(get_db)):
+    goods = crud.get_goods(db, goods_id=goods_id)
+    if goods is None:
+        raise HTTPException(status_code=404, detail="Goods not found")
+    return goods
+
+@app.get("/goods/{goods_id}/with-details")
+def read_goods_with_details(goods_id: int, db: Session = Depends(get_db)):
+    goods_with_details = crud.get_goods_with_details(db, goods_id=goods_id)
+    if goods_with_details is None:
+        raise HTTPException(status_code=404, detail="Goods not found")
+    return goods_with_details
+
+@app.post("/goods", response_model=schemas.Goods)
+def create_goods(goods: schemas.GoodsCreate, db: Session = Depends(get_db)):
+    return crud.create_goods(db=db, goods=goods)
+
+@app.put("/goods/{goods_id}", response_model=schemas.Goods)
+def update_goods(goods_id: int, goods: schemas.GoodsUpdate, db: Session = Depends(get_db)):
+    updated_goods = crud.update_goods(db=db, goods_id=goods_id, goods=goods)
+    if updated_goods is None:
+        raise HTTPException(status_code=404, detail="Goods not found")
+    return updated_goods
+
+@app.delete("/goods/{goods_id}")
+def delete_goods(goods_id: int, db: Session = Depends(get_db)):
+    success = crud.delete_goods(db=db, goods_id=goods_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Goods not found")
+    return {"message": "Goods deleted successfully"}
+
+# 画像取得API
+@app.get("/goods/{goods_id}/images/{image_id}")
+def get_goods_image(goods_id: int, image_id: int, db: Session = Depends(get_db)):
+    """GOODS画像を取得"""
+    image = db.query(models.GoodsImage).filter(
+        models.GoodsImage.id == image_id,
+        models.GoodsImage.goods_id == goods_id
+    ).first()
+    
+    if image is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    return {
+        "image_data": base64.b64encode(image.image_data).decode('utf-8'),
+        "image_type": image.image_type
+    }
+
 if __name__ == "__main__":
     import uvicorn
     import ssl
