@@ -919,14 +919,14 @@ def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
         for i, image_data in enumerate(update_data['images']):
             # Base64デコードしてバイトデータに変換
             import base64
-            decoded_image = base64.b64decode(image_data.image_data)
+            decoded_image = base64.b64decode(image_data['image_data'])
             # 画像をリサイズ
             resized_image = resize_image(decoded_image)
             
             goods_image = models.GoodsImage(
                 goods_id=goods_id,
                 image_data=resized_image,
-                image_type=image_data.image_type,
+                image_type=image_data['image_type'],
                 display_order=i
             )
             db.add(goods_image)

@@ -134,13 +134,14 @@
                   <div
                     v-for="(image, index) in form.images"
                     :key="index"
-                    class="image-preview-item"
+                    :class="['image-preview-item', image.isExisting ? 'existing' : 'new']"
                   >
                     <img :src="image.preview" :alt="`画像${index + 1}`" />
                     <button
                       type="button"
                       @click.stop="removeImage(index)"
                       class="remove-image-btn"
+                      :title="image.isExisting ? '既存画像を削除' : '新規画像を削除'"
                     >
                       ×
                     </button>
@@ -218,10 +219,12 @@ interface Goods {
 }
 
 interface ImageFile {
-  file: File
+  file: File | null
   preview: string
   image_data: string  // Base64エンコードされた文字列
   image_type: string
+  isExisting?: boolean  // 既存画像フラグ
+  id?: number  // 既存画像のID
 }
 
 const goodsList = ref<Goods[]>([])
@@ -313,13 +316,24 @@ const editGoods = (goods: Goods) => {
   isEditing.value = true
   editingId.value = goods.id
   currentGoods.value = goods
+  
+  // 既存の画像を表示用に変換
+  const existingImages = goods.images?.map(img => ({
+    file: null as File | null,
+    preview: `data:${img.image_type};base64,${img.image_data}`,
+    image_data: img.image_data,
+    image_type: img.image_type,
+    isExisting: true,  // 既存画像フラグ
+    id: img.id  // 既存画像のID
+  })) || []
+  
   form.value = {
     media_id: goods.media_id,
     artist_id: goods.artist_id,
     title: goods.title,
     release_date: goods.release_date,
     memo: goods.memo || '',
-    images: []
+    images: existingImages
   }
   showEditDialog.value = true
 }
@@ -462,7 +476,8 @@ const handleFiles = async (files: File[]) => {
           file,
           preview,
           image_data: base64,
-          image_type: file.type
+          image_type: file.type,
+          isExisting: false
         })
       } catch (e) {
         console.error('画像処理エラー:', e)
@@ -474,7 +489,12 @@ const handleFiles = async (files: File[]) => {
 
 const removeImage = (index: number) => {
   const image = form.value.images[index]
-  URL.revokeObjectURL(image.preview)
+  
+  // 新規画像の場合のみURL.revokeObjectURLを呼ぶ
+  if (!image.isExisting && image.file) {
+    URL.revokeObjectURL(image.preview)
+  }
+  
   form.value.images.splice(index, 1)
 }
 
@@ -787,6 +807,14 @@ onMounted(() => {
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.image-preview-item.existing {
+  border: 2px solid #2196F3;
+}
+
+.image-preview-item.new {
+  border: 2px solid #4CAF50;
 }
 
 .image-preview-item img {
