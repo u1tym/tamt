@@ -1,7 +1,7 @@
 <template>
   <div class="goods-list">
     <div class="section-header">
-      <h2>アイテム管理</h2>
+      <h2 v-if="!isMobile">アイテム管理</h2>
       <button @click="showAddDialog = true" class="add-button">
         ＋ 新規アイテム登録
       </button>
@@ -10,7 +10,7 @@
     <!-- GOODS一覧 -->
     <div class="goods-table-container">
       <table class="goods-table">
-        <thead>
+        <thead v-if="!isMobile">
           <tr>
             <th>画像</th>
             <th>タイトル</th>
@@ -40,16 +40,22 @@
                 <div v-else class="no-image">画像なし</div>
               </div>
             </td>
-            <td class="goods-title-cell">{{ goods.title }}</td>
-            <td class="goods-media-cell">{{ getMediaName(goods.media_id) }}</td>
-            <td class="goods-artist-cell">{{ getArtistName(goods.artist_id) }}</td>
+            <td v-if="!isMobile" class="goods-title-cell">{{ goods.title }}</td>
+            <td v-if="!isMobile" class="goods-media-cell">{{ getMediaName(goods.media_id) }}</td>
+            <td v-if="!isMobile" class="goods-artist-cell">{{ getArtistName(goods.artist_id) }}</td>
+            <td v-if="isMobile" class="goods-info-cell">
+              <div class="goods-title">{{ goods.title }}</div>
+              <div class="goods-media">{{ getMediaName(goods.media_id) }}</div>
+              <div class="goods-artist">{{ getArtistName(goods.artist_id) }}</div>
+              <div class="goods-code">{{ goods.code_number || '-' }}</div>
+            </td>
             <td class="goods-date-cell">{{ formatDate(goods.release_date) }}</td>
             <td class="goods-owned-cell">
               <span v-if="goods.is_owned" class="owned-badge">✓</span>
               <span v-else class="not-owned-badge">-</span>
             </td>
-            <td class="goods-code-cell">{{ goods.code_number || '-' }}</td>
-            <td class="goods-actions-cell">
+            <td v-if="!isMobile" class="goods-code-cell">{{ goods.code_number || '-' }}</td>
+            <td v-if="!isMobile" class="goods-actions-cell">
               <button @click.stop="editGoods(goods)" class="edit-btn" title="編集">
                 ✏️
               </button>
@@ -228,7 +234,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { buildApiUrl } from '../../utils/api'
 
 interface Media {
@@ -283,6 +289,13 @@ const showAddDialog = ref(false)
 const showEditDialog = ref(false)
 const currentGoods = ref<Goods | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
+
+// モバイル判定
+const isMobile = ref(false)
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
 
 const form = ref({
   media_id: 0,
@@ -585,9 +598,15 @@ const getImageSrc = (image: GoodsImage) => {
 }
 
 onMounted(() => {
+  checkMobile()
   fetchGoods()
   fetchMedia()
   fetchArtists()
+  window.addEventListener('resize', checkMobile)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
 })
 </script>
 
@@ -631,6 +650,49 @@ onMounted(() => {
   margin-top: 20px;
 }
 
+@media (max-width: 768px) {
+  .goods-table-container {
+    max-height: 70vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  
+  .goods-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  
+  .goods-info-cell {
+    min-width: 250px;
+    max-width: 300px;
+  }
+  
+  .goods-info-cell .goods-title {
+    font-weight: 500;
+    color: #333;
+    font-size: 14px;
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  
+  .goods-info-cell .goods-media,
+  .goods-info-cell .goods-artist,
+  .goods-info-cell .goods-code {
+    color: #666;
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+  
+  .goods-info-cell .goods-code {
+    font-family: monospace;
+  }
+  
+  .goods-owned-cell {
+    width: 40px;
+  }
+}
+
 .goods-table {
   width: 100%;
   border-collapse: collapse;
@@ -643,7 +705,7 @@ onMounted(() => {
 .goods-table th {
   background-color: #f5f5f5;
   padding: 12px 16px;
-  text-align: left;
+  text-align: center;
   font-weight: 600;
   color: #333;
   border-bottom: 2px solid #e0e0e0;
@@ -693,6 +755,12 @@ onMounted(() => {
   text-align: center;
 }
 
+@media (max-width: 768px) {
+  .goods-owned-cell {
+    width: 40px;
+  }
+}
+
 .goods-code-cell {
   width: 120px;
   color: #666;
@@ -715,6 +783,38 @@ onMounted(() => {
 .not-owned-badge {
   color: #999;
   font-size: 14px;
+}
+
+/* モバイル用スタイル */
+.goods-info-cell {
+  min-width: 250px;
+  max-width: 300px;
+}
+
+.goods-info-cell .goods-title {
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.goods-info-cell .goods-media {
+  color: #666;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.goods-info-cell .goods-artist {
+  color: #666;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.goods-info-cell .goods-code {
+  color: #666;
+  font-size: 12px;
+  font-family: monospace;
 }
 
 

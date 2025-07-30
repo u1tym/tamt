@@ -8,10 +8,10 @@
     </div>
 
     <!-- タイトル -->
-    <h1 class="page-title">GOODS管理</h1>
+    <h1 class="page-title">{{ isMobile ? 'GOODS管理（アイテム管理）' : 'GOODS管理' }}</h1>
 
     <!-- タブナビゲーション -->
-    <div class="tab-navigation">
+    <div class="tab-navigation" v-if="!isMobile">
       <button
         v-for="tab in tabs"
         :key="tab.id"
@@ -25,17 +25,17 @@
     <!-- タブコンテンツ -->
     <div class="tab-content">
       <!-- パーソン管理 -->
-      <div v-if="activeTab === 'persons'" class="tab-panel">
+      <div v-if="!isMobile && activeTab === 'persons'" class="tab-panel">
         <PersonManagement />
       </div>
 
       <!-- アーティスト管理 -->
-      <div v-if="activeTab === 'artists'" class="tab-panel">
+      <div v-if="!isMobile && activeTab === 'artists'" class="tab-panel">
         <ArtistManagement />
       </div>
 
       <!-- メディア管理 -->
-      <div v-if="activeTab === 'media'" class="tab-panel">
+      <div v-if="!isMobile && activeTab === 'media'" class="tab-panel">
         <MediaManagement />
       </div>
 
@@ -48,7 +48,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PersonManagement from './goods/PersonManagement.vue'
 import ArtistManagement from './goods/ArtistManagement.vue'
@@ -56,6 +56,13 @@ import MediaManagement from './goods/MediaManagement.vue'
 import GoodsList from './goods/GoodsList.vue'
 
 const router = useRouter()
+
+// モバイル判定
+const isMobile = ref(false)
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
 
 // タブ設定
 const tabs = [
@@ -67,10 +74,30 @@ const tabs = [
 
 const activeTab = ref('persons')
 
+// モバイルの場合はアイテム管理タブをデフォルトに設定
+const initializeActiveTab = () => {
+  if (isMobile.value) {
+    activeTab.value = 'goods'
+  } else {
+    activeTab.value = 'persons'
+  }
+}
+
 // トップメニューへ戻る
 const goToTopMenu = () => {
   router.push('/')
 }
+
+// ライフサイクル
+onMounted(() => {
+  checkMobile()
+  initializeActiveTab()
+  window.addEventListener('resize', checkMobile)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+})
 </script>
 
 <style scoped>
