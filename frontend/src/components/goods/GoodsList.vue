@@ -8,39 +8,51 @@
     </div>
 
     <!-- GOODS一覧 -->
-    <div class="goods-grid">
-      <div
-        v-for="goods in goodsList"
-        :key="goods.id"
-        class="goods-card"
-        @click="editGoods(goods)"
-      >
-        <div class="goods-image">
-          <img 
-            v-if="goods.images && goods.images.length > 0" 
-            :src="getImageSrc(goods.images[0])" 
-            :alt="goods.title"
-            @error="handleImageError"
-          />
-          <div v-else class="no-image">画像なし</div>
-        </div>
-        <div class="goods-info">
-          <div class="goods-title">{{ goods.title }}</div>
-          <div class="goods-details">
-            <div class="goods-media">{{ getMediaName(goods.media_id) }}</div>
-            <div class="goods-artist">{{ getArtistName(goods.artist_id) }}</div>
-            <div class="goods-date">{{ formatDate(goods.release_date) }}</div>
-          </div>
-        </div>
-        <div class="goods-actions">
-          <button @click.stop="editGoods(goods)" class="edit-btn" title="編集">
-            ✏️
-          </button>
-          <button @click.stop="deleteGoods(goods)" class="delete-btn" title="削除">
-            🗑️
-          </button>
-        </div>
-      </div>
+    <div class="goods-table-container">
+      <table class="goods-table">
+        <thead>
+          <tr>
+            <th>画像</th>
+            <th>タイトル</th>
+            <th>メディア</th>
+            <th>アーティスト</th>
+            <th>リリース日</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="goods in goodsList"
+            :key="goods.id"
+            class="goods-row"
+            @click="editGoods(goods)"
+          >
+            <td class="goods-image-cell">
+              <div class="goods-image">
+                <img 
+                  v-if="goods.images && goods.images.length > 0" 
+                  :src="getImageSrc(goods.images[0])" 
+                  :alt="goods.title"
+                  @error="handleImageError"
+                />
+                <div v-else class="no-image">画像なし</div>
+              </div>
+            </td>
+            <td class="goods-title-cell">{{ goods.title }}</td>
+            <td class="goods-media-cell">{{ getMediaName(goods.media_id) }}</td>
+            <td class="goods-artist-cell">{{ getArtistName(goods.artist_id) }}</td>
+            <td class="goods-date-cell">{{ formatDate(goods.release_date) }}</td>
+            <td class="goods-actions-cell">
+              <button @click.stop="editGoods(goods)" class="edit-btn" title="編集">
+                ✏️
+              </button>
+              <button @click.stop="deleteGoods(goods)" class="delete-btn" title="削除">
+                🗑️
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- 新規追加・編集ダイアログ -->
@@ -571,35 +583,79 @@ onMounted(() => {
   background-color: #45a049;
 }
 
-.goods-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+.goods-table-container {
+  overflow-x: auto;
+  margin-top: 20px;
 }
 
-.goods-card {
+.goods-table {
+  width: 100%;
+  border-collapse: collapse;
   background: white;
-  border: 1px solid #e0e0e0;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition: all 0.2s;
   overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.goods-card:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
+.goods-table th {
+  background-color: #f5f5f5;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
 }
+
+.goods-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  vertical-align: middle;
+}
+
+.goods-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.goods-row:hover {
+  background-color: #f8f9fa;
+}
+
+.goods-image-cell {
+  width: 80px;
+}
+
+.goods-title-cell {
+  font-weight: 500;
+  color: #333;
+}
+
+.goods-media-cell,
+.goods-artist-cell {
+  color: #666;
+}
+
+.goods-date-cell {
+  color: #666;
+  white-space: nowrap;
+}
+
+.goods-actions-cell {
+  width: 100px;
+  text-align: center;
+}
+
+
 
 .goods-image {
-  width: 100%;
-  height: 200px;
+  width: 60px;
+  height: 60px;
   background-color: #f5f5f5;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  border-radius: 4px;
 }
 
 .goods-image img {
@@ -610,39 +666,8 @@ onMounted(() => {
 
 .no-image {
   color: #999;
-  font-size: 14px;
+  font-size: 12px;
   text-align: center;
-}
-
-.goods-info {
-  padding: 16px;
-}
-
-.goods-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 8px;
-  line-height: 1.4;
-}
-
-.goods-details {
-  font-size: 14px;
-  color: #666;
-}
-
-.goods-media,
-.goods-artist,
-.goods-date {
-  margin-bottom: 4px;
-}
-
-.goods-actions {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid #f0f0f0;
-  background-color: #f9f9f9;
 }
 
 .edit-btn,
@@ -923,9 +948,22 @@ onMounted(() => {
     width: 100%;
   }
 
-  .goods-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
+  .goods-table-container {
+    margin-top: 16px;
+  }
+  
+  .goods-table {
+    font-size: 14px;
+  }
+  
+  .goods-table th,
+  .goods-table td {
+    padding: 8px 12px;
+  }
+  
+  .goods-image {
+    width: 50px;
+    height: 50px;
   }
 
   .modal-content {
