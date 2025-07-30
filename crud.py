@@ -436,7 +436,7 @@ def delete_middle_category(db: Session, middle_category_id: int):
     return True
 
 def create_knowhow(db: Session, knowhow: schemas.KnowhowCreate):
-    # 新規作成時は最後の順序に追加
+    # 新規作成時は同じ中項目内の最後の順序に追加
     max_order = db.query(models.Knowhow).filter(
         models.Knowhow.middle_category_id == knowhow.middle_category_id,
         models.Knowhow.is_deleted == False
@@ -544,7 +544,8 @@ def get_knowhow_tree(db: Session):
                         'id': knowhow.id,
                         'title': knowhow.title,
                         'keywords': knowhow.keywords,
-                        'display_order': knowhow.display_order
+                        'display_order': knowhow.display_order,
+                        'middle_category_id': knowhow.middle_category_id
                     })
 
         print(f"Tree structure: {tree}")
@@ -561,11 +562,10 @@ def move_knowhow_up(db: Session, knowhow_id: int):
     if db_knowhow is None:
         return None
 
-    # 同じ大項目・中項目内で一つ前のKNOWHOWを取得
+    # 同じ中項目内で一つ前のKNOWHOWを取得
     prev_knowhow = db.query(models.Knowhow).filter(
         models.Knowhow.is_deleted == False,
-        models.Knowhow.major_category == db_knowhow.major_category,
-        models.Knowhow.middle_category == db_knowhow.middle_category,
+        models.Knowhow.middle_category_id == db_knowhow.middle_category_id,
         models.Knowhow.display_order < db_knowhow.display_order
     ).order_by(models.Knowhow.display_order.desc()).first()
 
@@ -587,11 +587,10 @@ def move_knowhow_down(db: Session, knowhow_id: int):
     if db_knowhow is None:
         return None
 
-    # 同じ大項目・中項目内で一つ後のKNOWHOWを取得
+    # 同じ中項目内で一つ後のKNOWHOWを取得
     next_knowhow = db.query(models.Knowhow).filter(
         models.Knowhow.is_deleted == False,
-        models.Knowhow.major_category == db_knowhow.major_category,
-        models.Knowhow.middle_category == db_knowhow.middle_category,
+        models.Knowhow.middle_category_id == db_knowhow.middle_category_id,
         models.Knowhow.display_order > db_knowhow.display_order
     ).order_by(models.Knowhow.display_order).first()
 

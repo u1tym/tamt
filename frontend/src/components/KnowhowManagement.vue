@@ -521,6 +521,7 @@ interface TreeItem {
   title: string
   keywords: string | null
   display_order: number
+  middle_category_id: number
 }
 
 const activeTab = ref<'search' | 'edit' | 'category'>('search')
@@ -841,43 +842,29 @@ const filterTree = () => {
 
 // 最初のKNOWHOWかどうか判定
 const isFirstKnowhow = (title: TreeItem) => {
-  const majorCategory = Object.keys(knowhowTree.value).find(mc =>
-    Object.keys(knowhowTree.value[mc]).some(midc =>
-      knowhowTree.value[mc][midc].some(t => t.id === title.id)
-    )
-  )
+  // 同じ中項目内のKNOWHOWを取得
+  const sameCategoryKnowhows = Object.values(knowhowTree.value)
+    .flatMap(major => Object.values(major))
+    .flat()
+    .filter(t => t.middle_category_id === title.middle_category_id)
 
-  if (!majorCategory) return true
+  if (sameCategoryKnowhows.length === 0) return true
 
-  const middleCategory = Object.keys(knowhowTree.value[majorCategory]).find(midc =>
-    knowhowTree.value[majorCategory][midc].some(t => t.id === title.id)
-  )
-
-  if (!middleCategory) return true
-
-  const titles = knowhowTree.value[majorCategory][middleCategory]
-  const minOrder = Math.min(...titles.map(t => t.display_order))
+  const minOrder = Math.min(...sameCategoryKnowhows.map(t => t.display_order))
   return title.display_order === minOrder
 }
 
 // 最後のKNOWHOWかどうか判定
 const isLastKnowhow = (title: TreeItem) => {
-  const majorCategory = Object.keys(knowhowTree.value).find(mc =>
-    Object.keys(knowhowTree.value[mc]).some(midc =>
-      knowhowTree.value[mc][midc].some(t => t.id === title.id)
-    )
-  )
+  // 同じ中項目内のKNOWHOWを取得
+  const sameCategoryKnowhows = Object.values(knowhowTree.value)
+    .flatMap(major => Object.values(major))
+    .flat()
+    .filter(t => t.middle_category_id === title.middle_category_id)
 
-  if (!majorCategory) return true
+  if (sameCategoryKnowhows.length === 0) return true
 
-  const middleCategory = Object.keys(knowhowTree.value[majorCategory]).find(midc =>
-    knowhowTree.value[majorCategory][midc].some(t => t.id === title.id)
-  )
-
-  if (!middleCategory) return true
-
-  const titles = knowhowTree.value[majorCategory][middleCategory]
-  const maxOrder = Math.max(...titles.map(t => t.display_order))
+  const maxOrder = Math.max(...sameCategoryKnowhows.map(t => t.display_order))
   return title.display_order === maxOrder
 }
 
