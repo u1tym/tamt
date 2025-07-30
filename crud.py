@@ -779,7 +779,9 @@ def create_goods(db: Session, goods: schemas.GoodsCreate):
         artist_id=goods.artist_id,
         title=goods.title,
         release_date=goods.release_date,
-        memo=goods.memo
+        memo=goods.memo,
+        is_owned=goods.is_owned,
+        code_number=goods.code_number
     )
     db.add(db_goods)
     db.commit()
@@ -832,6 +834,8 @@ def get_goods_list(db: Session, skip: int = 0, limit: int = 100):
             'title': goods.title,
             'release_date': goods.release_date,
             'memo': goods.memo,
+            'is_owned': goods.is_owned,
+            'code_number': goods.code_number,
             'is_deleted': goods.is_deleted,
             'created_at': goods.created_at,
             'updated_at': goods.updated_at,
@@ -887,6 +891,8 @@ def get_goods_with_details(db: Session, goods_id: int):
         'title': goods.title,
         'release_date': goods.release_date,
         'memo': goods.memo,
+        'is_owned': goods.is_owned,
+        'code_number': goods.code_number,
         'is_deleted': goods.is_deleted,
         'created_at': goods.created_at,
         'updated_at': goods.updated_at,
@@ -903,7 +909,7 @@ def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
     update_data = goods.dict(exclude_unset=True)
     
     # 基本情報の更新
-    for field in ['media_id', 'artist_id', 'title', 'release_date', 'memo']:
+    for field in ['media_id', 'artist_id', 'title', 'release_date', 'memo', 'is_owned', 'code_number']:
         if field in update_data:
             setattr(db_goods, field, update_data[field])
     

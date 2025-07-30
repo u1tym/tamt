@@ -121,6 +121,8 @@ class Goods(Base):
     title = Column(String, nullable=False)  # タイトル
     release_date = Column(Date, nullable=False)  # リリース年月日
     memo = Column(Text)  # メモ
+    is_owned = Column(Boolean, nullable=False, default=False)  # 所持フラグ
+    code_number = Column(String)  # コード番号
     is_deleted = Column(Boolean, nullable=False, default=False)  # 削除フラグ
     created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時

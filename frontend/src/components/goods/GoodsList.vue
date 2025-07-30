@@ -17,6 +17,8 @@
             <th>メディア</th>
             <th>アーティスト</th>
             <th>リリース日</th>
+            <th>所持</th>
+            <th>コード番号</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -42,6 +44,11 @@
             <td class="goods-media-cell">{{ getMediaName(goods.media_id) }}</td>
             <td class="goods-artist-cell">{{ getArtistName(goods.artist_id) }}</td>
             <td class="goods-date-cell">{{ formatDate(goods.release_date) }}</td>
+            <td class="goods-owned-cell">
+              <span v-if="goods.is_owned" class="owned-badge">✓</span>
+              <span v-else class="not-owned-badge">-</span>
+            </td>
+            <td class="goods-code-cell">{{ goods.code_number || '-' }}</td>
             <td class="goods-actions-cell">
               <button @click.stop="editGoods(goods)" class="edit-btn" title="編集">
                 ✏️
@@ -114,6 +121,30 @@
               type="date"
               required
               class="form-input"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="is_owned">所持フラグ</label>
+            <div class="checkbox-group">
+              <input
+                id="is_owned"
+                v-model="form.is_owned"
+                type="checkbox"
+                class="form-checkbox"
+              />
+              <label for="is_owned" class="checkbox-label">所持している</label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="code_number">コード番号</label>
+            <input
+              id="code_number"
+              v-model="form.code_number"
+              type="text"
+              class="form-input"
+              placeholder="コード番号があれば入力してください"
             />
           </div>
 
@@ -224,6 +255,8 @@ interface Goods {
   title: string
   release_date: string
   memo?: string
+  is_owned: boolean
+  code_number?: string
   is_deleted: boolean
   created_at: string
   updated_at: string
@@ -257,6 +290,8 @@ const form = ref({
   title: '',
   release_date: '',
   memo: '',
+  is_owned: false,
+  code_number: '',
   images: [] as ImageFile[]
 })
 
@@ -310,6 +345,8 @@ const resetForm = () => {
     title: '',
     release_date: '',
     memo: '',
+    is_owned: false,
+    code_number: '',
     images: []
   }
   isEditing.value = false
@@ -345,6 +382,8 @@ const editGoods = (goods: Goods) => {
     title: goods.title,
     release_date: goods.release_date,
     memo: goods.memo || '',
+    is_owned: goods.is_owned,
+    code_number: goods.code_number || '',
     images: existingImages
   }
   showEditDialog.value = true
@@ -361,6 +400,8 @@ const addGoods = async () => {
       title: form.value.title,
       release_date: form.value.release_date,
       memo: form.value.memo,
+      is_owned: form.value.is_owned,
+      code_number: form.value.code_number || null,
       images: form.value.images.map(img => ({
         image_data: img.image_data,  // 既にBase64エンコード済み
         image_type: img.image_type,
@@ -400,6 +441,8 @@ const updateGoods = async () => {
       title: form.value.title,
       release_date: form.value.release_date,
       memo: form.value.memo,
+      is_owned: form.value.is_owned,
+      code_number: form.value.code_number || null,
       images: form.value.images.map(img => ({
         image_data: img.image_data,  // 既にBase64エンコード済み
         image_type: img.image_type,
@@ -643,6 +686,35 @@ onMounted(() => {
 .goods-actions-cell {
   width: 100px;
   text-align: center;
+}
+
+.goods-owned-cell {
+  width: 60px;
+  text-align: center;
+}
+
+.goods-code-cell {
+  width: 120px;
+  color: #666;
+  font-family: monospace;
+}
+
+.owned-badge {
+  display: inline-block;
+  background-color: #4caf50;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.not-owned-badge {
+  color: #999;
+  font-size: 14px;
 }
 
 
@@ -934,6 +1006,25 @@ onMounted(() => {
   border-radius: 4px;
   margin-top: 16px;
   border: 1px solid #ffcdd2;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.checkbox-label {
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  user-select: none;
 }
 
 /* レスポンシブ対応 */

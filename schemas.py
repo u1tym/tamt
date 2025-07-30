@@ -257,6 +257,8 @@ class GoodsBase(BaseModel):
     title: str
     release_date: date
     memo: Optional[str] = None
+    is_owned: bool = False
+    code_number: Optional[str] = None
 
 class GoodsCreate(GoodsBase):
     images: List[GoodsImageCreate] = []
@@ -267,6 +269,8 @@ class GoodsUpdate(BaseModel):
     title: Optional[str] = None
     release_date: Optional[date] = None
     memo: Optional[str] = None
+    is_owned: Optional[bool] = None
+    code_number: Optional[str] = None
     images: Optional[List[GoodsImageCreate]] = None
 
 class Goods(GoodsBase):
