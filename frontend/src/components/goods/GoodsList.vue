@@ -63,8 +63,8 @@
     </div>
 
     <!-- 新規追加・編集ダイアログ -->
-    <div v-if="showAddDialog || showEditDialog" class="modal-overlay" @click="closeDialog">
-      <div class="modal-content" @click.stop>
+    <div v-if="showAddDialog || showEditDialog" class="modal-overlay">
+      <div class="modal-content">
         <div class="modal-header">
           <h3>{{ isEditing ? 'GOODS編集' : '新規GOODS登録' }}</h3>
           <button class="close-button" @click="closeDialog">&times;</button>
@@ -734,6 +734,7 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top;
 }
 
 .no-image {
