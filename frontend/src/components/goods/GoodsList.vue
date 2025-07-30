@@ -7,6 +7,56 @@
       </button>
     </div>
 
+    <!-- フィルタ -->
+    <div class="filter-section">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="media-filter">メディア</label>
+          <select
+            id="media-filter"
+            v-model="filters.media_id"
+            class="filter-select"
+            @change="applyFilters"
+          >
+            <option value="">すべて</option>
+            <option v-for="media in mediaList" :key="media.id" :value="media.id">
+              {{ media.name }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="artist-filter">アーティスト</label>
+          <select
+            id="artist-filter"
+            v-model="filters.artist_id"
+            class="filter-select"
+            @change="applyFilters"
+          >
+            <option value="">すべて</option>
+            <option v-for="artist in artists" :key="artist.id" :value="artist.id">
+              {{ artist.name }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="owned-filter">所持状況</label>
+          <select
+            id="owned-filter"
+            v-model="filters.is_owned"
+            class="filter-select"
+            @change="applyFilters"
+          >
+            <option value="">すべて</option>
+            <option value="true">所持</option>
+            <option value="false">未所持</option>
+          </select>
+        </div>
+        <button @click="clearFilters" class="clear-filter-btn">
+          フィルタクリア
+        </button>
+      </div>
+    </div>
+
     <!-- GOODS一覧 -->
     <div class="goods-table-container">
       <table class="goods-table">
@@ -16,7 +66,12 @@
             <th>タイトル</th>
             <th>メディア</th>
             <th>アーティスト</th>
-            <th>リリース日</th>
+            <th class="sortable-header" @click="toggleSort">
+              リリース日
+              <span class="sort-icon">
+                {{ sortOrder === 'desc' ? '▼' : '▲' }}
+              </span>
+            </th>
             <th>所持</th>
             <th>コード番号</th>
             <th>操作</th>
@@ -279,6 +334,7 @@ interface ImageFile {
 }
 
 const goodsList = ref<Goods[]>([])
+const allGoodsList = ref<Goods[]>([]) // 全データを保持
 const mediaList = ref<Media[]>([])
 const artists = ref<Artist[]>([])
 const error = ref('')
@@ -289,6 +345,16 @@ const showAddDialog = ref(false)
 const showEditDialog = ref(false)
 const currentGoods = ref<Goods | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
+
+// フィルタ
+const filters = ref({
+  media_id: '',
+  artist_id: '',
+  is_owned: ''
+})
+
+// ソート
+const sortOrder = ref<'asc' | 'desc'>('desc')
 
 // モバイル判定
 const isMobile = ref(false)
@@ -316,11 +382,58 @@ const fetchGoods = async () => {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
     const data = await response.json()
-    goodsList.value = data
+    allGoodsList.value = data
+    applyFilters() // 初期表示時にフィルタを適用
   } catch (e: any) {
     console.error('GOODSデータ取得エラー:', e)
     error.value = `GOODSデータの取得に失敗しました: ${e.message}`
   }
+}
+
+// フィルタ適用
+const applyFilters = () => {
+  let filtered = [...allGoodsList.value]
+  
+  // メディアフィルタ
+  if (filters.value.media_id) {
+    filtered = filtered.filter(goods => goods.media_id === Number(filters.value.media_id))
+  }
+  
+  // アーティストフィルタ
+  if (filters.value.artist_id) {
+    filtered = filtered.filter(goods => goods.artist_id === Number(filters.value.artist_id))
+  }
+  
+  // 所持状況フィルタ
+  if (filters.value.is_owned !== '') {
+    const isOwned = filters.value.is_owned === 'true'
+    filtered = filtered.filter(goods => goods.is_owned === isOwned)
+  }
+  
+  // ソート適用
+  filtered.sort((a, b) => {
+    const dateA = new Date(a.release_date).getTime()
+    const dateB = new Date(b.release_date).getTime()
+    return sortOrder.value === 'desc' ? dateB - dateA : dateA - dateB
+  })
+  
+  goodsList.value = filtered
+}
+
+// ソート切り替え
+const toggleSort = () => {
+  sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+  applyFilters()
+}
+
+// フィルタクリア
+const clearFilters = () => {
+  filters.value = {
+    media_id: '',
+    artist_id: '',
+    is_owned: ''
+  }
+  goodsList.value = [...allGoodsList.value]
 }
 
 const fetchMedia = async () => {
@@ -645,12 +758,93 @@ onUnmounted(() => {
   background-color: #45a049;
 }
 
+/* フィルタセクション */
+.filter-section {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid #e9ecef;
+}
+
+.filter-row {
+  display: flex;
+  gap: 16px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  margin: 0;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  color: #495057;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.clear-filter-btn {
+  padding: 8px 16px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.clear-filter-btn:hover {
+  background-color: #5a6268;
+}
+
 .goods-table-container {
   overflow-x: auto;
   margin-top: 20px;
 }
 
 @media (max-width: 768px) {
+  .filter-section {
+    padding: 12px;
+  }
+  
+  .filter-row {
+    gap: 12px;
+  }
+  
+  .filter-group {
+    min-width: 120px;
+    flex: 1;
+  }
+  
+  .clear-filter-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
   .goods-table-container {
     max-height: 70vh;
     overflow-y: auto;
@@ -709,6 +903,23 @@ onUnmounted(() => {
   font-weight: 600;
   color: #333;
   border-bottom: 2px solid #e0e0e0;
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.sortable-header:hover {
+  background-color: #e9ecef;
+}
+
+.sort-icon {
+  margin-left: 4px;
+  font-size: 12px;
+  color: #007bff;
 }
 
 .goods-table td {
