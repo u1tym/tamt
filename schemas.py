@@ -232,7 +232,7 @@ class Media(MediaBase):
         orm_mode = True
 
 class GoodsImageBase(BaseModel):
-    image_data: bytes
+    image_data: str  # Base64エンコードされた文字列
     image_type: str
     display_order: int = 0
 
@@ -240,7 +240,7 @@ class GoodsImageCreate(GoodsImageBase):
     pass
 
 class GoodsImageUpdate(BaseModel):
-    image_data: Optional[bytes] = None
+    image_data: Optional[str] = None  # Base64エンコードされた文字列
     image_type: Optional[str] = None
     display_order: Optional[int] = None
 
@@ -274,6 +274,7 @@ class Goods(GoodsBase):
     is_deleted: bool
     created_at: datetime
     updated_at: datetime
+    images: List[GoodsImage] = []
     class Config:
         orm_mode = True
 

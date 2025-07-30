@@ -787,8 +787,11 @@ def create_goods(db: Session, goods: schemas.GoodsCreate):
     
     # 画像の保存
     for i, image_data in enumerate(goods.images):
+        # Base64デコードしてバイトデータに変換
+        import base64
+        decoded_image = base64.b64decode(image_data.image_data)
         # 画像をリサイズ
-        resized_image = resize_image(image_data.image_data)
+        resized_image = resize_image(decoded_image)
         
         goods_image = models.GoodsImage(
             goods_id=db_goods.id,
@@ -803,9 +806,46 @@ def create_goods(db: Session, goods: schemas.GoodsCreate):
     return db_goods
 
 def get_goods_list(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Goods).filter(
+    goods_list = db.query(models.Goods).filter(
         models.Goods.is_deleted == False
     ).order_by(models.Goods.release_date.desc()).offset(skip).limit(limit).all()
+    
+    # 各GOODSに画像情報を追加（Base64エンコード）
+    import base64
+    result = []
+    for goods in goods_list:
+        # 基本情報を辞書に変換
+        goods_dict = {
+            'id': goods.id,
+            'media_id': goods.media_id,
+            'artist_id': goods.artist_id,
+            'title': goods.title,
+            'release_date': goods.release_date,
+            'memo': goods.memo,
+            'is_deleted': goods.is_deleted,
+            'created_at': goods.created_at,
+            'updated_at': goods.updated_at,
+            'images': []
+        }
+        
+        # 画像情報を取得してBase64エンコード
+        images = db.query(models.GoodsImage).filter(
+            models.GoodsImage.goods_id == goods.id
+        ).order_by(models.GoodsImage.display_order).all()
+        
+        for img in images:
+            goods_dict['images'].append({
+                'id': img.id,
+                'goods_id': img.goods_id,
+                'image_data': base64.b64encode(img.image_data).decode('utf-8'),
+                'image_type': img.image_type,
+                'display_order': img.display_order,
+                'created_at': img.created_at
+            })
+        
+        result.append(goods_dict)
+    
+    return result
 
 def get_goods(db: Session, goods_id: int):
     return db.query(models.Goods).filter(
@@ -866,8 +906,11 @@ def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
         
         # 新しい画像を保存
         for i, image_data in enumerate(update_data['images']):
+            # Base64デコードしてバイトデータに変換
+            import base64
+            decoded_image = base64.b64decode(image_data.image_data)
             # 画像をリサイズ
-            resized_image = resize_image(image_data.image_data)
+            resized_image = resize_image(decoded_image)
             
             goods_image = models.GoodsImage(
                 goods_id=goods_id,

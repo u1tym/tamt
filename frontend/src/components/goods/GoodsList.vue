@@ -199,7 +199,7 @@ interface Artist {
 
 interface GoodsImage {
   id: number
-  image_data: Uint8Array
+  image_data: string  // Base64エンコードされた文字列
   image_type: string
   display_order: number
 }
@@ -336,7 +336,7 @@ const addGoods = async () => {
       release_date: form.value.release_date,
       memo: form.value.memo,
       images: form.value.images.map(img => ({
-        image_data: Array.from(img.image_data),
+        image_data: btoa(String.fromCharCode(...img.image_data)),
         image_type: img.image_type,
         display_order: 0
       }))
@@ -375,7 +375,7 @@ const updateGoods = async () => {
       release_date: form.value.release_date,
       memo: form.value.memo,
       images: form.value.images.map(img => ({
-        image_data: Array.from(img.image_data),
+        image_data: btoa(String.fromCharCode(...img.image_data)),
         image_type: img.image_type,
         display_order: 0
       }))
@@ -494,9 +494,8 @@ const formatDate = (dateStr: string) => {
 
 const getImageSrc = (image: GoodsImage) => {
   try {
-    const uint8Array = new Uint8Array(image.image_data)
-    const base64 = btoa(String.fromCharCode(...uint8Array))
-    return `data:${image.image_type};base64,${base64}`
+    // 画像データは既にBase64エンコードされている
+    return `data:${image.image_type};base64,${image.image_data}`
   } catch (e) {
     console.error('画像変換エラー:', e)
     return ''
