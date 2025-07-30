@@ -1,9 +1,9 @@
 <template>
   <div class="goods-list">
     <div class="section-header">
-      <h2>GOODS管理</h2>
+      <h2>アイテム管理</h2>
       <button @click="showAddDialog = true" class="add-button">
-        ＋ 新規GOODS登録
+        ＋ 新規アイテム登録
       </button>
     </div>
 
@@ -66,7 +66,7 @@
     <div v-if="showAddDialog || showEditDialog" class="modal-overlay">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>{{ isEditing ? 'GOODS編集' : '新規GOODS登録' }}</h3>
+          <h3>{{ isEditing ? 'アイテム編集' : '新規アイテム登録' }}</h3>
           <button class="close-button" @click="closeDialog">&times;</button>
         </div>
 

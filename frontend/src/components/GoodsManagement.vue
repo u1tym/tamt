@@ -39,7 +39,7 @@
         <MediaManagement />
       </div>
 
-      <!-- GOODS管理 -->
+      <!-- アイテム管理 -->
       <div v-if="activeTab === 'goods'" class="tab-panel">
         <GoodsList />
       </div>
@@ -62,7 +62,7 @@ const tabs = [
   { id: 'persons', name: 'パーソン管理' },
   { id: 'artists', name: 'アーティスト管理' },
   { id: 'media', name: 'メディア管理' },
-  { id: 'goods', name: 'GOODS管理' }
+  { id: 'goods', name: 'アイテム管理' }
 ]
 
 const activeTab = ref('persons')
