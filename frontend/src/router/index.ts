@@ -14,7 +14,7 @@ const routes = [
   {
     path: '/knowhow',
     name: 'Knowhow',
-    component: () => import('../components/UnderConstruction.vue'),
+    component: () => import('../components/KnowhowManagement.vue'),
   },
   {
     path: '/goods',
@@ -28,4 +28,4 @@ const router = createRouter({
   routes,
 })
 
-export default router 
+export default router

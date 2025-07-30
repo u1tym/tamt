@@ -71,3 +71,40 @@ class Budget(BudgetBase):
 class PaymentDateRequest(BaseModel):
     used_date: str
     payment_source_id: int
+
+class KnowhowBase(BaseModel):
+    major_category: str
+    middle_category: str
+    title: str
+    keywords: Optional[str] = None
+    content: str
+    display_order: int = 0
+    is_deleted: bool = False
+
+class KnowhowCreate(KnowhowBase):
+    pass
+
+class KnowhowUpdate(BaseModel):
+    major_category: Optional[str] = None
+    middle_category: Optional[str] = None
+    title: Optional[str] = None
+    keywords: Optional[str] = None
+    content: Optional[str] = None
+    display_order: Optional[int] = None
+    is_deleted: Optional[bool] = None
+
+class Knowhow(KnowhowBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    class Config:
+        orm_mode = True
+
+class KnowhowTreeItem(BaseModel):
+    major_category: str
+    middle_categories: list[dict]
+
+class KnowhowSearchRequest(BaseModel):
+    major_category: Optional[str] = None
+    middle_category: Optional[str] = None
+    keywords: Optional[str] = None

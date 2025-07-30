@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import List
 import base64
 import io
@@ -574,6 +575,106 @@ def get_budget_summaries(year: int, month: int, db: Session = Depends(get_db)):
     ).group_by(models.Transaction.budget_name).all()
     # 返却形式を整形
     return [{"name": r.budget_name, "total": float(r.total or 0)} for r in results]
+
+# Knowhow API endpoints
+
+@app.get("/knowhows", response_model=List[schemas.Knowhow])
+def read_knowhows(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """KNOWHOW一覧を取得"""
+    try:
+        knowhows = crud.get_knowhows(db, skip=skip, limit=limit)
+        return knowhows
+    except Exception as e:
+        print(f"KNOWHOW list error: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/knowhows/test")
+def test_knowhows(db: Session = Depends(get_db)):
+    """KNOWHOWテーブルの存在確認"""
+    try:
+        # テーブルが存在するかチェック
+        result = db.execute(text("SELECT COUNT(*) FROM knowhows"))
+        count = result.scalar()
+        return {"message": "KNOWHOW table exists", "count": count}
+    except Exception as e:
+        print(f"KNOWHOW test error: {e}")
+        return {"message": "KNOWHOW table error", "error": str(e)}
+
+@app.get("/knowhows/search")
+def search_knowhows(
+    major_category: str = None,
+    middle_category: str = None,
+    keywords: str = None,
+    db: Session = Depends(get_db)
+):
+    """KNOWHOWを検索"""
+    knowhows = crud.search_knowhows(
+        db,
+        major_category=major_category,
+        middle_category=middle_category,
+        keywords=keywords
+    )
+    return knowhows
+
+@app.get("/knowhows/tree")
+def get_knowhow_tree(db: Session = Depends(get_db)):
+    """KNOWHOWのツリー構造を取得"""
+    print("KNOWHOW tree endpoint called")
+    try:
+        print("Calling crud.get_knowhow_tree...")
+        tree = crud.get_knowhow_tree(db)
+        print(f"Tree result: {tree}")
+        return tree
+    except Exception as e:
+        print(f"KNOWHOW tree error: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/knowhows/{knowhow_id}", response_model=schemas.Knowhow)
+def read_knowhow(knowhow_id: int, db: Session = Depends(get_db)):
+    """特定のKNOWHOWを取得"""
+    knowhow = crud.get_knowhow(db, knowhow_id=knowhow_id)
+    if knowhow is None:
+        raise HTTPException(status_code=404, detail="Knowhow not found")
+    return knowhow
+
+@app.post("/knowhows", response_model=schemas.Knowhow)
+def create_knowhow(knowhow: schemas.KnowhowCreate, db: Session = Depends(get_db)):
+    """新しいKNOWHOWを作成"""
+    return crud.create_knowhow(db=db, knowhow=knowhow)
+
+@app.put("/knowhows/{knowhow_id}", response_model=schemas.Knowhow)
+def update_knowhow(knowhow_id: int, knowhow: schemas.KnowhowUpdate, db: Session = Depends(get_db)):
+    """KNOWHOWを更新"""
+    db_knowhow = crud.update_knowhow(db, knowhow_id=knowhow_id, knowhow=knowhow)
+    if db_knowhow is None:
+        raise HTTPException(status_code=404, detail="Knowhow not found")
+    return db_knowhow
+
+@app.delete("/knowhows/{knowhow_id}")
+def delete_knowhow(knowhow_id: int, db: Session = Depends(get_db)):
+    """KNOWHOWを削除（論理削除）"""
+    success = crud.delete_knowhow(db, knowhow_id=knowhow_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Knowhow not found")
+    return {"message": "Knowhow deleted successfully"}
+
+@app.post("/knowhows/{knowhow_id}/move-up")
+def move_knowhow_up(knowhow_id: int, db: Session = Depends(get_db)):
+    """KNOWHOWを上に移動"""
+    knowhow = crud.move_knowhow_up(db, knowhow_id=knowhow_id)
+    if knowhow is None:
+        raise HTTPException(status_code=404, detail="Knowhow not found")
+    return {"message": "Knowhow moved up successfully"}
+
+@app.post("/knowhows/{knowhow_id}/move-down")
+def move_knowhow_down(knowhow_id: int, db: Session = Depends(get_db)):
+    """KNOWHOWを下に移動"""
+    knowhow = crud.move_knowhow_down(db, knowhow_id=knowhow_id)
+    if knowhow is None:
+        raise HTTPException(status_code=404, detail="Knowhow not found")
+    return {"message": "Knowhow moved down successfully"}
 
 if __name__ == "__main__":
     import uvicorn
