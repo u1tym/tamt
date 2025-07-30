@@ -220,7 +220,7 @@ interface Goods {
 interface ImageFile {
   file: File
   preview: string
-  image_data: Uint8Array
+  image_data: string  // Base64エンコードされた文字列
   image_type: string
 }
 
@@ -336,7 +336,7 @@ const addGoods = async () => {
       release_date: form.value.release_date,
       memo: form.value.memo,
       images: form.value.images.map(img => ({
-        image_data: btoa(String.fromCharCode(...img.image_data)),
+        image_data: img.image_data,  // 既にBase64エンコード済み
         image_type: img.image_type,
         display_order: 0
       }))
@@ -375,7 +375,7 @@ const updateGoods = async () => {
       release_date: form.value.release_date,
       memo: form.value.memo,
       images: form.value.images.map(img => ({
-        image_data: btoa(String.fromCharCode(...img.image_data)),
+        image_data: img.image_data,  // 既にBase64エンコード済み
         image_type: img.image_type,
         display_order: 0
       }))
@@ -451,10 +451,17 @@ const handleFiles = async (files: File[]) => {
         const imageData = new Uint8Array(arrayBuffer)
         const preview = URL.createObjectURL(file)
         
+        // Base64エンコード（大きなデータに対応）
+        const base64 = btoa(
+          Array.from(imageData)
+            .map(byte => String.fromCharCode(byte))
+            .join('')
+        )
+        
         form.value.images.push({
           file,
           preview,
-          image_data: imageData,
+          image_data: base64,
           image_type: file.type
         })
       } catch (e) {

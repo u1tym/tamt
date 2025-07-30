@@ -786,6 +786,7 @@ def create_goods(db: Session, goods: schemas.GoodsCreate):
     db.refresh(db_goods)
     
     # 画像の保存
+    saved_images = []
     for i, image_data in enumerate(goods.images):
         # Base64デコードしてバイトデータに変換
         import base64
@@ -800,9 +801,18 @@ def create_goods(db: Session, goods: schemas.GoodsCreate):
             display_order=i
         )
         db.add(goods_image)
+        saved_images.append(goods_image)
     
     db.commit()
-    db.refresh(db_goods)
+    
+    # 保存された画像をBase64エンコードして返す
+    for img in saved_images:
+        db.refresh(img)
+        img.image_data = base64.b64encode(img.image_data).decode('utf-8')
+    
+    # GOODSオブジェクトに画像情報を追加
+    db_goods.images = saved_images
+    
     return db_goods
 
 def get_goods_list(db: Session, skip: int = 0, limit: int = 100):
@@ -898,6 +908,7 @@ def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
             setattr(db_goods, field, update_data[field])
     
     # 画像の更新
+    saved_images = []
     if 'images' in update_data:
         # 既存の画像を削除
         db.query(models.GoodsImage).filter(
@@ -919,9 +930,18 @@ def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
                 display_order=i
             )
             db.add(goods_image)
+            saved_images.append(goods_image)
     
     db.commit()
-    db.refresh(db_goods)
+    
+    # 保存された画像をBase64エンコードして返す
+    for img in saved_images:
+        db.refresh(img)
+        img.image_data = base64.b64encode(img.image_data).decode('utf-8')
+    
+    # GOODSオブジェクトに画像情報を追加
+    db_goods.images = saved_images
+    
     return db_goods
 
 def delete_goods(db: Session, goods_id: int):
