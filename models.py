@@ -38,11 +38,32 @@ class Budget(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
 
+class MajorCategory(Base):
+    __tablename__ = 'major_categories'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, unique=True)  # 大項目名
+    display_order = Column(Integer, nullable=False, default=0)  # 表示順
+    is_deleted = Column(Boolean, nullable=False, default=False)  # 削除フラグ
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
+    middle_categories = relationship("MiddleCategory", back_populates="major_category")
+
+class MiddleCategory(Base):
+    __tablename__ = 'middle_categories'
+    id = Column(Integer, primary_key=True, index=True)
+    major_category_id = Column(Integer, ForeignKey('major_categories.id'), nullable=False)  # 大項目ID
+    name = Column(String, nullable=False)  # 中項目名
+    display_order = Column(Integer, nullable=False, default=0)  # 表示順
+    is_deleted = Column(Boolean, nullable=False, default=False)  # 削除フラグ
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
+    major_category = relationship("MajorCategory", back_populates="middle_categories")
+    knowhows = relationship("Knowhow", back_populates="middle_category")
+
 class Knowhow(Base):
     __tablename__ = 'knowhows'
     id = Column(Integer, primary_key=True, index=True)
-    major_category = Column(String, nullable=False)  # 大項目
-    middle_category = Column(String, nullable=False)  # 中項目
+    middle_category_id = Column(Integer, ForeignKey('middle_categories.id'), nullable=False)  # 中項目ID
     title = Column(String, nullable=False)  # タイトル
     keywords = Column(String)  # キーワード
     content = Column(Text, nullable=False)  # 本文
@@ -50,3 +71,4 @@ class Knowhow(Base):
     is_deleted = Column(Boolean, nullable=False, default=False)  # 削除フラグ
     created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
+    middle_category = relationship("MiddleCategory", back_populates="knowhows")

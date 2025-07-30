@@ -676,6 +676,81 @@ def move_knowhow_down(knowhow_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Knowhow not found")
     return {"message": "Knowhow moved down successfully"}
 
+# 大項目管理エンドポイント
+@app.get("/major-categories", response_model=List[schemas.MajorCategory])
+def read_major_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """大項目一覧を取得"""
+    return crud.get_major_categories(db, skip=skip, limit=limit)
+
+@app.get("/major-categories/{major_category_id}", response_model=schemas.MajorCategory)
+def read_major_category(major_category_id: int, db: Session = Depends(get_db)):
+    """特定の大項目を取得"""
+    major_category = crud.get_major_category(db, major_category_id=major_category_id)
+    if major_category is None:
+        raise HTTPException(status_code=404, detail="Major category not found")
+    return major_category
+
+@app.post("/major-categories", response_model=schemas.MajorCategory)
+def create_major_category(major_category: schemas.MajorCategoryCreate, db: Session = Depends(get_db)):
+    """新しい大項目を作成"""
+    return crud.create_major_category(db=db, major_category=major_category)
+
+@app.put("/major-categories/{major_category_id}", response_model=schemas.MajorCategory)
+def update_major_category(major_category_id: int, major_category: schemas.MajorCategoryUpdate, db: Session = Depends(get_db)):
+    """大項目を更新"""
+    db_major_category = crud.update_major_category(db, major_category_id=major_category_id, major_category=major_category)
+    if db_major_category is None:
+        raise HTTPException(status_code=404, detail="Major category not found")
+    return db_major_category
+
+@app.delete("/major-categories/{major_category_id}")
+def delete_major_category(major_category_id: int, db: Session = Depends(get_db)):
+    """大項目を削除（論理削除）"""
+    success = crud.delete_major_category(db, major_category_id=major_category_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Major category not found")
+    return {"message": "Major category deleted successfully"}
+
+# 中項目管理エンドポイント
+@app.get("/major-categories/{major_category_id}/middle-categories", response_model=List[schemas.MiddleCategory])
+def read_middle_categories(major_category_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """中項目一覧を取得"""
+    return crud.get_middle_categories(db, major_category_id=major_category_id, skip=skip, limit=limit)
+
+@app.get("/middle-categories", response_model=List[schemas.MiddleCategory])
+def read_all_middle_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """全中項目一覧を取得"""
+    return crud.get_all_middle_categories(db, skip=skip, limit=limit)
+
+@app.get("/middle-categories/{middle_category_id}", response_model=schemas.MiddleCategory)
+def read_middle_category(middle_category_id: int, db: Session = Depends(get_db)):
+    """特定の中項目を取得"""
+    middle_category = crud.get_middle_category(db, middle_category_id=middle_category_id)
+    if middle_category is None:
+        raise HTTPException(status_code=404, detail="Middle category not found")
+    return middle_category
+
+@app.post("/middle-categories", response_model=schemas.MiddleCategory)
+def create_middle_category(middle_category: schemas.MiddleCategoryCreate, db: Session = Depends(get_db)):
+    """新しい中項目を作成"""
+    return crud.create_middle_category(db=db, middle_category=middle_category)
+
+@app.put("/middle-categories/{middle_category_id}", response_model=schemas.MiddleCategory)
+def update_middle_category(middle_category_id: int, middle_category: schemas.MiddleCategoryUpdate, db: Session = Depends(get_db)):
+    """中項目を更新"""
+    db_middle_category = crud.update_middle_category(db, middle_category_id=middle_category_id, middle_category=middle_category)
+    if db_middle_category is None:
+        raise HTTPException(status_code=404, detail="Middle category not found")
+    return db_middle_category
+
+@app.delete("/middle-categories/{middle_category_id}")
+def delete_middle_category(middle_category_id: int, db: Session = Depends(get_db)):
+    """中項目を削除（論理削除）"""
+    success = crud.delete_middle_category(db, middle_category_id=middle_category_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Middle category not found")
+    return {"message": "Middle category deleted successfully"}
+
 if __name__ == "__main__":
     import uvicorn
     import ssl

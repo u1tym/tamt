@@ -19,7 +19,13 @@
         @click="activeTab = 'edit'"
         :class="['tab-button', { active: activeTab === 'edit' }]"
       >
-        編集
+        本文編集
+      </button>
+      <button
+        @click="activeTab = 'category'"
+        :class="['tab-button', { active: activeTab === 'category' }]"
+      >
+        カテゴリ編集
       </button>
     </div>
 
@@ -97,7 +103,7 @@
             <div class="content-header">
               <h3>{{ selectedKnowhow.title }}</h3>
               <div class="content-meta">
-                <span class="category">{{ selectedKnowhow.major_category }} > {{ selectedKnowhow.middle_category }}</span>
+                <span class="category">{{ selectedKnowhow.major_category_name }} > {{ selectedKnowhow.middle_category_name }}</span>
                 <span v-if="selectedKnowhow.keywords" class="keywords">キーワード: {{ selectedKnowhow.keywords }}</span>
               </div>
             </div>
@@ -208,26 +214,42 @@
             <form @submit.prevent="saveKnowhow" class="form-content">
               <div class="form-group">
                 <label for="major-category">大項目 *</label>
-                <input
+                <select
                   id="major-category"
                   v-model="form.major_category"
-                  type="text"
                   required
-                  class="form-input"
-                  placeholder="例: 技術、業務、その他"
-                />
+                  class="form-select"
+                  @change="form.middle_category_id = ''"
+                >
+                  <option value="">大項目を選択してください</option>
+                  <option
+                    v-for="category in majorCategoryOptions"
+                    :key="category.value"
+                    :value="category.value"
+                  >
+                    {{ category.label }}
+                  </option>
+                </select>
               </div>
 
               <div class="form-group">
                 <label for="middle-category">中項目 *</label>
-                <input
+                <select
                   id="middle-category"
-                  v-model="form.middle_category"
-                  type="text"
+                  v-model="form.middle_category_id"
                   required
-                  class="form-input"
-                  placeholder="例: プログラミング、Excel、会計"
-                />
+                  class="form-select"
+                  :disabled="!form.major_category"
+                >
+                  <option value="">中項目を選択してください</option>
+                  <option
+                    v-for="category in middleCategoryOptions"
+                    :key="category.value"
+                    :value="category.value"
+                  >
+                    {{ category.label }}
+                  </option>
+                </select>
               </div>
 
               <div class="form-group">
@@ -293,7 +315,185 @@
       </div>
     </div>
 
+    <!-- カテゴリ編集画面 -->
+    <div v-if="activeTab === 'category'" class="category-view">
+      <div class="category-layout">
+        <!-- 左側：大項目管理 -->
+        <div class="major-category-panel">
+          <div class="panel-header">
+            <h3>大項目管理</h3>
+          </div>
+          <div class="panel-content">
+            <!-- 大項目一覧 -->
+            <div class="category-list">
+              <div
+                v-for="majorCategory in majorCategories"
+                :key="majorCategory.id"
+                class="category-item"
+                :class="{ selected: editingMajorCategory === majorCategory.name }"
+                @click="editMajorCategory(majorCategory.name)"
+              >
+                <span class="category-name">{{ majorCategory.name }}</span>
+                <div class="category-actions">
+                  <button
+                    @click.stop="editMajorCategory(majorCategory.name)"
+                    class="action-btn edit-btn"
+                    title="名称変更"
+                  >
+                    ✏️
+                  </button>
+                </div>
+              </div>
+            </div>
 
+            <!-- 大項目新規追加 -->
+            <div class="add-category-form">
+              <h4>新規大項目追加</h4>
+              <div class="form-group">
+                <input
+                  v-model="newMajorCategory"
+                  type="text"
+                  placeholder="大項目名を入力"
+                  class="form-input"
+                />
+                <button
+                  @click="addMajorCategory"
+                  class="btn btn-primary"
+                  :disabled="!newMajorCategory.trim()"
+                >
+                  追加
+                </button>
+              </div>
+            </div>
+
+            <!-- 大項目名称変更 -->
+            <div v-if="editingMajorCategory" class="edit-category-form">
+              <h4>大項目名称変更</h4>
+              <div class="form-group">
+                <input
+                  v-model="editingMajorCategory"
+                  type="text"
+                  placeholder="新しい名称を入力"
+                  class="form-input"
+                />
+                <div class="form-actions">
+                  <button
+                    @click="saveMajorCategory"
+                    class="btn btn-primary"
+                    :disabled="!editingMajorCategory.trim()"
+                  >
+                    保存
+                  </button>
+                  <button
+                    @click="cancelEditMajorCategory"
+                    class="btn btn-secondary"
+                  >
+                    キャンセル
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右側：中項目管理 -->
+        <div class="middle-category-panel">
+          <div class="panel-header">
+            <h3>中項目管理</h3>
+          </div>
+          <div class="panel-content">
+            <!-- 大項目選択 -->
+            <div class="major-category-selector">
+              <label for="major-category-select">大項目を選択:</label>
+              <select
+                id="major-category-select"
+                v-model="selectedMajorCategory"
+                class="form-select"
+              >
+                <option value="">大項目を選択してください</option>
+                <option
+                  v-for="majorCategory in majorCategories"
+                  :key="majorCategory.id"
+                  :value="majorCategory.id.toString()"
+                >
+                  {{ majorCategory.name }}
+                </option>
+              </select>
+            </div>
+
+            <!-- 中項目一覧 -->
+            <div v-if="selectedMajorCategory" class="category-list">
+              <div
+                v-for="middleCategory in middleCategories.filter(cat => cat.major_category_id === parseInt(selectedMajorCategory))"
+                :key="middleCategory.id"
+                class="category-item"
+                :class="{ selected: editingMiddleCategory === middleCategory.name }"
+                @click="editMiddleCategory(middleCategory.name)"
+              >
+                <span class="category-name">{{ middleCategory.name }}</span>
+                <div class="category-actions">
+                  <button
+                    @click.stop="editMiddleCategory(middleCategory.name)"
+                    class="action-btn edit-btn"
+                    title="名称変更"
+                  >
+                    ✏️
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 中項目新規追加 -->
+            <div v-if="selectedMajorCategory" class="add-category-form">
+              <h4>新規中項目追加</h4>
+              <div class="form-group">
+                <input
+                  v-model="newMiddleCategory"
+                  type="text"
+                  placeholder="中項目名を入力"
+                  class="form-input"
+                />
+                <button
+                  @click="addMiddleCategory"
+                  class="btn btn-primary"
+                  :disabled="!newMiddleCategory.trim()"
+                >
+                  追加
+                </button>
+              </div>
+            </div>
+
+            <!-- 中項目名称変更 -->
+            <div v-if="editingMiddleCategory && selectedMajorCategory" class="edit-category-form">
+              <h4>中項目名称変更</h4>
+              <div class="form-group">
+                <input
+                  v-model="editingMiddleCategory"
+                  type="text"
+                  placeholder="新しい名称を入力"
+                  class="form-input"
+                />
+                <div class="form-actions">
+                  <button
+                    @click="saveMiddleCategory"
+                    class="btn btn-primary"
+                    :disabled="!editingMiddleCategory.trim()"
+                  >
+                    保存
+                  </button>
+                  <button
+                    @click="cancelEditMiddleCategory"
+                    class="btn btn-secondary"
+                  >
+                    キャンセル
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div v-if="error" class="error-message">{{ error }}</div>
   </div>
@@ -323,7 +523,7 @@ interface TreeItem {
   display_order: number
 }
 
-const activeTab = ref<'search' | 'edit'>('search')
+const activeTab = ref<'search' | 'edit' | 'category'>('search')
 const knowhowTree = ref<{ [majorCategory: string]: { [middleCategory: string]: TreeItem[] } }>({})
 const filteredTree = ref<{ [majorCategory: string]: { [middleCategory: string]: TreeItem[] } }>({})
 const selectedKnowhow = ref<Knowhow | null>(null)
@@ -338,9 +538,16 @@ const isSubmitting = ref(false)
 const isEditing = ref(false)
 const isAdding = ref(false)
 
+// カテゴリ編集用の変数
+const editingMajorCategory = ref<string>('')
+const editingMiddleCategory = ref<string>('')
+const newMajorCategory = ref<string>('')
+const newMiddleCategory = ref<string>('')
+const selectedMajorCategory = ref<string>('')
+
 const form = ref({
   major_category: '',
-  middle_category: '',
+  middle_category_id: '',
   title: '',
   keywords: '',
   content: ''
@@ -402,7 +609,15 @@ const selectKnowhow = async (id: number) => {
   selectedKnowhowId.value = id
   const knowhow = await fetchKnowhow(id)
   if (knowhow) {
-    selectedKnowhow.value = knowhow
+    // カテゴリ情報を追加
+    const middleCategory = middleCategories.value.find(cat => cat.id === knowhow.middle_category_id)
+    const majorCategory = majorCategories.value.find(cat => cat.id === (middleCategory?.major_category_id || 0))
+
+    selectedKnowhow.value = {
+      ...knowhow,
+      major_category_name: majorCategory?.name || '',
+      middle_category_name: middleCategory?.name || ''
+    }
   }
 }
 
@@ -414,9 +629,14 @@ const editKnowhow = async (id: number) => {
     editingKnowhow.value = knowhow
     isEditing.value = true
     isAdding.value = false
+
+    // 中項目IDから大項目IDを取得
+    const middleCategory = middleCategories.value.find(cat => cat.id === knowhow.middle_category_id)
+    const majorCategoryId = middleCategory ? middleCategory.major_category_id.toString() : ''
+
     form.value = {
-      major_category: knowhow.major_category,
-      middle_category: knowhow.middle_category,
+      major_category: majorCategoryId,
+      middle_category_id: knowhow.middle_category_id.toString(),
       title: knowhow.title,
       keywords: knowhow.keywords || '',
       content: knowhow.content
@@ -432,7 +652,7 @@ const startAdd = () => {
   isAdding.value = true
   form.value = {
     major_category: '',
-    middle_category: '',
+    middle_category_id: '',
     title: '',
     keywords: '',
     content: ''
@@ -447,7 +667,7 @@ const cancelEdit = () => {
   isAdding.value = false
   form.value = {
     major_category: '',
-    middle_category: '',
+    middle_category_id: '',
     title: '',
     keywords: '',
     content: ''
@@ -465,7 +685,12 @@ const saveKnowhow = async () => {
       : buildApiUrl('/knowhows')
 
     const method = isEditing.value ? 'PUT' : 'POST'
-    const body = { ...form.value }
+    const body = {
+      middle_category_id: parseInt(form.value.middle_category_id),
+      title: form.value.title,
+      keywords: form.value.keywords,
+      content: form.value.content
+    }
 
     const res = await fetch(url, {
       method,
@@ -656,9 +881,203 @@ const isLastKnowhow = (title: TreeItem) => {
   return title.display_order === maxOrder
 }
 
+// カテゴリ編集用の関数
+// 大項目と中項目のデータ
+const majorCategories = ref<Array<{id: number, name: string}>>([])
+const middleCategories = ref<Array<{id: number, name: string, major_category_id: number}>>([])
 
+// 大項目と中項目を取得
+const fetchCategories = async () => {
+  try {
+    // 大項目を取得
+    const majorRes = await fetch(buildApiUrl('/major-categories'))
+    if (!majorRes.ok) throw new Error('大項目の取得に失敗しました')
+    majorCategories.value = await majorRes.json()
+
+    // 中項目を取得
+    const middleRes = await fetch(buildApiUrl('/middle-categories'))
+    if (!middleRes.ok) throw new Error('中項目の取得に失敗しました')
+    middleCategories.value = await middleRes.json()
+  } catch (e: any) {
+    error.value = e.message
+  }
+}
+
+// 大項目編集開始
+const editMajorCategory = (majorCategory: string) => {
+  editingMajorCategory.value = majorCategory
+}
+
+// 大項目編集キャンセル
+const cancelEditMajorCategory = () => {
+  editingMajorCategory.value = ''
+}
+
+// 大項目保存
+const saveMajorCategory = async () => {
+  if (!editingMajorCategory.value.trim()) return
+
+  error.value = ''
+  isSubmitting.value = true
+
+  try {
+    // 編集対象の大項目を検索
+    const targetMajorCategory = majorCategories.value.find(cat => cat.name === editingMajorCategory.value)
+    if (!targetMajorCategory) {
+      throw new Error('大項目が見つかりません')
+    }
+
+    const res = await fetch(buildApiUrl(`/major-categories/${targetMajorCategory.id}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: editingMajorCategory.value.trim()
+      })
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(`大項目の更新に失敗しました: ${errorData.detail || '不明なエラー'}`)
+    }
+
+    await fetchCategories()
+    await fetchKnowhowTree()
+    editingMajorCategory.value = ''
+  } catch (e: any) {
+    error.value = e.message
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// 大項目新規追加
+const addMajorCategory = async () => {
+  if (!newMajorCategory.value.trim()) return
+
+  error.value = ''
+  isSubmitting.value = true
+
+  try {
+    const res = await fetch(buildApiUrl('/major-categories'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: newMajorCategory.value.trim()
+      })
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(`大項目の追加に失敗しました: ${errorData.detail || '不明なエラー'}`)
+    }
+
+    await fetchCategories()
+    await fetchKnowhowTree()
+    newMajorCategory.value = ''
+  } catch (e: any) {
+    error.value = e.message
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// 中項目編集開始
+const editMiddleCategory = (middleCategory: string) => {
+  editingMiddleCategory.value = middleCategory
+}
+
+// 中項目編集キャンセル
+const cancelEditMiddleCategory = () => {
+  editingMiddleCategory.value = ''
+}
+
+// 中項目保存
+const saveMiddleCategory = async () => {
+  if (!editingMiddleCategory.value.trim() || !selectedMajorCategory.value) return
+
+  error.value = ''
+  isSubmitting.value = true
+
+  try {
+    // 編集対象の中項目を検索
+    const targetMiddleCategory = middleCategories.value.find(cat =>
+      cat.name === editingMiddleCategory.value &&
+      cat.major_category_id === parseInt(selectedMajorCategory.value)
+    )
+    if (!targetMiddleCategory) {
+      throw new Error('中項目が見つかりません')
+    }
+
+    const res = await fetch(buildApiUrl(`/middle-categories/${targetMiddleCategory.id}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: editingMiddleCategory.value.trim()
+      })
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(`中項目の更新に失敗しました: ${errorData.detail || '不明なエラー'}`)
+    }
+
+    await fetchCategories()
+    await fetchKnowhowTree()
+    editingMiddleCategory.value = ''
+  } catch (e: any) {
+    error.value = e.message
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// 中項目新規追加
+const addMiddleCategory = async () => {
+  if (!newMiddleCategory.value.trim() || !selectedMajorCategory.value) return
+
+  error.value = ''
+  isSubmitting.value = true
+
+  try {
+    const res = await fetch(buildApiUrl('/middle-categories'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        major_category_id: parseInt(selectedMajorCategory.value),
+        name: newMiddleCategory.value.trim()
+      })
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(`中項目の追加に失敗しました: ${errorData.detail || '不明なエラー'}`)
+    }
+
+    await fetchCategories()
+    await fetchKnowhowTree()
+    newMiddleCategory.value = ''
+  } catch (e: any) {
+    error.value = e.message
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// 大項目と中項目の選択肢を取得
+const majorCategoryOptions = computed(() => {
+  return majorCategories.value.map(cat => ({ value: cat.id.toString(), label: cat.name }))
+})
+
+const middleCategoryOptions = computed(() => {
+  if (!form.value.major_category) return []
+  const majorCategoryId = parseInt(form.value.major_category)
+  return middleCategories.value
+    .filter(cat => cat.major_category_id === majorCategoryId)
+    .map(cat => ({ value: cat.id.toString(), label: cat.name }))
+})
 
 onMounted(() => {
+  fetchCategories()
   fetchKnowhowTree()
 })
 </script>
@@ -1096,7 +1515,123 @@ onMounted(() => {
   background: #e8e8e8;
 }
 
+/* カテゴリ編集画面のスタイル */
+.category-layout {
+  display: flex;
+  gap: 20px;
+  height: calc(100vh - 200px);
+}
 
+.major-category-panel,
+.middle-category-panel {
+  flex: 1;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  padding: 16px;
+  border-bottom: 1px solid #ddd;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+}
+
+.panel-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.panel-content {
+  padding: 16px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.category-list {
+  margin-bottom: 24px;
+}
+
+.category-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.category-item:hover {
+  background: #f8f9fa;
+}
+
+.category-item.selected {
+  background: #e8f5e8;
+  border-color: #4CAF50;
+}
+
+.category-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.category-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.add-category-form,
+.edit-category-form {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+
+.add-category-form h4,
+.edit-category-form h4 {
+  margin: 0 0 16px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.major-category-selector {
+  margin-bottom: 24px;
+}
+
+.major-category-selector label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+.form-select:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
 
 .error-message {
   color: #d32f2f;
