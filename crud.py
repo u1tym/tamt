@@ -442,7 +442,8 @@ def create_knowhow(db: Session, knowhow: schemas.KnowhowCreate):
         models.Knowhow.is_deleted == False
     ).with_entities(func.max(models.Knowhow.display_order)).scalar()
 
-    display_order = (max_order or -1) + 1
+    # max_orderがNoneの場合は0から開始、そうでなければ+1
+    display_order = 0 if max_order is None else max_order + 1
 
     # display_orderを除外してからdict()を取得
     knowhow_data = knowhow.dict()
