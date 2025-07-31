@@ -1,31 +1,41 @@
 <template>
   <div class="knowhow-management">
     <div class="header-container">
-      <button @click="$router.push('/')" class="back-button">
-        ← トップメニューに戻る
-      </button>
-      <h2 class="page-title">KNOWHOW管理</h2>
+      <div class="header-left">
+        <img src="/images/KNOWHOW.png" alt="KNOWHOW" class="header-icon" />
+        <h2 class="page-title">KNOWHOW</h2>
+      </div>
+      <div class="header-right">
+        <img 
+          src="/images/CONFIG.png" 
+          alt="CONFIG" 
+          class="config-icon" 
+          @click="toggleEditMode"
+          title="編集モード切り替え"
+        />
+        <img 
+          src="/images/PORTAL.png" 
+          alt="PORTAL" 
+          class="portal-icon" 
+          @click="$router.push('/')"
+          title="トップメニューに戻る"
+        />
+      </div>
     </div>
 
     <!-- タブ切り替え -->
-    <div class="tab-container">
-      <button
-        @click="activeTab = 'search'"
-        :class="['tab-button', { active: activeTab === 'search' }]"
-      >
-        検索
-      </button>
-      <button
-        @click="activeTab = 'edit'"
-        :class="['tab-button', { active: activeTab === 'edit' }]"
-      >
-        本文編集
-      </button>
-      <button
+    <div class="tab-container" v-if="showTabs">
+      <button 
+        :class="['tab-button', { active: activeTab === 'category' }]" 
         @click="activeTab = 'category'"
-        :class="['tab-button', { active: activeTab === 'category' }]"
       >
         カテゴリ編集
+      </button>
+      <button 
+        :class="['tab-button', { active: activeTab === 'content' }]" 
+        @click="activeTab = 'content'"
+      >
+        本文編集
       </button>
     </div>
 
@@ -55,13 +65,13 @@
               <div
                 @click="toggleMajorCategory(majorCategory)"
                 class="major-category-header"
-                :class="{ expanded: expandedMajorCategories.includes(majorCategory) }"
+                :class="{ expanded: expandedMajorCategories.includes(String(majorCategory)) }"
               >
-                <span class="expand-icon">{{ expandedMajorCategories.includes(majorCategory) ? '▼' : '▶' }}</span>
+                <span class="expand-icon">{{ expandedMajorCategories.includes(String(majorCategory)) ? '▼' : '▶' }}</span>
                 {{ majorCategory }}
               </div>
               <div
-                v-if="expandedMajorCategories.includes(majorCategory)"
+                v-if="expandedMajorCategories.includes(String(majorCategory))"
                 class="middle-categories"
               >
                 <div
@@ -72,13 +82,13 @@
                   <div
                     @click="toggleMiddleCategory(majorCategory, middleCategory)"
                     class="middle-category-header"
-                    :class="{ expanded: expandedMiddleCategories.includes(`${majorCategory}-${middleCategory}`) }"
+                    :class="{ expanded: expandedMiddleCategories.includes(`${String(majorCategory)}-${String(middleCategory)}`) }"
                   >
-                    <span class="expand-icon">{{ expandedMiddleCategories.includes(`${majorCategory}-${middleCategory}`) ? '▼' : '▶' }}</span>
+                    <span class="expand-icon">{{ expandedMiddleCategories.includes(`${String(majorCategory)}-${String(middleCategory)}`) ? '▼' : '▶' }}</span>
                     {{ middleCategory }}
                   </div>
                   <div
-                    v-if="expandedMiddleCategories.includes(`${majorCategory}-${middleCategory}`)"
+                    v-if="expandedMiddleCategories.includes(`${String(majorCategory)}-${String(middleCategory)}`)"
                     class="titles"
                   >
                     <div
@@ -118,8 +128,8 @@
       </div>
     </div>
 
-    <!-- 編集画面 -->
-    <div v-if="activeTab === 'edit'" class="edit-view">
+    <!-- KNOWHOW編集画面 -->
+    <div v-if="activeTab === 'content'" class="edit-view">
       <div class="edit-layout">
         <!-- 左側：ツリー表示（編集可能） -->
         <div class="tree-panel">
@@ -138,13 +148,13 @@
               <div
                 @click="toggleMajorCategory(majorCategory)"
                 class="major-category-header"
-                :class="{ expanded: expandedMajorCategories.includes(majorCategory) }"
+                :class="{ expanded: expandedMajorCategories.includes(String(majorCategory)) }"
               >
-                <span class="expand-icon">{{ expandedMajorCategories.includes(majorCategory) ? '▼' : '▶' }}</span>
+                <span class="expand-icon">{{ expandedMajorCategories.includes(String(majorCategory)) ? '▼' : '▶' }}</span>
                 {{ majorCategory }}
               </div>
               <div
-                v-if="expandedMajorCategories.includes(majorCategory)"
+                v-if="expandedMajorCategories.includes(String(majorCategory))"
                 class="middle-categories"
               >
                 <div
@@ -495,6 +505,8 @@
       </div>
     </div>
 
+
+
     <div v-if="error" class="error-message">{{ error }}</div>
   </div>
 </template>
@@ -514,6 +526,8 @@ interface Knowhow {
   is_deleted: boolean
   created_at: string
   updated_at: string
+  major_category_name?: string
+  middle_category_name?: string
 }
 
 interface TreeItem {
@@ -524,7 +538,7 @@ interface TreeItem {
   middle_category_id: number
 }
 
-const activeTab = ref<'search' | 'edit' | 'category'>('search')
+const activeTab = ref<'search' | 'category' | 'content'>('search')
 const knowhowTree = ref<{ [majorCategory: string]: { [middleCategory: string]: TreeItem[] } }>({})
 const filteredTree = ref<{ [majorCategory: string]: { [middleCategory: string]: TreeItem[] } }>({})
 const selectedKnowhow = ref<Knowhow | null>(null)
@@ -788,18 +802,19 @@ const moveKnowhowDown = async (id: number) => {
 }
 
 // 大項目の展開/折りたたみ
-const toggleMajorCategory = (majorCategory: string) => {
-  const index = expandedMajorCategories.value.indexOf(majorCategory)
+const toggleMajorCategory = (majorCategory: string | number) => {
+  const categoryStr = String(majorCategory)
+  const index = expandedMajorCategories.value.indexOf(categoryStr)
   if (index > -1) {
     expandedMajorCategories.value.splice(index, 1)
   } else {
-    expandedMajorCategories.value.push(majorCategory)
+    expandedMajorCategories.value.push(categoryStr)
   }
 }
 
 // 中項目の展開/折りたたみ
-const toggleMiddleCategory = (majorCategory: string, middleCategory: string) => {
-  const key = `${majorCategory}-${middleCategory}`
+const toggleMiddleCategory = (majorCategory: string | number, middleCategory: string | number) => {
+  const key = `${String(majorCategory)}-${String(middleCategory)}`
   const index = expandedMiddleCategories.value.indexOf(key)
   if (index > -1) {
     expandedMiddleCategories.value.splice(index, 1)
@@ -1063,6 +1078,22 @@ const middleCategoryOptions = computed(() => {
     .map(cat => ({ value: cat.id.toString(), label: cat.name }))
 })
 
+// 編集モード切り替え
+const toggleEditMode = () => {
+  if (activeTab.value === 'search') {
+    // 検索画面から編集モードに切り替え
+    showTabs.value = true
+    activeTab.value = 'category'
+  } else {
+    // 編集モードから検索画面に戻る
+    showTabs.value = false
+    activeTab.value = 'search'
+  }
+}
+
+// タブの表示/非表示
+const showTabs = ref(false)
+
 onMounted(() => {
   fetchCategories()
   fetchKnowhowTree()
@@ -1078,34 +1109,67 @@ onMounted(() => {
 
 .header-container {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 2px solid #e0e0e0;
 }
 
-.back-button {
-  padding: 8px 16px;
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #333;
-  transition: background-color 0.2s;
-  white-space: nowrap;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.back-button:hover {
-  background: #e8e8e8;
+.header-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .page-title {
-  text-align: center;
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   color: #333;
   font-weight: 600;
-  flex: 1;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.config-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border: 2px solid transparent;
+  margin-right: 10px; /* ポータルアイコンとの間隔 */
+}
+
+.config-icon:hover {
+  transform: scale(1.1);
+  border-color: #8B4513;
+}
+
+.portal-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.portal-icon:hover {
+  transform: scale(1.1);
+  border-color: #8B4513;
 }
 
 .tab-container {
@@ -1629,16 +1693,102 @@ onMounted(() => {
   border: 1px solid #ffcdd2;
 }
 
+/* 本文編集画面のスタイル */
+.content-layout {
+  display: flex;
+  gap: 20px;
+  height: calc(100vh - 200px);
+}
+
+.content-view .tree-panel {
+  width: 40%;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-view .edit-panel {
+  flex: 1;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-header {
+  padding: 16px;
+  border-bottom: 1px solid #ddd;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.form-content {
+  padding: 16px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 200px;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
   .header-container {
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
     text-align: center;
   }
 
-  .back-button {
-    align-self: flex-start;
+  .header-left {
+    justify-content: center;
+  }
+
+  .header-icon,
+  .portal-icon,
+  .config-icon {
+    width: 35px;
+    height: 35px;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
   }
 
   .search-layout,
