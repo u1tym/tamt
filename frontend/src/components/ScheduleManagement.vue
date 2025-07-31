@@ -9,19 +9,20 @@
       <!-- 左側: 活動区分一覧 -->
       <div class="activity-categories">
         <h2>活動区分</h2>
-                 <div class="category-list">
-           <div v-for="category in activityCategories" :key="category.id" class="category-item">
-             <input
-               type="checkbox"
-               :id="'category-' + category.id"
-               :checked="selectedCategories.includes(category.id)"
-               @change="toggleCategory(category.id)"
-             />
-             <div class="category-content">
-               <span v-if="!category.editing" @click="startEditCategory(category)" class="category-name">
-                 {{ category.name }}
-               </span>
-               <div v-else class="edit-category">
+        <div class="category-list">
+          <div v-for="category in activityCategories" :key="category.id" class="category-item">
+            <input
+                type="checkbox"
+                :id="'category-' + category.id"
+                :checked="selectedCategories.includes(category.id)"
+                @change="toggleCategory(category.id)"
+                :style="{ accentColor: getCategoryColor(category.id) }"
+            />
+            <div class="category-content">
+              <span v-if="!category.editing" @click="startEditCategory(category)" class="category-name">
+                {{ category.name }}
+              </span>
+              <div v-else class="edit-category">
                  <input
                    v-model="category.editName"
                    @keyup.enter="saveCategoryName(category)"
@@ -30,15 +31,15 @@
                    ref="categoryInput"
                    class="edit-input"
                  />
-               </div>
-             </div>
-                           <button class="delete-btn" @click="deleteCategory(category.id)" title="削除">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                </svg>
-              </button>
-           </div>
-         </div>
+              </div>
+            </div>
+            <button class="delete-btn" @click="deleteCategory(category.id)" title="削除">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
         <div class="add-category">
           <input v-model="newCategoryName" placeholder="新しい活動区分名" />
           <button @click="addCategory">追加</button>
@@ -79,36 +80,44 @@
                 @click="date ? selectDate(date) : null"
               >
                 <div class="date-number">{{ date ? date.getDate() : '' }}</div>
-                                 <div class="schedule-items">
-                                       <div
-                      v-for="schedule in getSchedulesForDate(date)"
-                      :key="schedule.id"
-                      class="schedule-item"
-                      :class="getScheduleClass(schedule, date)"
-                      @click.stop="editSchedule(schedule)"
-                    >
-                      <div class="schedule-content">
-                        <span class="schedule-time" v-if="!schedule.is_all_day">
-                          {{ formatTime(schedule.start_datetime) }}
-                        </span>
-                        <span class="schedule-title" v-if="!isMultiDayMiddle(schedule, date)">{{ schedule.title }}</span>
-                      </div>
-                    </div>
-                 </div>
-
-                                   <!-- 複数日スケジュールの矢印表示（期間全体） -->
-                  <div class="multi-day-arrows">
-                    <div
-                      v-for="schedule in getMultiDaySchedulesForDate(date)"
-                      :key="`arrow-${schedule.id}`"
-                      class="schedule-arrow"
-                      :class="getArrowClass(schedule, date)"
-                                             :style="{ top: (getArrowPosition(schedule, date) + 40) + 'px' }"
-                    >
-
-                      <div class="arrow-line"></div>
+                <div class="schedule-items">
+                  <div
+                    v-for="schedule in getSchedulesForDate(date)"
+                    :key="schedule.id"
+                    class="schedule-item"
+                    :class="getScheduleClass(schedule, date)"
+                    :style="{
+                      top: (getArrowPosition(schedule, date)) + 'px',
+                      borderLeftColor: getCategoryColor(schedule.activity_category_id),
+                      backgroundColor: getCategoryBackgroundColor(schedule.activity_category_id)
+                    }"
+                    @click.stop="editSchedule(schedule)"
+                  >
+                    <div class="schedule-content">
+                      <span class="schedule-time" v-if="!schedule.is_all_day">
+                        {{ formatTime(schedule.start_datetime) }}
+                      </span>
+                      <span class="schedule-title" v-if="!isMultiDayMiddle(schedule, date)">{{ schedule.title }}</span>
                     </div>
                   </div>
+                </div>
+
+                <!-- 複数日スケジュールの矢印表示（期間全体） -->
+                <div class="multi-day-arrows">
+                  <div
+                    v-for="schedule in getMultiDaySchedulesForDate(date)"
+                    :key="`arrow-${schedule.id}`"
+                    class="schedule-arrow"
+                    :class="getArrowClass(schedule, date)"
+                    :style="{
+                      top: (getArrowPosition(schedule, date) + 42) + 'px',
+                      '--arrow-color': getCategoryColor(schedule.activity_category_id)
+                    }"
+                  >
+
+                    <div class="arrow-line" :style="{ backgroundColor: getCategoryColor(schedule.activity_category_id) }"></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -574,17 +583,129 @@ function getArrowClass(schedule: any, date: Date): string {
   return classes.join(' ')
 }
 
+/**
+ *
+ * @param schedule 評価対象のスケジュール
+ * @param date 表示判定対象日
+ */
 function getArrowPosition(schedule: any, date: Date): number {
+  // 評価対象スケジュールの情報
+  const sch_st = new Date(schedule.start_datetime)
+  const sch_st_y = sch_st.getFullYear()
+  const sch_st_m = sch_st.getMonth() + 1
+  const sch_st_d = sch_st.getDate()
+
+  // 評価対象日
+  const tgt_y = date.getFullYear()
+  const tgt_m = date.getMonth() + 1
+  const tgt_d = date.getDate()
+
+  if(schedule.is_all_day && schedule.duration > 1
+    && (sch_st_y != tgt_y || sch_st_m != tgt_m || sch_st_d != tgt_d)
+  ) {
+    // 複数日に跨るスケジュールの順番は、開始日での順番
+    return getArrowPosition(schedule, sch_st)
+  }
+
+  //if(! schedule.is_all_day) {
+  //  return 0
+  //}
+
+  const st = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const ed = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
+
+  //console.log("開始 " + st)
+  //console.log("終了 " + ed)
+  //console.log(JSON.stringify(schedule))
+
   // 複数日スケジュールを開始日順にソートして、何番目かを計算
   const multiDaySchedules = schedules.value
-    .filter(s => s.is_all_day && s.duration > 1 && selectedCategories.value.includes(s.activity_category_id))
-    .sort((a, b) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())
+    .filter((s) => {
+      // console.log('★' + JSON.stringify(s))
+      let ist = new Date(s.start_datetime)
+      let ied = new Date(s.start_datetime)
+      if (s.is_all_day) {
+        // 終日
+        ied = new Date(ist.getFullYear(), ist.getMonth(), ist.getDate() + s.duration - 1, 23, 59, 59)
+      } else {
+        // 当日内
+        ied = new Date(ist.getFullYear(), ist.getMonth(), ist.getDate(), ist.getHours(), ist.getMinutes() + s.duration, 0)
+      }
+
+      // console.log("判断対象 " + ist + " - " + ied)
+
+      let res = false
+      if(ist < ed && st < ied) {
+        res = true
+      }
+
+      return res
+    })
+    //.filter(s => s.is_all_day && s.duration > 1 && selectedCategories.value.includes(s.activity_category_id))
+    .sort((a, b) => {
+      return new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime()
+    })
 
   // このスケジュールが何番目かを取得
   const scheduleIndex = multiDaySchedules.findIndex(s => s.id === schedule.id)
+  console.log(schedule.title + " result = " + scheduleIndex)
 
   // 各スケジュールの矢印を20pxずつずらして表示
   return scheduleIndex * 20
+}
+
+// 活動区分の色を取得する関数
+function getCategoryColor(categoryId: number): string {
+  const colors = [
+    '#2196F3', // 青
+    '#4CAF50', // 緑
+    '#FF9800', // オレンジ
+    '#9C27B0', // 紫
+    '#F44336', // 赤
+    '#00BCD4', // シアン
+    '#FF5722', // ディープオレンジ
+    '#795548', // ブラウン
+    '#607D8B', // ブルーグレー
+    '#E91E63', // ピンク
+    '#3F51B5', // インディゴ
+    '#8BC34A', // ライトグリーン
+    '#FFC107', // アンバー
+    '#009688', // ティール
+    '#673AB7'  // ディープパープル
+  ]
+
+  const categoryIndex = activityCategories.value.findIndex(cat => cat.id === categoryId)
+  if (categoryIndex >= 0) {
+    return colors[categoryIndex % colors.length]
+  }
+  return '#2196F3' // デフォルト色
+}
+
+// 活動区分の背景色を取得する関数
+function getCategoryBackgroundColor(categoryId: number): string {
+  const backgroundColors = [
+    '#E3F2FD', // 青の背景
+    '#E8F5E8', // 緑の背景
+    '#FFF3E0', // オレンジの背景
+    '#F3E5F5', // 紫の背景
+    '#FFEBEE', // 赤の背景
+    '#E0F2F1', // シアンの背景
+    '#FBE9E7', // ディープオレンジの背景
+    '#EFEBE9', // ブラウンの背景
+    '#ECEFF1', // ブルーグレーの背景
+    '#FCE4EC', // ピンクの背景
+    '#E8EAF6', // インディゴの背景
+    '#F1F8E9', // ライトグリーンの背景
+    '#FFF8E1', // アンバーの背景
+    '#E0F2F1', // ティールの背景
+    '#EDE7F6'  // ディープパープルの背景
+  ]
+
+  const categoryIndex = activityCategories.value.findIndex(cat => cat.id === categoryId)
+  if (categoryIndex >= 0) {
+    return backgroundColors[categoryIndex % backgroundColors.length]
+  }
+  return '#E3F2FD' // デフォルト背景色
 }
 
 function selectDate(date: Date) {
@@ -919,24 +1040,16 @@ onMounted(() => {
 }
 
 .schedule-item {
-  background: #e3f2fd;
   padding: 2px 4px;
   border-radius: 2px;
   font-size: 11px;
   cursor: pointer;
-  border-left: 3px solid #2196f3;
+  border-left: 3px solid;
   position: relative;
-}
-
-.schedule-item.all-day {
-  background: #fff3e0;
-  border-left-color: #ff9800;
 }
 
 /* 複数日に跨る終日スケジュールのスタイル */
 .schedule-item.multi-day-start {
-  background: #fff3e0;
-  border-left-color: #ff9800;
   border-radius: 2px 0 0 2px;
   margin-right: -8px;
   padding-right: 8px;
@@ -946,7 +1059,6 @@ onMounted(() => {
 }
 
 .schedule-item.multi-day-middle {
-  background: #fff3e0;
   border-left: none;
   border-radius: 0;
   margin-right: -8px;
@@ -958,7 +1070,6 @@ onMounted(() => {
 }
 
 .schedule-item.multi-day-end {
-  background: #fff3e0;
   border-left: none;
   border-radius: 0 2px 2px 0;
   padding-left: 8px;
@@ -1043,7 +1154,7 @@ onMounted(() => {
   top: -3px;
   width: 0;
   height: 0;
-  border-right: 8px solid #ff9800;
+  border-right: 8px solid var(--arrow-color, #ff9800);
   border-top: 4px solid transparent;
   border-bottom: 4px solid transparent;
 }
@@ -1065,14 +1176,13 @@ onMounted(() => {
   top: -3px;
   width: 0;
   height: 0;
-  border-left: 8px solid #ff9800;
+  border-left: 8px solid var(--arrow-color, #ff9800);
   border-top: 4px solid transparent;
   border-bottom: 4px solid transparent;
 }
 
 .schedule-item.todo {
-  background: #f3e5f5;
-  border-left-color: #9c27b0;
+  /* 背景色は動的に設定されるため、ここでは設定しない */
 }
 
 .schedule-item.completed {
