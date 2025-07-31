@@ -10,9 +10,10 @@ import cv2
 import numpy as np
 import pytesseract
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 from database import SessionLocal, engine
 import models
@@ -1027,6 +1028,65 @@ def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
     if not success:
         raise HTTPException(status_code=404, detail="Schedule not found")
     return {"message": "Schedule deleted successfully"}
+
+# 休日管理のエンドポイント
+@app.get("/holidays", response_model=List[schemas.Holiday])
+def get_holidays(db: Session = Depends(get_db)):
+    holidays = db.query(models.Holiday).order_by(models.Holiday.date).all()
+    return holidays
+
+@app.get("/holidays/month/{year}/{month}", response_model=List[schemas.Holiday])
+def get_holidays_by_month(year: int, month: int, db: Session = Depends(get_db)):
+    start_date = date(year, month, 1)
+    if month == 12:
+        end_date = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        end_date = date(year, month + 1, 1) - timedelta(days=1)
+
+    holidays = db.query(models.Holiday).filter(
+        models.Holiday.date >= start_date,
+        models.Holiday.date <= end_date
+    ).order_by(models.Holiday.date).all()
+    return holidays
+
+@app.post("/holidays", response_model=schemas.Holiday)
+def create_holiday(holiday: schemas.HolidayCreate, db: Session = Depends(get_db)):
+    db_holiday = models.Holiday(**holiday.dict())
+    db.add(db_holiday)
+    try:
+        db.commit()
+        db.refresh(db_holiday)
+        return db_holiday
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="この日付は既に休日として登録されています")
+
+@app.put("/holidays/{holiday_id}", response_model=schemas.Holiday)
+def update_holiday(holiday_id: int, holiday: schemas.HolidayUpdate, db: Session = Depends(get_db)):
+    db_holiday = db.query(models.Holiday).filter(models.Holiday.id == holiday_id).first()
+    if not db_holiday:
+        raise HTTPException(status_code=404, detail="休日が見つかりません")
+
+    for key, value in holiday.dict().items():
+        setattr(db_holiday, key, value)
+
+    try:
+        db.commit()
+        db.refresh(db_holiday)
+        return db_holiday
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="この日付は既に休日として登録されています")
+
+@app.delete("/holidays/{holiday_id}")
+def delete_holiday(holiday_id: int, db: Session = Depends(get_db)):
+    db_holiday = db.query(models.Holiday).filter(models.Holiday.id == holiday_id).first()
+    if not db_holiday:
+        raise HTTPException(status_code=404, detail="休日が見つかりません")
+
+    db.delete(db_holiday)
+    db.commit()
+    return {"message": "休日を削除しました"}
 
 if __name__ == "__main__":
     import uvicorn

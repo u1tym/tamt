@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, func, Text, Boolean, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -170,3 +171,12 @@ class Schedule(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
     # 活動区分との関係
     activity_category = relationship("ActivityCategory", back_populates="schedules")
+
+class Holiday(Base):
+    __tablename__ = "holidays"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False, unique=True, index=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
