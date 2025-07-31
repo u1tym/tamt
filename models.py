@@ -141,3 +141,32 @@ class GoodsImage(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
     # 関係
     goods = relationship("Goods", back_populates="images")
+
+# スケジュール管理用のテーブル
+class ActivityCategory(Base):
+    __tablename__ = 'activity_categories'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)  # 活動区分名称
+    is_deleted = Column(Boolean, nullable=False, default=False)  # 削除フラグ
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
+    # スケジュールとの関係
+    schedules = relationship("Schedule", back_populates="activity_category")
+
+class Schedule(Base):
+    __tablename__ = 'schedules'
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)  # タイトル
+    start_datetime = Column(DateTime, nullable=False)  # 開始日（時）
+    duration = Column(Integer, nullable=False)  # 所要時間（分または日）
+    is_all_day = Column(Boolean, nullable=False, default=False)  # 終日フラグ
+    activity_category_id = Column(Integer, ForeignKey('activity_categories.id'), nullable=False)  # 活動区分ID
+    schedule_type = Column(String, nullable=False)  # スケジュールタイプ（予定/TODO）
+    location = Column(String)  # 場所
+    details = Column(Text)  # 詳細
+    is_todo_completed = Column(Boolean, nullable=False, default=False)  # TODO実施済み
+    is_deleted = Column(Boolean, nullable=False, default=False)  # 削除フラグ
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
+    # 活動区分との関係
+    activity_category = relationship("ActivityCategory", back_populates="schedules")

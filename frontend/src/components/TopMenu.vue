@@ -5,6 +5,7 @@
       <button class="menu-btn" @click="goTo('knowhow')">KNOWHOW管理</button>
       <button class="menu-btn" @click="goTo('goods')">GOODS管理</button>
       <button class="menu-btn" @click="goTo('transactions')">出納管理</button>
+      <button class="menu-btn" @click="goTo('schedule')">スケジュール管理</button>
     </div>
   </div>
 </template>
@@ -20,6 +21,8 @@ function goTo(page: string) {
     router.push('/goods')
   } else if (page === 'transactions') {
     router.push('/transactions')
+  } else if (page === 'schedule') {
+    router.push('/schedule')
   }
 }
 </script>
@@ -56,4 +59,4 @@ function goTo(page: string) {
 .menu-btn:hover {
   background: #388e3c;
 }
-</style> 
+</style>

@@ -14,7 +14,7 @@ class PaymentSourceCreate(PaymentSourceBase):
 class PaymentSource(PaymentSourceBase):
     id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TransactionBase(BaseModel):
     used_date: date
@@ -42,7 +42,7 @@ class Transaction(TransactionBase):
     created_at: datetime
     updated_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class BudgetBase(BaseModel):
     target_year: int
@@ -66,7 +66,7 @@ class Budget(BudgetBase):
     created_at: datetime
     updated_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class PaymentDateRequest(BaseModel):
     used_date: str
@@ -90,7 +90,7 @@ class MajorCategory(MajorCategoryBase):
     created_at: datetime
     updated_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class MiddleCategoryBase(BaseModel):
     major_category_id: int
@@ -112,7 +112,7 @@ class MiddleCategory(MiddleCategoryBase):
     created_at: datetime
     updated_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class KnowhowBase(BaseModel):
     middle_category_id: int
@@ -138,7 +138,7 @@ class Knowhow(KnowhowBase):
     created_at: datetime
     updated_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class KnowhowTreeItem(BaseModel):
     major_category: str
@@ -180,7 +180,7 @@ class Person(PersonBase):
     created_at: datetime
     updated_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ArtistBase(BaseModel):
     name: str
@@ -197,7 +197,7 @@ class Artist(ArtistBase):
     created_at: datetime
     updated_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ArtistWithPersons(Artist):
     persons: List[Person] = []
@@ -213,7 +213,7 @@ class ArtistPerson(ArtistPersonBase):
     id: int
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class MediaBase(BaseModel):
     name: str
@@ -229,7 +229,7 @@ class Media(MediaBase):
     created_at: datetime
     updated_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class GoodsImageBase(BaseModel):
     image_data: str  # Base64エンコードされた文字列
@@ -249,7 +249,7 @@ class GoodsImage(GoodsImageBase):
     goods_id: int
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class GoodsBase(BaseModel):
     media_id: int
@@ -280,9 +280,65 @@ class Goods(GoodsBase):
     updated_at: datetime
     images: List[GoodsImage] = []
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class GoodsWithDetails(Goods):
     media: Media
     artist: ArtistWithPersons
     images: List[GoodsImage] = []
+
+# スケジュール管理用のスキーマ
+class ActivityCategoryBase(BaseModel):
+    name: str
+    is_deleted: bool = False
+
+class ActivityCategoryCreate(ActivityCategoryBase):
+    pass
+
+class ActivityCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    is_deleted: Optional[bool] = None
+
+class ActivityCategory(ActivityCategoryBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    class Config:
+        from_attributes = True
+
+class ScheduleBase(BaseModel):
+    title: str
+    start_datetime: datetime
+    duration: int
+    is_all_day: bool = False
+    activity_category_id: int
+    schedule_type: str  # 予定/TODO
+    location: Optional[str] = None
+    details: Optional[str] = None
+    is_todo_completed: bool = False
+    is_deleted: bool = False
+
+class ScheduleCreate(ScheduleBase):
+    pass
+
+class ScheduleUpdate(BaseModel):
+    title: Optional[str] = None
+    start_datetime: Optional[datetime] = None
+    duration: Optional[int] = None
+    is_all_day: Optional[bool] = None
+    activity_category_id: Optional[int] = None
+    schedule_type: Optional[str] = None
+    location: Optional[str] = None
+    details: Optional[str] = None
+    is_todo_completed: Optional[bool] = None
+    is_deleted: Optional[bool] = None
+
+class Schedule(ScheduleBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    class Config:
+        from_attributes = True
+
+class ScheduleWithCategory(Schedule):
+    activity_category: ActivityCategory

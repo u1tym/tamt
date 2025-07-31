@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import models
 import schemas
 from PIL import Image
@@ -66,11 +66,11 @@ def resize_image(image_data: bytes, max_size: int = 800) -> bytes:
     try:
         # 画像を開く
         image = Image.open(io.BytesIO(image_data))
-        
+
         # アスペクト比を保ってリサイズ
         if image.width > max_size or image.height > max_size:
             image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-        
+
         # JPEG形式で保存
         output = io.BytesIO()
         image.save(output, format='JPEG', quality=85, optimize=True)
@@ -124,10 +124,10 @@ def create_budget(db: Session, budget: schemas.BudgetCreate):
         models.Budget.target_year == budget.target_year,
         models.Budget.target_month == budget.target_month
     ).scalar()
-    
+
     if max_order is None:
         max_order = 0
-    
+
     db_budget = models.Budget(**budget.dict(), order_index=max_order + 1)
     db.add(db_budget)
     db.commit()
@@ -677,7 +677,7 @@ def create_artist(db: Session, artist: schemas.ArtistCreate):
     db.add(db_artist)
     db.commit()
     db.refresh(db_artist)
-    
+
     # パーソンの関連付け
     for person_id in artist.person_ids:
         artist_person = models.ArtistPerson(
@@ -685,7 +685,7 @@ def create_artist(db: Session, artist: schemas.ArtistCreate):
             person_id=person_id
         )
         db.add(artist_person)
-    
+
     db.commit()
     db.refresh(db_artist)
     return db_artist
@@ -701,12 +701,12 @@ def get_artist_with_persons(db: Session, artist_id: int):
     artist = get_artist(db, artist_id)
     if artist is None:
         return None
-    
+
     # パーソン情報を取得
     persons = db.query(models.Person).join(models.ArtistPerson).filter(
         models.ArtistPerson.artist_id == artist_id
     ).all()
-    
+
     return {
         'id': artist.id,
         'name': artist.name,
@@ -721,18 +721,18 @@ def update_artist(db: Session, artist_id: int, artist: schemas.ArtistUpdate):
         return None
 
     update_data = artist.dict(exclude_unset=True)
-    
+
     # 名前の更新
     if 'name' in update_data:
         db_artist.name = update_data['name']
-    
+
     # パーソンの関連付けを更新
     if 'person_ids' in update_data:
         # 既存の関連付けを削除
         db.query(models.ArtistPerson).filter(
             models.ArtistPerson.artist_id == artist_id
         ).delete()
-        
+
         # 新しい関連付けを作成
         for person_id in update_data['person_ids']:
             artist_person = models.ArtistPerson(
@@ -740,7 +740,7 @@ def update_artist(db: Session, artist_id: int, artist: schemas.ArtistUpdate):
                 person_id=person_id
             )
             db.add(artist_person)
-    
+
     db.commit()
     db.refresh(db_artist)
     return db_artist
@@ -786,7 +786,7 @@ def create_goods(db: Session, goods: schemas.GoodsCreate):
     db.add(db_goods)
     db.commit()
     db.refresh(db_goods)
-    
+
     # 画像の保存
     saved_images = []
     for i, image_data in enumerate(goods.images):
@@ -795,7 +795,7 @@ def create_goods(db: Session, goods: schemas.GoodsCreate):
         decoded_image = base64.b64decode(image_data.image_data)
         # 画像をリサイズ
         resized_image = resize_image(decoded_image)
-        
+
         goods_image = models.GoodsImage(
             goods_id=db_goods.id,
             image_data=resized_image,
@@ -804,24 +804,173 @@ def create_goods(db: Session, goods: schemas.GoodsCreate):
         )
         db.add(goods_image)
         saved_images.append(goods_image)
-    
+
     db.commit()
-    
+
     # 保存された画像をBase64エンコードして返す
     for img in saved_images:
         db.refresh(img)
         img.image_data = base64.b64encode(img.image_data).decode('utf-8')
-    
+
     # GOODSオブジェクトに画像情報を追加
     db_goods.images = saved_images
-    
+
     return db_goods
+
+# スケジュール管理用のCRUD操作
+
+# ActivityCategory CRUD
+def create_activity_category(db: Session, activity_category: schemas.ActivityCategoryCreate):
+    """活動区分を作成"""
+    db_activity_category = models.ActivityCategory(**activity_category.dict())
+    db.add(db_activity_category)
+    db.commit()
+    db.refresh(db_activity_category)
+    return db_activity_category
+
+def get_activity_categories(db: Session, skip: int = 0, limit: int = 100):
+    """活動区分一覧を取得"""
+    return db.query(models.ActivityCategory).filter(
+        models.ActivityCategory.is_deleted == False
+    ).order_by(models.ActivityCategory.name).offset(skip).limit(limit).all()
+
+def get_activity_category(db: Session, activity_category_id: int):
+    """特定の活動区分を取得"""
+    return db.query(models.ActivityCategory).filter(
+        models.ActivityCategory.id == activity_category_id,
+        models.ActivityCategory.is_deleted == False
+    ).first()
+
+def update_activity_category(db: Session, activity_category_id: int, activity_category: schemas.ActivityCategoryUpdate):
+    """活動区分を更新"""
+    db_activity_category = get_activity_category(db, activity_category_id)
+    if db_activity_category is None:
+        return None
+
+    update_data = activity_category.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_activity_category, field, value)
+
+    db.commit()
+    db.refresh(db_activity_category)
+    return db_activity_category
+
+def delete_activity_category(db: Session, activity_category_id: int):
+    """活動区分を削除（論理削除）"""
+    db_activity_category = get_activity_category(db, activity_category_id)
+    if db_activity_category is None:
+        return False
+
+    # 活動区分を論理削除
+    db_activity_category.is_deleted = True
+
+    # 関連するスケジュールも論理削除
+    db.query(models.Schedule).filter(
+        models.Schedule.activity_category_id == activity_category_id
+    ).update({models.Schedule.is_deleted: True})
+
+    db.commit()
+    return True
+
+# Schedule CRUD
+def create_schedule(db: Session, schedule: schemas.ScheduleCreate):
+    """スケジュールを作成"""
+    db_schedule = models.Schedule(**schedule.dict())
+    db.add(db_schedule)
+    db.commit()
+    db.refresh(db_schedule)
+    return db_schedule
+
+def get_schedules(db: Session, skip: int = 0, limit: int = 100):
+    """スケジュール一覧を取得"""
+    return db.query(models.Schedule).filter(
+        models.Schedule.is_deleted == False
+    ).order_by(models.Schedule.start_datetime).offset(skip).limit(limit).all()
+
+def get_schedules_by_month(db: Session, year: int, month: int):
+    """指定月のスケジュールを取得"""
+    from datetime import datetime, timedelta
+    from calendar import monthrange
+
+    # 指定月の最初の日と最後の日を取得
+    first_day = datetime(year, month, 1)
+    last_day = datetime(year, month, monthrange(year, month)[1], 23, 59, 59)
+
+    return db.query(models.Schedule).filter(
+        models.Schedule.is_deleted == False,
+        models.Schedule.start_datetime >= first_day,
+        models.Schedule.start_datetime <= last_day
+    ).order_by(models.Schedule.start_datetime).all()
+
+def get_schedules_by_date_range(db: Session, start_date: datetime, end_date: datetime):
+    """指定期間のスケジュールを取得"""
+    return db.query(models.Schedule).filter(
+        models.Schedule.is_deleted == False,
+        models.Schedule.start_datetime >= start_date,
+        models.Schedule.start_datetime <= end_date
+    ).order_by(models.Schedule.start_datetime).all()
+
+def get_schedule(db: Session, schedule_id: int):
+    """特定のスケジュールを取得"""
+    return db.query(models.Schedule).filter(
+        models.Schedule.id == schedule_id,
+        models.Schedule.is_deleted == False
+    ).first()
+
+def get_schedule_with_category(db: Session, schedule_id: int):
+    """活動区分情報を含むスケジュールを取得"""
+    return db.query(models.Schedule).join(
+        models.ActivityCategory
+    ).filter(
+        models.Schedule.id == schedule_id,
+        models.Schedule.is_deleted == False
+    ).first()
+
+def update_schedule(db: Session, schedule_id: int, schedule: schemas.ScheduleUpdate):
+    """スケジュールを更新"""
+    db_schedule = get_schedule(db, schedule_id)
+    if db_schedule is None:
+        return None
+
+    update_data = schedule.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_schedule, field, value)
+
+    db.commit()
+    db.refresh(db_schedule)
+    return db_schedule
+
+def delete_schedule(db: Session, schedule_id: int):
+    """スケジュールを削除（論理削除）"""
+    db_schedule = get_schedule(db, schedule_id)
+    if db_schedule is None:
+        return False
+
+    db_schedule.is_deleted = True
+    db.commit()
+    return True
+
+def get_schedules_by_activity_categories(db: Session, activity_category_ids: list[int], year: int, month: int):
+    """指定された活動区分のスケジュールを取得"""
+    from datetime import datetime
+    from calendar import monthrange
+
+    # 指定月の最初の日と最後の日を取得
+    first_day = datetime(year, month, 1)
+    last_day = datetime(year, month, monthrange(year, month)[1], 23, 59, 59)
+
+    return db.query(models.Schedule).filter(
+        models.Schedule.is_deleted == False,
+        models.Schedule.activity_category_id.in_(activity_category_ids),
+        models.Schedule.start_datetime >= first_day,
+        models.Schedule.start_datetime <= last_day
+    ).order_by(models.Schedule.start_datetime).all()
 
 def get_goods_list(db: Session, skip: int = 0, limit: int = 100):
     goods_list = db.query(models.Goods).filter(
         models.Goods.is_deleted == False
     ).order_by(models.Goods.release_date.desc()).offset(skip).limit(limit).all()
-    
+
     # 各GOODSに画像情報を追加（Base64エンコード）
     import base64
     result = []
@@ -841,12 +990,12 @@ def get_goods_list(db: Session, skip: int = 0, limit: int = 100):
             'updated_at': goods.updated_at,
             'images': []
         }
-        
+
         # 画像情報を取得してBase64エンコード
         images = db.query(models.GoodsImage).filter(
             models.GoodsImage.goods_id == goods.id
         ).order_by(models.GoodsImage.display_order).all()
-        
+
         for img in images:
             goods_dict['images'].append({
                 'id': img.id,
@@ -856,9 +1005,9 @@ def get_goods_list(db: Session, skip: int = 0, limit: int = 100):
                 'display_order': img.display_order,
                 'created_at': img.created_at
             })
-        
+
         result.append(goods_dict)
-    
+
     return result
 
 def get_goods(db: Session, goods_id: int):
@@ -872,18 +1021,18 @@ def get_goods_with_details(db: Session, goods_id: int):
     goods = get_goods(db, goods_id)
     if goods is None:
         return None
-    
+
     # メディア情報を取得
     media = get_media(db, goods.media_id)
-    
+
     # アーティスト情報を取得（パーソン情報含む）
     artist_with_persons = get_artist_with_persons(db, goods.artist_id)
-    
+
     # 画像情報を取得
     images = db.query(models.GoodsImage).filter(
         models.GoodsImage.goods_id == goods_id
     ).order_by(models.GoodsImage.display_order).all()
-    
+
     return {
         'id': goods.id,
         'media_id': goods.media_id,
@@ -907,12 +1056,12 @@ def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
         return None
 
     update_data = goods.dict(exclude_unset=True)
-    
+
     # 基本情報の更新
     for field in ['media_id', 'artist_id', 'title', 'release_date', 'memo', 'is_owned', 'code_number']:
         if field in update_data:
             setattr(db_goods, field, update_data[field])
-    
+
     # 画像の更新
     saved_images = []
     if 'images' in update_data:
@@ -920,7 +1069,7 @@ def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
         db.query(models.GoodsImage).filter(
             models.GoodsImage.goods_id == goods_id
         ).delete()
-        
+
         # 新しい画像を保存
         for i, image_data in enumerate(update_data['images']):
             # Base64デコードしてバイトデータに変換
@@ -928,7 +1077,7 @@ def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
             decoded_image = base64.b64decode(image_data['image_data'])
             # 画像をリサイズ
             resized_image = resize_image(decoded_image)
-            
+
             goods_image = models.GoodsImage(
                 goods_id=goods_id,
                 image_data=resized_image,
@@ -937,17 +1086,17 @@ def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
             )
             db.add(goods_image)
             saved_images.append(goods_image)
-    
+
     db.commit()
-    
+
     # 保存された画像をBase64エンコードして返す
     for img in saved_images:
         db.refresh(img)
         img.image_data = base64.b64encode(img.image_data).decode('utf-8')
-    
+
     # GOODSオブジェクトに画像情報を追加
     db_goods.images = saved_images
-    
+
     return db_goods
 
 def delete_goods(db: Session, goods_id: int):

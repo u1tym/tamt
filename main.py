@@ -870,18 +870,163 @@ def delete_goods(goods_id: int, db: Session = Depends(get_db)):
 @app.get("/goods/{goods_id}/images/{image_id}")
 def get_goods_image(goods_id: int, image_id: int, db: Session = Depends(get_db)):
     """GOODS画像を取得"""
-    image = db.query(models.GoodsImage).filter(
+    from fastapi.responses import Response
+    from fastapi import HTTPException
+
+    goods_image = db.query(models.GoodsImage).filter(
         models.GoodsImage.id == image_id,
         models.GoodsImage.goods_id == goods_id
     ).first()
-    
-    if image is None:
+
+    if not goods_image:
         raise HTTPException(status_code=404, detail="Image not found")
-    
+
+    return Response(content=goods_image.image_data, media_type=goods_image.image_type)
+
+# スケジュール管理用のAPIエンドポイント
+
+# ActivityCategory API
+@app.get("/activity-categories", response_model=List[schemas.ActivityCategory])
+def read_activity_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """活動区分一覧を取得"""
+    return crud.get_activity_categories(db, skip=skip, limit=limit)
+
+@app.get("/activity-categories/{activity_category_id}", response_model=schemas.ActivityCategory)
+def read_activity_category(activity_category_id: int, db: Session = Depends(get_db)):
+    """特定の活動区分を取得"""
+    db_activity_category = crud.get_activity_category(db, activity_category_id=activity_category_id)
+    if db_activity_category is None:
+        raise HTTPException(status_code=404, detail="Activity category not found")
+    return db_activity_category
+
+@app.post("/activity-categories", response_model=schemas.ActivityCategory)
+def create_activity_category(activity_category: schemas.ActivityCategoryCreate, db: Session = Depends(get_db)):
+    """活動区分を作成"""
+    return crud.create_activity_category(db=db, activity_category=activity_category)
+
+@app.put("/activity-categories/{activity_category_id}", response_model=schemas.ActivityCategory)
+def update_activity_category(activity_category_id: int, activity_category: schemas.ActivityCategoryUpdate, db: Session = Depends(get_db)):
+    """活動区分を更新"""
+    db_activity_category = crud.update_activity_category(db, activity_category_id=activity_category_id, activity_category=activity_category)
+    if db_activity_category is None:
+        raise HTTPException(status_code=404, detail="Activity category not found")
+    return db_activity_category
+
+@app.delete("/activity-categories/{activity_category_id}")
+def delete_activity_category(activity_category_id: int, db: Session = Depends(get_db)):
+    """活動区分を削除"""
+    success = crud.delete_activity_category(db, activity_category_id=activity_category_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Activity category not found")
+    return {"message": "Activity category deleted successfully"}
+
+# Schedule API
+@app.get("/schedules", response_model=List[schemas.Schedule])
+def read_schedules(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """スケジュール一覧を取得"""
+    return crud.get_schedules(db, skip=skip, limit=limit)
+
+@app.get("/schedules/month/{year}/{month}", response_model=List[schemas.ScheduleWithCategory])
+def read_schedules_by_month(year: int, month: int, db: Session = Depends(get_db)):
+    """指定月のスケジュールを取得"""
+    schedules = crud.get_schedules_by_month(db, year=year, month=month)
+    result = []
+    for schedule in schedules:
+        category = crud.get_activity_category(db, schedule.activity_category_id)
+        schedule_dict = {
+            'id': schedule.id,
+            'title': schedule.title,
+            'start_datetime': schedule.start_datetime,
+            'duration': schedule.duration,
+            'is_all_day': schedule.is_all_day,
+            'activity_category_id': schedule.activity_category_id,
+            'schedule_type': schedule.schedule_type,
+            'location': schedule.location,
+            'details': schedule.details,
+            'is_todo_completed': schedule.is_todo_completed,
+            'is_deleted': schedule.is_deleted,
+            'created_at': schedule.created_at,
+            'updated_at': schedule.updated_at,
+            'activity_category': category
+        }
+        result.append(schedule_dict)
+    return result
+
+@app.get("/schedules/filtered/{year}/{month}")
+def read_schedules_by_activity_categories(year: int, month: int, category_ids: str, db: Session = Depends(get_db)):
+    """指定された活動区分のスケジュールを取得"""
+    if not category_ids:
+        return []
+
+    category_id_list = [int(id.strip()) for id in category_ids.split(',') if id.strip()]
+    schedules = crud.get_schedules_by_activity_categories(db, category_id_list, year, month)
+    result = []
+    for schedule in schedules:
+        category = crud.get_activity_category(db, schedule.activity_category_id)
+        schedule_dict = {
+            'id': schedule.id,
+            'title': schedule.title,
+            'start_datetime': schedule.start_datetime,
+            'duration': schedule.duration,
+            'is_all_day': schedule.is_all_day,
+            'activity_category_id': schedule.activity_category_id,
+            'schedule_type': schedule.schedule_type,
+            'location': schedule.location,
+            'details': schedule.details,
+            'is_todo_completed': schedule.is_todo_completed,
+            'is_deleted': schedule.is_deleted,
+            'created_at': schedule.created_at,
+            'updated_at': schedule.updated_at,
+            'activity_category': category
+        }
+        result.append(schedule_dict)
+    return result
+
+@app.get("/schedules/{schedule_id}", response_model=schemas.ScheduleWithCategory)
+def read_schedule(schedule_id: int, db: Session = Depends(get_db)):
+    """特定のスケジュールを取得"""
+    schedule = crud.get_schedule(db, schedule_id=schedule_id)
+    if schedule is None:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+
+    category = crud.get_activity_category(db, schedule.activity_category_id)
     return {
-        "image_data": base64.b64encode(image.image_data).decode('utf-8'),
-        "image_type": image.image_type
+        'id': schedule.id,
+        'title': schedule.title,
+        'start_datetime': schedule.start_datetime,
+        'duration': schedule.duration,
+        'is_all_day': schedule.is_all_day,
+        'activity_category_id': schedule.activity_category_id,
+        'schedule_type': schedule.schedule_type,
+        'location': schedule.location,
+        'details': schedule.details,
+        'is_todo_completed': schedule.is_todo_completed,
+        'is_deleted': schedule.is_deleted,
+        'created_at': schedule.created_at,
+        'updated_at': schedule.updated_at,
+        'activity_category': category
     }
+
+@app.post("/schedules", response_model=schemas.Schedule)
+def create_schedule(schedule: schemas.ScheduleCreate, db: Session = Depends(get_db)):
+    """スケジュールを作成"""
+    return crud.create_schedule(db=db, schedule=schedule)
+
+@app.put("/schedules/{schedule_id}", response_model=schemas.Schedule)
+def update_schedule(schedule_id: int, schedule: schemas.ScheduleUpdate, db: Session = Depends(get_db)):
+    """スケジュールを更新"""
+    db_schedule = crud.update_schedule(db, schedule_id=schedule_id, schedule=schedule)
+    if db_schedule is None:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    return db_schedule
+
+@app.delete("/schedules/{schedule_id}")
+def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
+    """スケジュールを削除"""
+    success = crud.delete_schedule(db, schedule_id=schedule_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    return {"message": "Schedule deleted successfully"}
 
 if __name__ == "__main__":
     import uvicorn

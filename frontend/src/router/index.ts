@@ -21,6 +21,11 @@ const routes = [
     name: 'Goods',
     component: () => import('../components/GoodsManagement.vue'),
   },
+  {
+    path: '/schedule',
+    name: 'Schedule',
+    component: () => import('../components/ScheduleManagement.vue'),
+  },
 ]
 
 const router = createRouter({
