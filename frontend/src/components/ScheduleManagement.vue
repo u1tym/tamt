@@ -128,8 +128,8 @@
     </div>
 
     <!-- スケジュール編集モーダル -->
-    <div v-if="showScheduleModal" class="modal-overlay" @click="closeScheduleModal">
-      <div class="modal-content" @click.stop>
+    <div v-if="showScheduleModal" class="modal-overlay" @wheel.prevent>
+      <div class="modal-content" @click.stop @wheel.stop>
         <h3>{{ editingSchedule ? 'スケジュール編集' : '新規スケジュール' }}</h3>
         <form @submit.prevent="saveSchedule">
           <div class="form-group">
