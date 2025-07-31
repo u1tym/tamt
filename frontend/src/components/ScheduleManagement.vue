@@ -79,20 +79,36 @@
                 @click="date ? selectDate(date) : null"
               >
                 <div class="date-number">{{ date ? date.getDate() : '' }}</div>
-                <div class="schedule-items">
-                  <div
-                    v-for="schedule in getSchedulesForDate(date)"
-                    :key="schedule.id"
-                    class="schedule-item"
-                    :class="getScheduleClass(schedule)"
-                    @click.stop="editSchedule(schedule)"
-                  >
-                    <div class="schedule-time" v-if="!schedule.is_all_day">
-                      {{ formatTime(schedule.start_datetime) }}
+                                 <div class="schedule-items">
+                                       <div
+                      v-for="schedule in getSchedulesForDate(date)"
+                      :key="schedule.id"
+                      class="schedule-item"
+                      :class="getScheduleClass(schedule, date)"
+                      @click.stop="editSchedule(schedule)"
+                    >
+                      <div class="schedule-content">
+                        <span class="schedule-time" v-if="!schedule.is_all_day">
+                          {{ formatTime(schedule.start_datetime) }}
+                        </span>
+                        <span class="schedule-title" v-if="!isMultiDayMiddle(schedule, date)">{{ schedule.title }}</span>
+                      </div>
                     </div>
-                    <div class="schedule-title">{{ schedule.title }}</div>
+                 </div>
+
+                                   <!-- 複数日スケジュールの矢印表示（期間全体） -->
+                  <div class="multi-day-arrows">
+                    <div
+                      v-for="schedule in getMultiDaySchedulesForDate(date)"
+                      :key="`arrow-${schedule.id}`"
+                      class="schedule-arrow"
+                      :class="getArrowClass(schedule, date)"
+                                             :style="{ top: (getArrowPosition(schedule, date) + 40) + 'px' }"
+                    >
+
+                      <div class="arrow-line"></div>
+                    </div>
                   </div>
-                </div>
               </div>
             </div>
           </div>
@@ -420,19 +436,72 @@ function nextMonth() {
 function getSchedulesForDate(date: Date | null) {
   if (!date) return []
 
-  return schedules.value.filter(schedule => {
+  const schedulesForDate = schedules.value.filter(schedule => {
     const scheduleDate = new Date(schedule.start_datetime)
-    return scheduleDate.getDate() === date.getDate() &&
-           scheduleDate.getMonth() === date.getMonth() &&
-           scheduleDate.getFullYear() === date.getFullYear() &&
+    const scheduleDay = scheduleDate.getDate()
+    const scheduleMonth = scheduleDate.getMonth()
+    const scheduleYear = scheduleDate.getFullYear()
+
+    // 終日で複数日のスケジュールの場合は開始日のみ表示
+    if (schedule.is_all_day && schedule.duration > 1) {
+      return date.getTime() === scheduleDate.getTime() &&
+             selectedCategories.value.includes(schedule.activity_category_id)
+    }
+
+    // 通常のスケジュール（開始日のみ）
+    return scheduleDay === date.getDate() &&
+           scheduleMonth === date.getMonth() &&
+           scheduleYear === date.getFullYear() &&
+           selectedCategories.value.includes(schedule.activity_category_id)
+  })
+
+  // 複数日に跨るスケジュールを開始日順にソート
+  return schedulesForDate.sort((a, b) => {
+    const aDate = new Date(a.start_datetime)
+    const bDate = new Date(b.start_datetime)
+    return aDate.getTime() - bDate.getTime()
+  })
+}
+
+// 複数日スケジュールの矢印表示用の関数
+function getMultiDaySchedulesForDate(date: Date | null) {
+  if (!date) return []
+
+  return schedules.value.filter(schedule => {
+    if (!schedule.is_all_day || schedule.duration <= 1) return false
+
+    const scheduleDate = new Date(schedule.start_datetime)
+    const endDate = new Date(scheduleDate)
+    endDate.setDate(endDate.getDate() + schedule.duration - 1)
+
+    // 開始日から終了日までの期間に含まれるかチェック
+    return date >= scheduleDate && date <= endDate &&
            selectedCategories.value.includes(schedule.activity_category_id)
   })
 }
 
-function getScheduleClass(schedule: any) {
+function getScheduleClass(schedule: any, date: Date) {
   const classes = ['schedule-item']
   if (schedule.is_all_day) {
     classes.push('all-day')
+
+    // 複数日に跨る終日スケジュールの場合
+    if (schedule.duration > 1) {
+      const scheduleDate = new Date(schedule.start_datetime)
+      const endDate = new Date(scheduleDate)
+      endDate.setDate(endDate.getDate() + schedule.duration - 1)
+
+      if (date.getTime() === scheduleDate.getTime()) {
+        // 開始日
+        classes.push('multi-day-start')
+      } else if (date.getTime() === endDate.getTime()) {
+        // 終了日
+        classes.push('multi-day-end')
+      } else if (date > scheduleDate && date < endDate) {
+        // 中間日
+        classes.push('multi-day-middle')
+      }
+    }
   }
   if (schedule.schedule_type === 'TODO') {
     classes.push('todo')
@@ -446,6 +515,76 @@ function getScheduleClass(schedule: any) {
 function formatTime(datetime: string) {
   const date = new Date(datetime)
   return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+}
+
+function isMultiDayMiddle(schedule: any, date: Date): boolean {
+  if (!schedule.is_all_day || schedule.duration <= 1) return false
+
+  const scheduleDate = new Date(schedule.start_datetime)
+  const endDate = new Date(scheduleDate)
+  endDate.setDate(endDate.getDate() + schedule.duration - 1)
+
+  // 開始日以外（中間日と終了日）はタイトルを非表示
+  return date.getTime() !== scheduleDate.getTime()
+}
+
+function isMultiDayStart(schedule: any, date: Date): boolean {
+  if (!schedule.is_all_day || schedule.duration <= 1) return false
+
+  const scheduleDate = new Date(schedule.start_datetime)
+  return date.getTime() === scheduleDate.getTime()
+}
+
+function getScheduleDurationText(schedule: any): string {
+  if (!schedule.is_all_day || schedule.duration <= 1) return ''
+
+  const scheduleDate = new Date(schedule.start_datetime)
+  const endDate = new Date(scheduleDate)
+  endDate.setDate(endDate.getDate() + schedule.duration - 1)
+
+  const startMonth = scheduleDate.getMonth() + 1
+  const startDay = scheduleDate.getDate()
+  const endMonth = endDate.getMonth() + 1
+  const endDay = endDate.getDate()
+
+  if (startMonth === endMonth) {
+    return `${startDay}日〜${endDay}日`
+  } else {
+    return `${startMonth}/${startDay}〜${endMonth}/${endDay}`
+  }
+}
+
+function getArrowClass(schedule: any, date: Date): string {
+  const classes = ['schedule-arrow']
+  const scheduleDate = new Date(schedule.start_datetime)
+  const endDate = new Date(scheduleDate)
+  endDate.setDate(endDate.getDate() + schedule.duration - 1)
+
+  if (date.getTime() === scheduleDate.getTime()) {
+    // 開始日
+    classes.push('arrow-start')
+  } else if (date.getTime() === endDate.getTime()) {
+    // 終了日
+    classes.push('arrow-end')
+  } else if (date > scheduleDate && date < endDate) {
+    // 中間日
+    classes.push('arrow-middle')
+  }
+
+  return classes.join(' ')
+}
+
+function getArrowPosition(schedule: any, date: Date): number {
+  // 複数日スケジュールを開始日順にソートして、何番目かを計算
+  const multiDaySchedules = schedules.value
+    .filter(s => s.is_all_day && s.duration > 1 && selectedCategories.value.includes(s.activity_category_id))
+    .sort((a, b) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())
+
+  // このスケジュールが何番目かを取得
+  const scheduleIndex = multiDaySchedules.findIndex(s => s.id === schedule.id)
+
+  // 各スケジュールの矢印を20pxずつずらして表示
+  return scheduleIndex * 20
 }
 
 function selectDate(date: Date) {
@@ -752,6 +891,7 @@ onMounted(() => {
   border-bottom: 1px solid #ddd;
   padding: 8px;
   cursor: pointer;
+  position: relative;
 }
 
 .calendar-day:hover {
@@ -785,11 +925,149 @@ onMounted(() => {
   font-size: 11px;
   cursor: pointer;
   border-left: 3px solid #2196f3;
+  position: relative;
 }
 
 .schedule-item.all-day {
   background: #fff3e0;
   border-left-color: #ff9800;
+}
+
+/* 複数日に跨る終日スケジュールのスタイル */
+.schedule-item.multi-day-start {
+  background: #fff3e0;
+  border-left-color: #ff9800;
+  border-radius: 2px 0 0 2px;
+  margin-right: -8px;
+  padding-right: 8px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  position: relative;
+}
+
+.schedule-item.multi-day-middle {
+  background: #fff3e0;
+  border-left: none;
+  border-radius: 0;
+  margin-right: -8px;
+  padding-right: 8px;
+  padding-left: 8px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  position: relative;
+}
+
+.schedule-item.multi-day-end {
+  background: #fff3e0;
+  border-left: none;
+  border-radius: 0 2px 2px 0;
+  padding-left: 8px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  position: relative;
+}
+
+/* 複数日に跨るスケジュールの位置を統一 */
+.schedule-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+}
+
+/* 複数日に跨るスケジュールの位置を統一するためのスタイル */
+.schedule-item[class*="multi-day"] {
+  order: 0;
+  min-height: 16px;
+  display: flex;
+  align-items: center;
+}
+
+/* 通常のスケジュールは後ろに配置 */
+.schedule-item:not([class*="multi-day"]) {
+  order: 1;
+}
+
+/* 複数日スケジュールの矢印表示 */
+.multi-day-arrows {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.schedule-arrow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 20px;
+  pointer-events: none;
+}
+
+.arrow-text {
+  position: absolute;
+  top: -2px;
+  right: 4px;
+  background: #fff3e0;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 9px;
+  color: #ff9800;
+  font-weight: bold;
+  border: 1px solid #ff9800;
+  z-index: 2;
+}
+
+.arrow-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ff9800;
+  transform: translateY(-50%);
+}
+
+/* 矢印の開始日 */
+.schedule-arrow.arrow-start .arrow-line {
+  border-radius: 2px 0 0 2px;
+}
+
+.schedule-arrow.arrow-start .arrow-line::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 0;
+  height: 0;
+  border-right: 8px solid #ff9800;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+
+/* 矢印の中間日 */
+.schedule-arrow.arrow-middle .arrow-line {
+  border-radius: 0;
+}
+
+/* 矢印の終了日 */
+.schedule-arrow.arrow-end .arrow-line {
+  border-radius: 0 2px 2px 0;
+}
+
+.schedule-arrow.arrow-end .arrow-line::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: -3px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid #ff9800;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
 }
 
 .schedule-item.todo {
@@ -802,9 +1080,18 @@ onMounted(() => {
   text-decoration: line-through;
 }
 
+.schedule-content {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .schedule-time {
   font-size: 10px;
   color: #666;
+  flex-shrink: 0;
 }
 
 .schedule-title {
@@ -812,6 +1099,8 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .modal-overlay {
