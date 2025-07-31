@@ -80,13 +80,15 @@
                 @click="date ? selectDate(date) : null"
               >
                 <div class="date-number">{{ date ? date.getDate() : '' }}</div>
-                <div class="schedule-items">
+                <div class="schedule-items" style="position: relative">
                   <div
                     v-for="schedule in getSchedulesForDate(date)"
                     :key="schedule.id"
                     class="schedule-item"
                     :class="getScheduleClass(schedule, date)"
                     :style="{
+                      position: 'absolute',
+                      width: '95%',
                       top: (getArrowPosition(schedule, date)) + 'px',
                       borderLeftColor: getCategoryColor(schedule.activity_category_id),
                       backgroundColor: getCategoryBackgroundColor(schedule.activity_category_id)
@@ -643,6 +645,28 @@ function getArrowPosition(schedule: any, date: Date): number {
     })
     //.filter(s => s.is_all_day && s.duration > 1 && selectedCategories.value.includes(s.activity_category_id))
     .sort((a, b) => {
+
+      // 終日のものが優先
+      if(a.is_all_day && (!b.is_all_day)) {
+        return -1
+      }
+      else if((!a.is_all_day) && b.is_all_day){
+        return 1
+      }
+
+      // 複数期間のものが優先
+      if(a.is_all_day && b.is_all_day) {
+        if(a.duration == 1 && b.duration > 1) {
+          return 1
+        }
+        else if(a.duration > 1 && b.duration == 1){
+          return -1
+        }
+      }
+
+      //if(a.start_datetime == b.start_datetime) {
+      //  return b.duration - a.duration
+      //}
       return new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime()
     })
 
