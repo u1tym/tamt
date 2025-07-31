@@ -664,10 +664,14 @@ function getArrowPosition(schedule: any, date: Date): number {
         }
       }
 
-      //if(a.start_datetime == b.start_datetime) {
-      //  return b.duration - a.duration
-      //}
-      return new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime()
+      const res = new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime()
+      if(res != 0) {
+        return res
+      }
+      if(a.title > b.title){
+        return 1
+      }
+      return 0
     })
 
   // このスケジュールが何番目かを取得
