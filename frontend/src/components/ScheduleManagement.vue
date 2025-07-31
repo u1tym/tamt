@@ -1266,21 +1266,39 @@ onMounted(() => {
 
 .form-group {
   margin-bottom: 15px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .form-group label {
-  display: block;
-  margin-bottom: 5px;
+  min-width: 120px;
   font-weight: bold;
+  margin: 0;
+  padding-top: 8px;
+  flex-shrink: 0;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
-  width: 100%;
+  flex: 1;
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
+}
+
+/* チェックボックス用の特別なスタイル */
+.form-group input[type="checkbox"] {
+  flex: none;
+  width: auto;
+  margin-left: 0;
+  margin-right: 8px;
+}
+
+/* チェックボックスを含むフォームグループのラベル位置調整 */
+.form-group:has(input[type="checkbox"]) label {
+  padding-top: 4px;
 }
 
 .form-actions {
