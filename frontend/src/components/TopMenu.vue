@@ -6,6 +6,7 @@
       <button class="menu-btn" @click="goTo('goods')">GOODS管理</button>
       <button class="menu-btn" @click="goTo('transactions')">出納管理</button>
       <button class="menu-btn" @click="goTo('schedule')">スケジュール管理</button>
+      <button class="menu-btn" @click="goTo('holidays')">休日管理</button>
     </div>
   </div>
 </template>
@@ -23,6 +24,8 @@ function goTo(page: string) {
     router.push('/transactions')
   } else if (page === 'schedule') {
     router.push('/schedule')
+  } else if (page === 'holidays') {
+    router.push('/holidays')
   }
 }
 </script>

@@ -44,23 +44,6 @@
           <input v-model="newCategoryName" placeholder="新しい活動区分名" />
           <button @click="addCategory">追加</button>
         </div>
-
-        <!-- 休日管理セクション -->
-        <div class="holiday-section">
-          <h3>休日管理</h3>
-          <button class="add-holiday-btn" @click="showHolidayModal = true">休日を追加</button>
-          <div class="holiday-list">
-            <div v-for="holiday in holidays" :key="holiday.id" class="holiday-item">
-              <span class="holiday-date">{{ formatHolidayDate(holiday.date) }}</span>
-              <span class="holiday-name">{{ holiday.name }}</span>
-              <button class="delete-btn" @click="deleteHoliday(holiday.id)" title="削除">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- 右側: カレンダー -->
@@ -243,29 +226,6 @@
         </form>
       </div>
     </div>
-
-    <!-- 休日追加モーダル -->
-    <div v-if="showHolidayModal" class="modal-overlay" @wheel.prevent>
-      <div class="modal-content" @click.stop @wheel.stop>
-        <h3>休日を追加</h3>
-        <form @submit.prevent="saveHoliday">
-          <div class="form-group">
-            <label>日付:</label>
-            <input type="date" v-model="holidayForm.date" required />
-          </div>
-
-          <div class="form-group">
-            <label>休日名称:</label>
-            <input v-model="holidayForm.name" required />
-          </div>
-
-          <div class="form-actions">
-            <button type="button" @click="closeHolidayModal">キャンセル</button>
-            <button type="submit">保存</button>
-          </div>
-        </form>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -287,13 +247,8 @@ const showScheduleModal = ref(false)
 const editingSchedule = ref<any>(null)
 const newCategoryName = ref('')
 
-// 休日管理
+// 休日管理（カレンダー表示用）
 const holidays = ref<any[]>([])
-const showHolidayModal = ref(false)
-const holidayForm = ref({
-  date: '',
-  name: ''
-})
 
 // スケジュールフォーム
 const scheduleForm = ref({
@@ -943,50 +898,7 @@ function getHolidayName(date: Date): string | null {
   return holiday ? holiday.name : null
 }
 
-async function saveHoliday() {
-  if (!holidayForm.value.date || !holidayForm.value.name) return
 
-  try {
-    const response = await fetch(buildApiUrl('/holidays'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        date: holidayForm.value.date,
-        name: holidayForm.value.name
-      })
-    })
-    const data = await response.json()
-    holidays.value.push(data)
-    closeHolidayModal()
-    await loadHolidays()
-  } catch (error) {
-    console.error('休日の追加に失敗しました:', error)
-  }
-}
-
-async function deleteHoliday(holidayId: number) {
-  if (!confirm('この休日を削除しますか？')) return
-
-  try {
-    await fetch(buildApiUrl(`/holidays/${holidayId}`), {
-      method: 'DELETE'
-    })
-    holidays.value = holidays.value.filter(h => h.id !== holidayId)
-    await loadHolidays()
-  } catch (error) {
-    console.error('休日の削除に失敗しました:', error)
-  }
-}
-
-function closeHolidayModal() {
-  showHolidayModal.value = false
-  holidayForm.value = {
-    date: '',
-    name: ''
-  }
-}
 
 // 監視
 watch([currentYear, currentMonth], () => {
@@ -1120,57 +1032,7 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.holiday-section {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #ddd;
-}
 
-.holiday-section h3 {
-  margin-bottom: 10px;
-}
-
-.add-holiday-btn {
-  padding: 8px 16px;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-bottom: 10px;
-}
-
-.holiday-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.holiday-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: #f9f9f9;
-  border-radius: 4px;
-  border: 1px solid #eee;
-}
-
-.holiday-date {
-  font-weight: bold;
-  color: #333;
-  flex-shrink: 0;
-}
-
-.holiday-name {
-  font-weight: bold;
-  color: #ff9800;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .calendar-section {
   flex: 1;

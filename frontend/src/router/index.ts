@@ -26,6 +26,11 @@ const routes = [
     name: 'Schedule',
     component: () => import('../components/ScheduleManagement.vue'),
   },
+  {
+    path: '/holidays',
+    name: 'Holidays',
+    component: () => import('../components/HolidayManagement.vue'),
+  },
 ]
 
 const router = createRouter({
