@@ -1,14 +1,27 @@
 <template>
   <div class="goods-management">
-    <!-- トップメニューへ戻るボタン -->
-    <div class="back-button-container">
-      <button @click="goToTopMenu" class="back-btn">
-        ← トップメニューへ戻る
-      </button>
+    <div class="header">
+      <div class="header-left">
+        <img src="/images/GOODS.png" alt="GOODS" class="header-icon" />
+        <h1>GOODS</h1>
+      </div>
+      <div class="header-right">
+        <img 
+          src="/images/CONFIG.png" 
+          alt="CONFIG" 
+          class="config-icon" 
+          @click="showConfigModal = true"
+          title="設定"
+        />
+        <img 
+          src="/images/PORTAL.png" 
+          alt="PORTAL" 
+          class="portal-icon" 
+          @click="goToTopMenu"
+          title="トップメニューに戻る"
+        />
+      </div>
     </div>
-
-    <!-- タイトル -->
-    <h1 class="page-title">{{ isMobile ? 'GOODS管理（アイテム管理）' : 'GOODS管理' }}</h1>
 
     <!-- タブナビゲーション -->
     <div class="tab-navigation" v-if="!isMobile">
@@ -59,6 +72,7 @@ const router = useRouter()
 
 // モバイル判定
 const isMobile = ref(false)
+const showConfigModal = ref(false)
 
 const checkMobile = () => {
   isMobile.value = window.innerWidth <= 768
@@ -107,32 +121,67 @@ onUnmounted(() => {
   padding: 20px;
 }
 
-.back-button-container {
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
 }
 
-.back-btn {
-  padding: 12px 24px;
-  font-size: 16px;
-  border: none;
-  border-radius: 6px;
-  background: #4CAF50;
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.2s;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.back-btn:hover {
-  background: #388e3c;
+.header-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
-.page-title {
-  text-align: center;
-  margin: 20px 0 30px 0;
-  font-size: 2rem;
+.header-left h1 {
+  margin: 0;
+  font-size: 1.8rem;
   color: #333;
   font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.config-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border: 2px solid transparent;
+  margin-right: 10px; /* ポータルアイコンとの間隔 */
+}
+
+.config-icon:hover {
+  transform: scale(1.1);
+  border-color: #8B4513;
+}
+
+.portal-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.portal-icon:hover {
+  transform: scale(1.1);
+  border-color: #8B4513;
 }
 
 .tab-navigation {
