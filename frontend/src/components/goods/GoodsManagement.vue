@@ -50,10 +50,10 @@
 <script lang="ts" setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import PersonManagement from './goods/PersonManagement.vue'
-import ArtistManagement from './goods/ArtistManagement.vue'
-import MediaManagement from './goods/MediaManagement.vue'
-import GoodsList from './goods/GoodsList.vue'
+import PersonManagement from './PersonManagement.vue'
+import ArtistManagement from './ArtistManagement.vue'
+import MediaManagement from './MediaManagement.vue'
+import GoodsList from './GoodsList.vue'
 
 const router = useRouter()
 

@@ -19,7 +19,7 @@ const routes = [
   {
     path: '/goods',
     name: 'Goods',
-    component: () => import('../components/GoodsManagement.vue'),
+    component: () => import('../components/goods/GoodsManagement.vue'),
   },
   {
     path: '/schedule',
