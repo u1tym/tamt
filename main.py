@@ -983,6 +983,39 @@ def read_schedules_by_activity_categories(year: int, month: int, category_ids: s
         result.append(schedule_dict)
     return result
 
+@app.get("/schedules/week/{start_date}")
+def read_schedules_by_week(start_date: str, db: Session = Depends(get_db)):
+    """指定週のスケジュールを取得"""
+    try:
+        # start_dateは "YYYY-MM-DD" 形式
+        start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
+        end_datetime = start_datetime + timedelta(days=7)
+        
+        schedules = crud.get_schedules_by_date_range(db, start_datetime, end_datetime)
+        result = []
+        for schedule in schedules:
+            category = crud.get_activity_category(db, schedule.activity_category_id)
+            schedule_dict = {
+                'id': schedule.id,
+                'title': schedule.title,
+                'start_datetime': schedule.start_datetime,
+                'duration': schedule.duration,
+                'is_all_day': schedule.is_all_day,
+                'activity_category_id': schedule.activity_category_id,
+                'schedule_type': schedule.schedule_type,
+                'location': schedule.location,
+                'details': schedule.details,
+                'is_todo_completed': schedule.is_todo_completed,
+                'is_deleted': schedule.is_deleted,
+                'created_at': schedule.created_at,
+                'updated_at': schedule.updated_at,
+                'activity_category': category
+            }
+            result.append(schedule_dict)
+        return result
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+
 @app.get("/schedules/{schedule_id}", response_model=schemas.ScheduleWithCategory)
 def read_schedule(schedule_id: int, db: Session = Depends(get_db)):
     """特定のスケジュールを取得"""

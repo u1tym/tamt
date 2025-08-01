@@ -65,7 +65,12 @@
 
         <!-- 週間表示 -->
         <div v-else-if="viewMode === 'week'" class="weekly-view">
-          <ScheduleWeekly />
+          <ScheduleWeekly
+            :schedules="schedules"
+            :activity-categories="activityCategories"
+            :selected-categories="selectedCategories"
+            @edit-schedule="editSchedule"
+          />
         </div>
       </div>
     </div>
@@ -248,7 +253,22 @@ async function loadActivityCategories() {
 
 async function loadSchedules() {
   try {
-    const response = await fetch(buildApiUrl(`/schedules/month/${currentYear.value}/${currentMonth.value}`))
+    let response
+    if (viewMode.value === 'week') {
+      // 週間表示の場合は、現在の週の開始日を計算
+      const today = new Date()
+      const dayOfWeek = today.getDay()
+      const mondayOffset = startWithMonday.value ? 1 : 0
+      const daysFromMonday = (dayOfWeek + 7 - mondayOffset) % 7
+      const weekStart = new Date(today)
+      weekStart.setDate(today.getDate() - daysFromMonday)
+      
+      const startDate = weekStart.toISOString().split('T')[0] // YYYY-MM-DD形式
+      response = await fetch(buildApiUrl(`/schedules/week/${startDate}`))
+    } else {
+      // 月表示の場合は従来通り
+      response = await fetch(buildApiUrl(`/schedules/month/${currentYear.value}/${currentMonth.value}`))
+    }
     const data = await response.json()
     schedules.value = data
   } catch (error) {
@@ -423,6 +443,10 @@ async function deleteSchedule() {
 
 // 監視
 watch([currentYear, currentMonth], () => {
+  loadSchedules()
+})
+
+watch([viewMode, startWithMonday], () => {
   loadSchedules()
 })
 
