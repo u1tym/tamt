@@ -80,11 +80,12 @@
         <!-- 終日予定エリア -->
         <div class="all-day-section">
           <div class="all-day-label">終日</div>
-          <div 
-            v-for="date in displayDates" 
-            :key="`all-day-${date.toISOString()}`" 
-            class="all-day-cell"
-          >
+                     <div 
+             v-for="date in displayDates" 
+             :key="`all-day-${date.toISOString()}`" 
+             class="all-day-cell"
+             @click="createAllDaySchedule(date)"
+           >
             <div 
               v-for="schedule in getAllDaySchedules(date)" 
               :key="schedule.id"
@@ -118,28 +119,34 @@
             :key="`time-${date.toISOString()}`" 
             class="schedule-column"
           >
-            <div 
-              v-for="time in timeSlots" 
-              :key="`${date.toISOString()}-${time}`" 
-              class="time-cell"
-            >
-              <div 
-                v-for="schedule in getSchedulesAtTime(date, time)" 
-                :key="schedule.id"
-                class="schedule-item time-schedule"
-                :style="{ 
-                  backgroundColor: getCategoryColor(schedule.activity_category_id, activityCategories),
-                  borderColor: getCategoryColor(schedule.activity_category_id, activityCategories),
-                  top: `${getScheduleTopOffset(schedule, time)}px`,
-                  height: `${getScheduleHeight(schedule)}px`
-                }"
-                @click="editSchedule(schedule)"
-                :title="`${schedule.title}${schedule.location ? ' - ' + schedule.location : ''}`"
-              >
-                <div class="schedule-time">{{ formatScheduleTime(schedule) }}</div>
-                <div class="schedule-title">{{ schedule.title }}</div>
-              </div>
-            </div>
+                         <div 
+               v-for="time in timeSlots" 
+               :key="`${date.toISOString()}-${time}`" 
+               class="time-cell"
+               :class="{ 'dragging': isCellDragged(date, time) }"
+               :data-date="date.toISOString()"
+               :data-time="time"
+               @mousedown="startDrag($event, date, time)"
+               @mouseover="handleMouseOver($event, date, time)"
+               @mouseout="handleMouseOut($event)"
+             >
+               <div 
+                 v-for="schedule in getSchedulesAtTime(date, time)" 
+                 :key="schedule.id"
+                 class="schedule-item time-schedule"
+                 :style="{ 
+                   backgroundColor: getCategoryColor(schedule.activity_category_id, activityCategories),
+                   borderColor: getCategoryColor(schedule.activity_category_id, activityCategories),
+                   top: `${getScheduleTopOffset(schedule, time)}px`,
+                   height: `${getScheduleHeight(schedule)}px`
+                 }"
+                 @click="editSchedule(schedule)"
+                 :title="`${schedule.title}${schedule.location ? ' - ' + schedule.location : ''}`"
+               >
+                 <div class="schedule-time">{{ formatScheduleTime(schedule) }}</div>
+                 <div class="schedule-title">{{ schedule.title }}</div>
+               </div>
+             </div>
           </div>
         </div>
       </div>
@@ -168,6 +175,8 @@ const props = withDefaults(defineProps<Props>(), {
 // Emits
 const emit = defineEmits<{
   editSchedule: [schedule: any]
+  createSchedule: [date: Date, startTime: string, durationMinutes: number]
+  createAllDaySchedule: [date: Date]
 }>()
 
 // 状態管理
@@ -409,6 +418,168 @@ function formatScheduleTime(schedule: any): string {
 
 function editSchedule(schedule: any) {
   emit('editSchedule', schedule)
+}
+
+function createAllDaySchedule(date: Date) {
+  emit('createAllDaySchedule', date)
+}
+
+// ドラッグ機能の状態管理
+const isDragging = ref(false)
+const dragStartTime = ref<number | null>(null)
+const dragStartDate = ref<Date | null>(null)
+const dragEndTime = ref<number | null>(null)
+const dragEndDate = ref<Date | null>(null)
+const draggedCells = ref<Set<string>>(new Set())
+
+// ドラッグ開始
+function startDrag(event: MouseEvent, date: Date, time: number) {
+  // 予定がクリックされた場合はドラッグしない
+  if ((event.target as HTMLElement).closest('.schedule-item')) {
+    return
+  }
+  
+  isDragging.value = true
+  dragStartTime.value = time
+  dragStartDate.value = date
+  dragEndTime.value = time
+  dragEndDate.value = date
+  draggedCells.value.clear()
+  
+  // 開始セルをドラッグ状態に追加
+  const cellKey = `${date.toISOString()}-${time}`
+  draggedCells.value.add(cellKey)
+  
+  // ドラッグ中のイベントリスナーを追加
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp)
+  
+  // デフォルトのドラッグ動作を防ぐ
+  event.preventDefault()
+}
+
+// マウスオーバー時の処理
+function handleMouseOver(event: MouseEvent, date: Date, time: number) {
+  if (isDragging.value) {
+    // ドラッグ中の場合は視覚的フィードバックを追加
+    const cellKey = `${date.toISOString()}-${time}`
+    draggedCells.value.add(cellKey)
+    return
+  }
+  
+  // 予定がホバーされた場合は何もしない
+  if ((event.target as HTMLElement).closest('.schedule-item')) {
+    return
+  }
+  
+  // ホバー効果を追加（必要に応じて）
+  const target = event.currentTarget as HTMLElement
+  target.style.backgroundColor = '#f0f8ff'
+}
+
+// マウスアウト時の処理
+function handleMouseOut(event: MouseEvent) {
+  if (isDragging.value) {
+    return
+  }
+  
+  const target = event.currentTarget as HTMLElement
+  target.style.backgroundColor = ''
+}
+
+// マウス移動時の処理
+function handleMouseMove(event: MouseEvent) {
+  if (!isDragging.value) return
+  
+  // マウス位置から日付と時刻を計算
+  const target = event.target as HTMLElement
+  if (target.classList.contains('time-cell')) {
+    const dateAttr = target.getAttribute('data-date')
+    const timeAttr = target.getAttribute('data-time')
+    
+    if (dateAttr && timeAttr) {
+      const date = new Date(dateAttr)
+      const time = parseInt(timeAttr)
+      
+      dragEndTime.value = time
+      dragEndDate.value = date
+      
+      // ドラッグ範囲内のセルを視覚的にマーク
+      updateDraggedCells()
+    }
+  }
+}
+
+// ドラッグ範囲内のセルを更新
+function updateDraggedCells() {
+  if (!dragStartDate.value || !dragEndDate.value || !dragStartTime.value || !dragEndTime.value) return
+  
+  draggedCells.value.clear()
+  
+  const startDate = new Date(dragStartDate.value)
+  const endDate = new Date(dragEndDate.value)
+  
+  // 日付範囲をループ
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const currentDate = new Date(d)
+    
+    // 時刻範囲をループ（開始時刻から終了時刻まで30分間隔で）
+    const startTime = d.getTime() === startDate.getTime() ? dragStartTime.value : 0
+    const endTime = d.getTime() === endDate.getTime() ? dragEndTime.value : 23 * 60 + 30
+    
+    for (let time = startTime; time <= endTime; time += 30) {
+      const cellKey = `${currentDate.toISOString()}-${time}`
+      draggedCells.value.add(cellKey)
+    }
+  }
+}
+
+// セルがドラッグ中かどうかを判定
+function isCellDragged(date: Date, time: number): boolean {
+  const cellKey = `${date.toISOString()}-${time}`
+  return draggedCells.value.has(cellKey)
+}
+
+// マウスアップ時の処理
+function handleMouseUp(event: MouseEvent) {
+  if (!isDragging.value || !dragStartTime.value || !dragStartDate.value) {
+    return
+  }
+  
+  // ドラッグが完了したら新規スケジュール作成ダイアログを表示
+  const startTime = formatTime(dragStartTime.value)
+  const endTime = dragEndTime.value ? formatTime(dragEndTime.value) : startTime
+  
+  // ドラッグ範囲の時間を計算
+  let durationMinutes = 30 // デフォルト30分
+  
+  if (dragEndTime.value && dragEndDate.value) {
+    const startDateTime = new Date(dragStartDate.value)
+    startDateTime.setHours(Math.floor(dragStartTime.value / 60), dragStartTime.value % 60, 0, 0)
+    
+    const endDateTime = new Date(dragEndDate.value)
+    endDateTime.setHours(Math.floor(dragEndTime.value / 60), dragEndTime.value % 60, 0, 0)
+    
+    // 30分間隔に調整（終了時刻を次の30分間隔に）
+    endDateTime.setMinutes(endDateTime.getMinutes() + 30)
+    
+    const diffMs = endDateTime.getTime() - startDateTime.getTime()
+    durationMinutes = Math.max(30, Math.floor(diffMs / (1000 * 60)))
+  }
+  
+  emit('createSchedule', dragStartDate.value, startTime, durationMinutes)
+  
+  // 状態をリセット
+  isDragging.value = false
+  dragStartTime.value = null
+  dragStartDate.value = null
+  dragEndTime.value = null
+  dragEndDate.value = null
+  draggedCells.value.clear()
+  
+  // イベントリスナーを削除
+  document.removeEventListener('mousemove', handleMouseMove)
+  document.removeEventListener('mouseup', handleMouseUp)
 }
 </script>
 
@@ -675,7 +846,17 @@ function editSchedule(schedule: any) {
   height: 30px;
   border-bottom: 1px solid #eee;
   position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
+
+.time-cell:hover {
+  background-color: #f0f8ff;
+}
+
+          .time-cell.dragging {
+            background-color: #e3f2fd !important;
+          }
 
 /* XX:00の時刻セルは濃い実線 */
 .time-cell:nth-child(even) {

@@ -65,12 +65,14 @@
 
         <!-- 週間表示 -->
         <div v-else-if="viewMode === 'week'" class="weekly-view">
-          <ScheduleWeekly
-            :schedules="schedules"
-            :activity-categories="activityCategories"
-            :selected-categories="selectedCategories"
-            @edit-schedule="editSchedule"
-          />
+                  <ScheduleWeekly 
+          :schedules="schedules" 
+          :activity-categories="activityCategories"
+          :selected-categories="selectedCategories"
+          @edit-schedule="editSchedule"
+          @create-schedule="createSchedule"
+          @create-all-day-schedule="createAllDaySchedule"
+        />
         </div>
       </div>
     </div>
@@ -371,6 +373,55 @@ function editSchedule(schedule: any) {
     location: schedule.location || '',
     details: schedule.details || '',
     is_todo_completed: schedule.is_todo_completed
+  }
+  showScheduleModal.value = true
+}
+
+function createSchedule(date: Date, startTime: string, durationMinutes: number = 60) {
+  editingSchedule.value = null
+
+  // 日付と時刻を組み合わせてローカルタイムゾーンでフォーマット
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const [hours, minutes] = startTime.split(':')
+
+  scheduleForm.value = {
+    title: '',
+    is_all_day: false,
+    start_datetime_local: `${year}-${month}-${day}T${hours}:${minutes}`,
+    start_date: '',
+    duration_minutes: durationMinutes, // ドラッグ範囲の時間を使用
+    duration_days: 0,
+    activity_category_id: '', // 未選択をデフォルトに設定
+    schedule_type: 'normal',
+    location: '',
+    details: '',
+    is_todo_completed: false
+  }
+  showScheduleModal.value = true
+}
+
+function createAllDaySchedule(date: Date) {
+  editingSchedule.value = null
+
+  // 日付をフォーマット
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  scheduleForm.value = {
+    title: '',
+    is_all_day: true, // 終日をデフォルトに設定
+    start_datetime_local: `${year}-${month}-${day}T00:00`,
+    start_date: `${year}-${month}-${day}`,
+    duration_minutes: 0,
+    duration_days: 1, // 終日の場合は1日
+    activity_category_id: '', // 未選択をデフォルトに設定
+    schedule_type: 'normal',
+    location: '',
+    details: '',
+    is_todo_completed: false
   }
   showScheduleModal.value = true
 }
