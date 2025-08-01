@@ -6,13 +6,13 @@
         <h1>GOODS</h1>
       </div>
       <div class="header-right">
-        <img 
-          src="/images/CONFIG.png" 
-          alt="CONFIG" 
-          class="config-icon" 
-          @click="showConfigModal = true"
-          title="設定"
-        />
+                 <img 
+           src="/images/CONFIG.png" 
+           alt="CONFIG" 
+           class="config-icon" 
+           @click="toggleTabs"
+           title="設定"
+         />
         <img 
           src="/images/PORTAL.png" 
           alt="PORTAL" 
@@ -23,8 +23,8 @@
       </div>
     </div>
 
-    <!-- タブナビゲーション -->
-    <div class="tab-navigation" v-if="!isMobile">
+         <!-- タブナビゲーション -->
+     <div class="tab-navigation" v-if="showTabs">
       <button
         v-for="tab in tabs"
         :key="tab.id"
@@ -35,28 +35,28 @@
       </button>
     </div>
 
-    <!-- タブコンテンツ -->
-    <div class="tab-content">
-      <!-- パーソン管理 -->
-      <div v-if="!isMobile && activeTab === 'persons'" class="tab-panel">
-        <PersonManagement />
-      </div>
+         <!-- タブコンテンツ -->
+     <div class="tab-content">
+       <!-- アーティスト管理 -->
+       <div v-if="activeTab === 'artists'" class="tab-panel">
+         <ArtistManagement />
+       </div>
 
-      <!-- アーティスト管理 -->
-      <div v-if="!isMobile && activeTab === 'artists'" class="tab-panel">
-        <ArtistManagement />
-      </div>
+       <!-- パーソン管理 -->
+       <div v-if="activeTab === 'persons'" class="tab-panel">
+         <PersonManagement />
+       </div>
 
-      <!-- メディア管理 -->
-      <div v-if="!isMobile && activeTab === 'media'" class="tab-panel">
-        <MediaManagement />
-      </div>
+       <!-- メディア管理 -->
+       <div v-if="activeTab === 'media'" class="tab-panel">
+         <MediaManagement />
+       </div>
 
-      <!-- アイテム管理 -->
-      <div v-if="activeTab === 'goods'" class="tab-panel">
-        <GoodsList />
-      </div>
-    </div>
+       <!-- アイテム管理 -->
+       <div v-if="activeTab === 'goods'" class="tab-panel">
+         <GoodsList />
+       </div>
+     </div>
   </div>
 </template>
 
@@ -73,6 +73,7 @@ const router = useRouter()
 // モバイル判定
 const isMobile = ref(false)
 const showConfigModal = ref(false)
+const showTabs = ref(false)
 
 const checkMobile = () => {
   isMobile.value = window.innerWidth <= 768
@@ -80,20 +81,22 @@ const checkMobile = () => {
 
 // タブ設定
 const tabs = [
-  { id: 'persons', name: 'パーソン管理' },
   { id: 'artists', name: 'アーティスト管理' },
-  { id: 'media', name: 'メディア管理' },
-  { id: 'goods', name: 'アイテム管理' }
+  { id: 'persons', name: 'パーソン管理' },
+  { id: 'media', name: 'メディア管理' }
 ]
 
-const activeTab = ref('persons')
+const activeTab = ref('goods')
 
-// モバイルの場合はアイテム管理タブをデフォルトに設定
-const initializeActiveTab = () => {
-  if (isMobile.value) {
-    activeTab.value = 'goods'
+// タブの表示/非表示を切り替える
+const toggleTabs = () => {
+  showTabs.value = !showTabs.value
+  if (showTabs.value) {
+    // タブが表示されたらアーティスト管理を選択
+    activeTab.value = 'artists'
   } else {
-    activeTab.value = 'persons'
+    // タブが非表示になったらアイテム管理を選択
+    activeTab.value = 'goods'
   }
 }
 
@@ -105,7 +108,6 @@ const goToTopMenu = () => {
 // ライフサイクル
 onMounted(() => {
   checkMobile()
-  initializeActiveTab()
   window.addEventListener('resize', checkMobile)
 })
 
