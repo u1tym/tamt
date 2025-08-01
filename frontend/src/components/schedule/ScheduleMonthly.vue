@@ -1,5 +1,20 @@
 <template>
   <div class="calendar">
+    <!-- 年月表示とナビゲーションボタン -->
+    <div class="calendar-header">
+      <button @click="previousMonth">←</button>
+      <h2>{{ currentYear }}年{{ currentMonth }}月</h2>
+      <button @click="nextMonth">→</button>
+    </div>
+
+    <!-- 月曜始まり設定 -->
+    <div class="calendar-controls">
+      <label>
+        <input type="checkbox" :checked="startWithMonday" @change="toggleMondayStart" />
+        月曜始まり
+      </label>
+    </div>
+
     <!-- 曜日ヘッダー -->
     <div class="calendar-header-row">
       <div v-for="day in weekDays" :key="day" class="calendar-header-cell">
@@ -105,7 +120,24 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   selectDate: [date: Date]
   editSchedule: [schedule: any]
+  previousMonth: []
+  nextMonth: []
+  toggleMondayStart: [value: boolean]
 }>()
+
+// Navigation functions
+function previousMonth() {
+  emit('previousMonth')
+}
+
+function nextMonth() {
+  emit('nextMonth')
+}
+
+function toggleMondayStart(event: Event) {
+  const target = event.target as HTMLInputElement
+  emit('toggleMondayStart', target.checked)
+}
 
 // 曜日配列
 const weekDays = computed(() => {
@@ -178,6 +210,57 @@ function editSchedule(schedule: any) {
   border: 1px solid #ddd;
   border-radius: 8px;
   overflow: hidden;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.calendar-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.calendar-header button {
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.calendar-header button:hover {
+  background: #0056b3;
+}
+
+.calendar-controls {
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.calendar-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+}
+
+.calendar-controls input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
 }
 
 .calendar-header-row {

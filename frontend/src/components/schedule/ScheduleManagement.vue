@@ -63,18 +63,9 @@
           </button>
         </div>
 
-        <div class="calendar-header">
-          <button @click="previousMonth">←</button>
-          <h2>{{ currentYear }}年{{ currentMonth }}月</h2>
-          <button @click="nextMonth">→</button>
-        </div>
 
-        <div class="calendar-controls">
-          <label v-if="viewMode === 'month'">
-            <input type="checkbox" v-model="startWithMonday" />
-            月曜始まり
-          </label>
-        </div>
+
+
 
         <!-- 月表示 -->
         <div v-if="viewMode === 'month'" class="monthly-view">
@@ -88,6 +79,9 @@
             :holidays="holidays"
             @select-date="selectDate"
             @edit-schedule="editSchedule"
+            @previous-month="previousMonth"
+            @next-month="nextMonth"
+            @toggle-monday-start="toggleMondayStart"
           />
         </div>
 
@@ -384,6 +378,10 @@ function nextMonth() {
   }
 }
 
+function toggleMondayStart(value: boolean) {
+  startWithMonday.value = value
+}
+
 
 
 
@@ -645,28 +643,9 @@ onMounted(() => {
   flex: 1;
 }
 
-.calendar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
 
-.calendar-header button {
-  padding: 8px 16px;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
 
-.calendar-controls {
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
+
 
 .view-toggle {
   display: flex;
