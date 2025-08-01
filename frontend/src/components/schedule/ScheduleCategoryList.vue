@@ -168,7 +168,7 @@ function cancelEditCategory(category: any) {
 
 <style scoped>
 .activity-categories {
-  width: 250px;
+  width: 100%;
   background: #f5f5f5;
   padding: 20px;
   border-radius: 8px;

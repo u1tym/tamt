@@ -1,21 +1,30 @@
 <template>
   <div class="schedule-management">
     <div class="header">
-      <h1>スケジュール管理</h1>
-      <button class="back-btn" @click="goBack">← 戻る</button>
+      <div class="header-left">
+        <img src="/images/SCHEDULE.png" alt="SCHEDULE" class="header-icon" />
+        <h1>スケジュール</h1>
+      </div>
+      <div class="header-right">
+        <img 
+          src="/images/CONFIG.png" 
+          alt="CONFIG" 
+          class="config-icon" 
+          @click="showConfigModal = true"
+          title="設定"
+        />
+        <img 
+          src="/images/PORTAL.png" 
+          alt="PORTAL" 
+          class="portal-icon" 
+          @click="goBack"
+          title="トップメニューに戻る"
+        />
+      </div>
     </div>
 
-    <div class="main-content">
-      <!-- 左側: 活動区分一覧 -->
-      <ScheduleCategoryList
-        :activity-categories="activityCategories"
-        :selected-categories="selectedCategories"
-        @update-activity-categories="updateActivityCategories"
-        @update-selected-categories="updateSelectedCategories"
-        @refresh-schedules="loadSchedules"
-      />
-
-      <!-- 右側: カレンダー -->
+         <div class="main-content">
+       <!-- カレンダー -->
       <div class="calendar-section">
         <div class="view-toggle">
           <button 
@@ -148,11 +157,30 @@
             <button type="submit">保存</button>
             <button v-if="editingSchedule" type="button" @click="deleteSchedule" class="delete-btn">削除</button>
           </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</template>
+                 </form>
+       </div>
+     </div>
+
+     <!-- 設定モーダル -->
+     <div v-if="showConfigModal" class="modal-overlay" @wheel.prevent>
+       <div class="modal-content config-modal" @click.stop @wheel.stop>
+         <div class="config-modal-header">
+           <h3>設定</h3>
+           <button class="close-btn" @click="showConfigModal = false">×</button>
+         </div>
+         <div class="config-modal-body">
+           <ScheduleCategoryList
+             :activity-categories="activityCategories"
+             :selected-categories="selectedCategories"
+             @update-activity-categories="updateActivityCategories"
+             @update-selected-categories="updateSelectedCategories"
+             @refresh-schedules="loadSchedules"
+           />
+         </div>
+       </div>
+     </div>
+   </div>
+ </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
@@ -173,6 +201,7 @@ const currentYear = ref(new Date().getFullYear())
 const currentMonth = ref(new Date().getMonth() + 1)
 const startWithMonday = ref(true)
 const showScheduleModal = ref(false)
+const showConfigModal = ref(false)
 const editingSchedule = ref<any>(null)
 const viewMode = ref<'month' | 'week'>('month')
 
@@ -419,13 +448,60 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.back-btn {
-  padding: 8px 16px;
-  background: #666;
-  color: white;
-  border: none;
-  border-radius: 4px;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.header-left h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.config-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 50%;
   cursor: pointer;
+  transition: transform 0.2s ease;
+  border: 2px solid transparent;
+  margin-right: 10px; /* ポータルアイコンとの間隔 */
+}
+
+.config-icon:hover {
+  transform: scale(1.1);
+  border-color: #8B4513;
+}
+
+.portal-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.portal-icon:hover {
+  transform: scale(1.1);
+  border-color: #8B4513;
 }
 
 .main-content {
@@ -573,5 +649,46 @@ onMounted(() => {
   min-height: auto;
   width: auto;
   min-width: auto;
+}
+
+/* 設定モーダル */
+.config-modal {
+  max-width: 600px;
+  width: 90%;
+}
+
+.config-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.config-modal-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+  background: #f0f0f0;
+}
+
+.config-modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
 }
 </style>
