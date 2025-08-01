@@ -7,44 +7,13 @@
 
     <div class="main-content">
       <!-- 左側: 活動区分一覧 -->
-      <div class="activity-categories">
-        <h2>活動区分</h2>
-        <div class="category-list">
-          <div v-for="category in activityCategories" :key="category.id" class="category-item">
-            <input
-                type="checkbox"
-                :id="'category-' + category.id"
-                :checked="selectedCategories.includes(category.id)"
-                @change="toggleCategory(category.id)"
-                :style="{ accentColor: getCategoryColor(category.id, activityCategories) }"
-            />
-            <div class="category-content">
-              <span v-if="!category.editing" @click="startEditCategory(category)" class="category-name">
-                {{ category.name }}
-              </span>
-              <div v-else class="edit-category">
-                 <input
-                   v-model="category.editName"
-                   @keyup.enter="saveCategoryName(category)"
-                   @keyup.esc="cancelEditCategory(category)"
-                   @blur="saveCategoryName(category)"
-                   ref="categoryInput"
-                   class="edit-input"
-                 />
-              </div>
-            </div>
-            <button class="delete-btn" @click="deleteCategory(category.id)" title="削除">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="add-category">
-          <input v-model="newCategoryName" placeholder="新しい活動区分名" />
-          <button @click="addCategory">追加</button>
-        </div>
-      </div>
+      <ScheduleCategoryList
+        :activity-categories="activityCategories"
+        :selected-categories="selectedCategories"
+        @update-activity-categories="updateActivityCategories"
+        @update-selected-categories="updateSelectedCategories"
+        @refresh-schedules="loadSchedules"
+      />
 
       <!-- 右側: カレンダー -->
       <div class="calendar-section">
@@ -191,6 +160,7 @@ import { useRouter } from 'vue-router'
 import { buildApiUrl } from '../../utils/api'
 import ScheduleWeekly from './ScheduleWeekly.vue'
 import ScheduleMonthly from './ScheduleMonthly.vue'
+import ScheduleCategoryList from './ScheduleCategoryList.vue'
 import { getCategoryColor } from './ScheduleCommon'
 
 const router = useRouter()
@@ -204,7 +174,6 @@ const currentMonth = ref(new Date().getMonth() + 1)
 const startWithMonday = ref(true)
 const showScheduleModal = ref(false)
 const editingSchedule = ref<any>(null)
-const newCategoryName = ref('')
 const viewMode = ref<'month' | 'week'>('month')
 
 // 休日管理（カレンダー表示用）
@@ -268,97 +237,7 @@ async function loadHolidays() {
   }
 }
 
-function toggleCategory(categoryId: number) {
-  const index = selectedCategories.value.indexOf(categoryId)
-  if (index > -1) {
-    selectedCategories.value.splice(index, 1)
-  } else {
-    selectedCategories.value.push(categoryId)
-  }
-}
 
-async function addCategory() {
-  if (!newCategoryName.value.trim()) return
-
-  try {
-    const response = await fetch(buildApiUrl('/activity-categories'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: newCategoryName.value.trim()
-      })
-    })
-    const data = await response.json()
-    activityCategories.value.push(data)
-    selectedCategories.value.push(data.id)
-    newCategoryName.value = ''
-  } catch (error) {
-    console.error('活動区分の追加に失敗しました:', error)
-  }
-}
-
-async function deleteCategory(categoryId: number) {
-  if (!confirm('この活動区分を削除しますか？関連するスケジュールも削除されます。')) return
-
-  try {
-    await fetch(buildApiUrl(`/activity-categories/${categoryId}`), {
-      method: 'DELETE'
-    })
-    activityCategories.value = activityCategories.value.filter(cat => cat.id !== categoryId)
-    selectedCategories.value = selectedCategories.value.filter(id => id !== categoryId)
-    await loadSchedules() // スケジュールを再読み込み
-  } catch (error) {
-    console.error('活動区分の削除に失敗しました:', error)
-  }
-}
-
-// 活動区分の編集機能
-function startEditCategory(category: any) {
-  category.editing = true
-  category.editName = category.name
-  // 次のティックでフォーカスを設定
-  nextTick(() => {
-    const input = document.querySelector('.edit-input') as HTMLInputElement
-    if (input) {
-      input.focus()
-      input.select()
-    }
-  })
-}
-
-async function saveCategoryName(category: any) {
-  if (!category.editName.trim() || category.editName === category.name) {
-    category.editing = false
-    return
-  }
-
-  try {
-    const response = await fetch(buildApiUrl(`/activity-categories/${category.id}`), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: category.editName.trim()
-      })
-    })
-
-    if (response.ok) {
-      category.name = category.editName.trim()
-    }
-  } catch (error) {
-    console.error('活動区分の更新に失敗しました:', error)
-  }
-
-  category.editing = false
-}
-
-function cancelEditCategory(category: any) {
-  category.editing = false
-  category.editName = category.name
-}
 
 function previousMonth() {
   if (currentMonth.value === 1) {
@@ -380,6 +259,14 @@ function nextMonth() {
 
 function toggleMondayStart(value: boolean) {
   startWithMonday.value = value
+}
+
+function updateActivityCategories(categories: any[]) {
+  activityCategories.value = categories
+}
+
+function updateSelectedCategories(categories: number[]) {
+  selectedCategories.value = categories
 }
 
 
@@ -546,96 +433,7 @@ onMounted(() => {
   gap: 20px;
 }
 
-.activity-categories {
-  width: 250px;
-  background: #f5f5f5;
-  padding: 20px;
-  border-radius: 8px;
-  height: fit-content;
-}
 
-.category-list {
-  margin-bottom: 20px;
-}
-
-.category-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-  gap: 8px;
-}
-
-.category-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.category-name {
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background-color 0.2s;
-}
-
-.category-name:hover {
-  background-color: #e0e0e0;
-}
-
-.edit-category {
-  flex: 1;
-}
-
-.edit-input {
-  width: 100%;
-  padding: 2px 4px;
-  border: 1px solid #2196f3;
-  border-radius: 3px;
-  font-size: inherit;
-}
-
-.delete-btn {
-  background: none;
-  color: #666;
-  border: none;
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s;
-  padding: 0;
-  min-width: 20px;
-  min-height: 20px;
-}
-
-.delete-btn:hover {
-  color: #ff4444;
-}
-
-.delete-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.add-category {
-  display: flex;
-  gap: 8px;
-}
-
-.add-category input {
-  flex: 1;
-  padding: 4px 8px;
-}
-
-.add-category button {
-  padding: 4px 8px;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
 
 
 
