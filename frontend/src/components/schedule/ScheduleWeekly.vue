@@ -650,6 +650,16 @@ function editSchedule(schedule: any) {
   border-bottom: 1px solid #eee;
 }
 
+/* XX:00の時刻スロットは濃い実線 */
+.time-slot:nth-child(even) {
+  border-bottom: 2px solid #ccc;
+}
+
+/* XX:30の時刻スロットは薄い点線 */
+.time-slot:nth-child(odd) {
+  border-bottom: 1px dotted #ddd;
+}
+
 .schedule-column {
   flex: 1;
   border-right: 1px solid #ddd;
@@ -665,6 +675,16 @@ function editSchedule(schedule: any) {
   height: 30px;
   border-bottom: 1px solid #eee;
   position: relative;
+}
+
+/* XX:00の時刻セルは濃い実線 */
+.time-cell:nth-child(even) {
+  border-bottom: 2px solid #ccc;
+}
+
+/* XX:30の時刻セルは薄い点線 */
+.time-cell:nth-child(odd) {
+  border-bottom: 1px dotted #ddd;
 }
 
 .schedule-item {
