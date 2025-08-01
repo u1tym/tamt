@@ -48,6 +48,21 @@
 
       <!-- 右側: カレンダー -->
       <div class="calendar-section">
+        <div class="view-toggle">
+          <button 
+            :class="{ active: viewMode === 'month' }" 
+            @click="setViewMode('month')"
+          >
+            月表示
+          </button>
+          <button 
+            :class="{ active: viewMode === 'week' }" 
+            @click="setViewMode('week')"
+          >
+            週間表示
+          </button>
+        </div>
+
         <div class="calendar-header">
           <button @click="previousMonth">←</button>
           <h2>{{ currentYear }}年{{ currentMonth }}月</h2>
@@ -55,20 +70,6 @@
         </div>
 
         <div class="calendar-controls">
-          <div class="view-toggle">
-            <button 
-              :class="{ active: viewMode === 'month' }" 
-              @click="setViewMode('month')"
-            >
-              月表示
-            </button>
-            <button 
-              :class="{ active: viewMode === 'week' }" 
-              @click="setViewMode('week')"
-            >
-              週間表示
-            </button>
-          </div>
           <label v-if="viewMode === 'month'">
             <input type="checkbox" v-model="startWithMonday" />
             月曜始まり
