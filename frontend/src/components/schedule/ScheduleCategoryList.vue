@@ -11,8 +11,8 @@
             :style="{ accentColor: getCategoryColor(category.id, activityCategories) }"
         />
         <div class="category-content">
-          <span v-if="!category.editing" @click="startEditCategory(category)" class="category-name">
-            {{ category.name }}
+          <span v-if="!category.editing" @click="startEditCategory(category)" class="category-name" :title="category.name">
+            {{ truncateCategoryName(category.name) }}
           </span>
           <div v-else class="edit-category">
              <input
@@ -22,6 +22,7 @@
                @blur="saveCategoryName(category)"
                ref="categoryInput"
                class="edit-input"
+               maxlength="20"
              />
           </div>
         </div>
@@ -33,7 +34,7 @@
       </div>
     </div>
     <div class="add-category">
-      <input v-model="newCategoryName" placeholder="新しい活動区分名" />
+      <input v-model="newCategoryName" placeholder="新区分名" maxlength="20" />
       <button @click="addCategory">追加</button>
     </div>
   </div>
@@ -164,11 +165,15 @@ function cancelEditCategory(category: any) {
   category.editing = false
   category.editName = category.name
 }
+
+function truncateCategoryName(name: string): string {
+  return name.length > 15 ? name.substring(0, 15) + '...' : name
+}
 </script>
 
 <style scoped>
 .activity-categories {
-  width: 100%;
+  width: 90%;
   background: #f5f5f5;
   padding: 20px;
   border-radius: 8px;
@@ -182,8 +187,8 @@ function cancelEditCategory(category: any) {
 .category-item {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
-  gap: 8px;
+  margin-bottom: 6px;
+  gap: 6px;
 }
 
 .category-content {
@@ -193,9 +198,14 @@ function cancelEditCategory(category: any) {
 
 .category-name {
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 1px 3px;
   border-radius: 3px;
   transition: background-color 0.2s;
+  font-size: 0.9em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 .category-name:hover {
@@ -246,7 +256,8 @@ function cancelEditCategory(category: any) {
 
 .add-category input {
   flex: 1;
-  padding: 4px 8px;
+  padding: 3px 6px;
+  font-size: 0.9em;
 }
 
 .add-category button {

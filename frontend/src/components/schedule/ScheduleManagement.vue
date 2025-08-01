@@ -688,7 +688,7 @@ onMounted(() => {
 }
 
 .config-modal-body {
-  max-height: 60vh;
+  max-height: 70vh;
   overflow-y: auto;
 }
 </style>
