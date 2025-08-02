@@ -58,69 +58,70 @@
     </div>
 
     <!-- GOODS一覧 -->
-    <div class="goods-table-container">
-      <table class="goods-table">
-        <thead v-if="!isMobile">
+    <div class="table-wrapper">
+      <!-- 固定ヘッダーテーブル -->
+      <table class="goods-table header-table">
+        <thead>
           <tr>
-            <th>画像</th>
-            <th>タイトル</th>
-            <th>メディア</th>
-            <th>アーティスト</th>
-            <th class="sortable-header" @click="toggleSort">
+            <th style="text-align:center; width: 10%;">画像</th>
+            <th style="text-align:left; width: 20%;">タイトル</th>
+            <th style="text-align:center; width: 12%;">メディア</th>
+            <th style="text-align:center; width: 15%;">アーティスト</th>
+            <th class="sortable-header" style="text-align:center; width: 12%;" @click="toggleSort">
               リリース日
               <span class="sort-icon">
                 {{ sortOrder === 'desc' ? '▼' : '▲' }}
               </span>
             </th>
-            <th>所持</th>
-            <th>コード番号</th>
-            <th>操作</th>
+            <th style="text-align:center; width: 8%;">所持</th>
+            <th style="text-align:center; width: 12%;">コード番号</th>
+            <th style="text-align:center; width: 11%;">操作</th>
           </tr>
         </thead>
-        <tbody>
-          <tr
-            v-for="goods in goodsList"
-            :key="goods.id"
-            class="goods-row"
-            @click="editGoods(goods)"
-          >
-            <td class="goods-image-cell">
-              <div class="goods-image">
-                <img 
-                  v-if="goods.images && goods.images.length > 0" 
-                  :src="getImageSrc(goods.images[0])" 
-                  :alt="goods.title"
-                  @error="handleImageError"
-                />
-                <div v-else class="no-image">画像なし</div>
-              </div>
-            </td>
-            <td v-if="!isMobile" class="goods-title-cell">{{ goods.title }}</td>
-            <td v-if="!isMobile" class="goods-media-cell">{{ getMediaName(goods.media_id) }}</td>
-            <td v-if="!isMobile" class="goods-artist-cell">{{ getArtistName(goods.artist_id) }}</td>
-            <td v-if="isMobile" class="goods-info-cell">
-              <div class="goods-title">{{ goods.title }}</div>
-              <div class="goods-media">{{ getMediaName(goods.media_id) }}</div>
-              <div class="goods-artist">{{ getArtistName(goods.artist_id) }}</div>
-              <div class="goods-code">{{ goods.code_number || '-' }}</div>
-            </td>
-            <td class="goods-date-cell">{{ formatDate(goods.release_date) }}</td>
-            <td class="goods-owned-cell">
-              <span v-if="goods.is_owned" class="owned-badge">✓</span>
-              <span v-else class="not-owned-badge">-</span>
-            </td>
-            <td v-if="!isMobile" class="goods-code-cell">{{ goods.code_number || '-' }}</td>
-            <td v-if="!isMobile" class="goods-actions-cell">
-              <button @click.stop="editGoods(goods)" class="edit-btn" title="編集">
-                ✏️
-              </button>
-              <button @click.stop="deleteGoods(goods)" class="delete-btn" title="削除">
-                🗑️
-              </button>
-            </td>
-          </tr>
-        </tbody>
       </table>
+      
+      <!-- スクロール可能なボディテーブル -->
+      <div class="table-container">
+        <table class="goods-table body-table">
+          <tbody>
+            <tr
+              v-for="goods in goodsList"
+              :key="goods.id"
+              class="goods-row"
+              @click="editGoods(goods)"
+            >
+              <td style="text-align:center; width: 10%;" class="goods-image-cell">
+                <div class="goods-image">
+                  <img 
+                    v-if="goods.images && goods.images.length > 0" 
+                    :src="getImageSrc(goods.images[0])" 
+                    :alt="goods.title"
+                    @error="handleImageError"
+                  />
+                  <div v-else class="no-image">画像なし</div>
+                </div>
+              </td>
+              <td style="text-align:left; width: 20%;" class="goods-title-cell">{{ goods.title }}</td>
+              <td style="text-align:center; width: 12%;" class="goods-media-cell">{{ getMediaName(goods.media_id) }}</td>
+              <td style="text-align:center; width: 15%;" class="goods-artist-cell">{{ getArtistName(goods.artist_id) }}</td>
+              <td style="text-align:center; width: 12%;" class="goods-date-cell">{{ formatDate(goods.release_date) }}</td>
+              <td style="text-align:center; width: 8%;" class="goods-owned-cell">
+                <span v-if="goods.is_owned" class="owned-badge">✓</span>
+                <span v-else class="not-owned-badge">-</span>
+              </td>
+              <td style="text-align:center; width: 12%;" class="goods-code-cell">{{ goods.code_number || '-' }}</td>
+              <td style="text-align:center; width: 11%;" class="goods-actions-cell">
+                <button @click.stop="editGoods(goods)" class="edit-btn" title="編集">
+                  ✏️
+                </button>
+                <button @click.stop="deleteGoods(goods)" class="delete-btn" title="削除">
+                  🗑️
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- 新規追加・編集ダイアログ -->
@@ -821,6 +822,24 @@ onUnmounted(() => {
   background-color: #5a6268;
 }
 
+.table-wrapper {
+  margin-bottom: 24px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.table-container {
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.table-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 .goods-table-container {
   overflow-x: auto;
   margin-top: 20px;
@@ -845,7 +864,11 @@ onUnmounted(() => {
     font-size: 12px;
   }
   
-  .goods-table-container {
+  .table-wrapper {
+    margin-bottom: 16px;
+  }
+  
+  .table-container {
     max-height: 70vh;
     overflow-y: auto;
     overflow-x: hidden;
@@ -891,18 +914,32 @@ onUnmounted(() => {
   width: 100%;
   border-collapse: collapse;
   background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  table-layout: fixed;
 }
 
-.goods-table th {
+.header-table {
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 0;
+}
+
+.body-table {
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-top: 0;
+}
+
+.header-table th {
   background-color: #f5f5f5;
-  padding: 12px 16px;
+  padding: 12px 8px;
   text-align: center;
   font-weight: 600;
   color: #333;
   border-bottom: 2px solid #e0e0e0;
+}
+
+.body-table th {
+  display: none;
 }
 
 .sortable-header {
@@ -923,9 +960,11 @@ onUnmounted(() => {
 }
 
 .goods-table td {
-  padding: 12px 16px;
+  padding: 12px 8px;
   border-bottom: 1px solid #e0e0e0;
   vertical-align: middle;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .goods-row {
