@@ -210,6 +210,9 @@ function editSchedule(schedule: any) {
   border: 1px solid #ddd;
   border-radius: 8px;
   overflow: hidden;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .calendar-header {
@@ -269,6 +272,17 @@ function editSchedule(schedule: any) {
   background: #f0f0f0;
 }
 
+.calendar-body {
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.calendar-body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 .calendar-header-cell {
   padding: 12px;
   text-align: center;
@@ -278,20 +292,24 @@ function editSchedule(schedule: any) {
 
 .calendar-header-cell:last-child {
   border-right: none;
+  margin-right: 0;
 }
 
 .calendar-week {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  min-height: 120px;
 }
 
 .calendar-day {
   min-height: 120px;
+  height: 120px;
   border-right: 1px solid #ddd;
   border-bottom: 1px solid #ddd;
   padding: 8px;
   cursor: pointer;
   position: relative;
+  overflow: hidden;
 }
 
 .calendar-day:hover {
@@ -319,6 +337,7 @@ function editSchedule(schedule: any) {
 
 .calendar-day:last-child {
   border-right: none;
+  margin-right: 0;
 }
 
 .date-number {
