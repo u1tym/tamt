@@ -8,26 +8,28 @@
     </div>
 
     <!-- アーティスト一覧 -->
-    <div class="artist-list">
-      <div
-        v-for="artist in artists"
-        :key="artist.id"
-        class="artist-item"
-        @click="editArtist(artist)"
-      >
-        <div class="artist-info">
-          <div class="artist-name">{{ artist.name }}</div>
-          <div class="artist-persons">
-            <span v-if="artist.persons && artist.persons.length > 0">
-              所属: {{ artist.persons.map(p => p.name).join(', ') }}
-            </span>
-            <span v-else class="no-persons">所属パーソンなし</span>
+    <div class="artist-list-container">
+      <div class="artist-list">
+        <div
+          v-for="artist in artists"
+          :key="artist.id"
+          class="artist-item"
+          @click="editArtist(artist)"
+        >
+          <div class="artist-info">
+            <div class="artist-name">{{ artist.name }}</div>
+            <div class="artist-persons">
+              <span v-if="artist.persons && artist.persons.length > 0">
+                所属: {{ artist.persons.map(p => p.name).join(', ') }}
+              </span>
+              <span v-else class="no-persons">所属パーソンなし</span>
+            </div>
           </div>
-        </div>
-        <div class="artist-actions">
-          <button @click.stop="editArtist(artist)" class="edit-btn" title="編集">
-            ✏️
-          </button>
+          <div class="artist-actions">
+            <button @click.stop="editArtist(artist)" class="edit-btn" title="編集">
+              ✏️
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -282,9 +284,24 @@ onMounted(() => {
   background-color: #45a049;
 }
 
+.artist-list-container {
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.artist-list-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 .artist-list {
   display: grid;
-  gap: 12px;
+  gap: 0;
 }
 
 .artist-item {
@@ -293,11 +310,13 @@ onMounted(() => {
   align-items: center;
   padding: 16px;
   background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e0e0e0;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.artist-item:last-child {
+  border-bottom: none;
 }
 
 .artist-item:hover {
@@ -538,6 +557,10 @@ onMounted(() => {
 
   .add-button {
     width: 100%;
+  }
+
+  .artist-list-container {
+    max-height: calc(100vh - 250px);
   }
 
   .artist-item {

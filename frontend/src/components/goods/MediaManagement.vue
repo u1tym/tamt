@@ -8,18 +8,20 @@
     </div>
 
     <!-- メディア一覧 -->
-    <div class="media-list">
-      <div
-        v-for="media in mediaList"
-        :key="media.id"
-        class="media-item"
-        @click="editMedia(media)"
-      >
-        <div class="media-name">{{ media.name }}</div>
-        <div class="media-actions">
-          <button @click.stop="editMedia(media)" class="edit-btn" title="編集">
-            ✏️
-          </button>
+    <div class="media-list-container">
+      <div class="media-list">
+        <div
+          v-for="media in mediaList"
+          :key="media.id"
+          class="media-item"
+          @click="editMedia(media)"
+        >
+          <div class="media-name">{{ media.name }}</div>
+          <div class="media-actions">
+            <button @click.stop="editMedia(media)" class="edit-btn" title="編集">
+              ✏️
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -209,9 +211,24 @@ onMounted(() => {
   background-color: #45a049;
 }
 
+.media-list-container {
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.media-list-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 .media-list {
   display: grid;
-  gap: 12px;
+  gap: 0;
 }
 
 .media-item {
@@ -220,11 +237,13 @@ onMounted(() => {
   align-items: center;
   padding: 16px;
   background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e0e0e0;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.media-item:last-child {
+  border-bottom: none;
 }
 
 .media-item:hover {
@@ -407,6 +426,10 @@ onMounted(() => {
 
   .add-button {
     width: 100%;
+  }
+
+  .media-list-container {
+    max-height: calc(100vh - 250px);
   }
 
   .media-item {
