@@ -104,8 +104,8 @@
           <div class="purpose">{{ tx.purpose }}</div>
           <div class="budget-name">予算: {{ tx.budget_name || '未分類' }}</div>
         </div>
-        </div>
-        </div>
+      </div>
+    </div>
 
     <!-- 全画面モーダルダイアログ（新規登録・編集共通） -->
     <div v-if="showDialog" class="modal-overlay" @click="closeDialog">
