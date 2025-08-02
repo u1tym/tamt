@@ -73,7 +73,7 @@ const router = useRouter()
 
 // モバイル判定
 const isMobile = ref(false)
-const showConfigModal = ref(false)
+// Removed unused showConfigModal variable
 const showTabs = ref(false)
 
 const checkMobile = () => {

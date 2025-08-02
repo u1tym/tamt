@@ -60,6 +60,48 @@ def calculate_payment_date(used_date: date, payment_source: models.PaymentSource
     print(f"DEBUG: calculate_payment_date result: {result}")
     return result
 
+def calculate_payment_date_for_month(year: int, month: int, payment_source: models.PaymentSource) -> date:
+    """指定月の支払日を計算"""
+    if payment_source.closing_day == 0:
+        print(f"Debug: Payment source {payment_source.name} has closing_day = 0, returning None")
+        return None
+    
+    # その月の締め日を基準に支払日を計算
+    # 締め日が月末を超える場合は月末を使用
+    import calendar
+    last_day = calendar.monthrange(year, month)[1]
+    closing_day = min(payment_source.closing_day, last_day)
+    
+    print(f"Debug: Processing {year}-{month}, closing_day: {closing_day}, last_day: {last_day}")
+    
+    # 締め日を基準に支払日を計算
+    closing_date = date(year, month, closing_day)
+    
+    # 支払い月までの差分を加算
+    result_month = month + payment_source.pay_month_diff
+    result_year = year
+    while result_month > 12:
+        result_month -= 12
+        result_year += 1
+    
+    print(f"Debug: Result month/year: {result_month}/{result_year}, pay_month_diff: {payment_source.pay_month_diff}")
+    
+    # 支払日の日付を決定
+    if payment_source.pay_day > 0:
+        # 指定された支払日を使用
+        last_day = calendar.monthrange(result_year, result_month)[1]
+        pay_day = min(payment_source.pay_day, last_day)
+        payment_date = date(result_year, result_month, pay_day)
+        print(f"Debug: Using pay_day {payment_source.pay_day}, final pay_day: {pay_day}, payment_date: {payment_date}")
+    else:
+        # 締め日と同じ日を使用
+        last_day = calendar.monthrange(result_year, result_month)[1]
+        pay_day = min(closing_day, last_day)
+        payment_date = date(result_year, result_month, pay_day)
+        print(f"Debug: Using closing_day {closing_day}, final pay_day: {pay_day}, payment_date: {payment_date}")
+    
+    return payment_date
+
 # 画像リサイズ関数
 def resize_image(image_data: bytes, max_size: int = 800) -> bytes:
     """画像をリサイズしてバイトデータを返す"""

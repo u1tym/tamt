@@ -148,7 +148,7 @@
                    backgroundColor: getCategoryColor(schedule.activity_category_id, activityCategories),
                    borderColor: getCategoryColor(schedule.activity_category_id, activityCategories),
                    top: `${getScheduleTopOffset(schedule, time)}px`,
-                   height: `${getScheduleHeight(schedule)}px`
+                   height: `${schedule.duration}px`
                  }"
                  @click.stop="editSchedule(schedule)"
                  :title="`${schedule.title}${schedule.location ? ' - ' + schedule.location : ''}`"
@@ -165,8 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { buildApiUrl } from '../../utils/api'
+import { ref, computed, watch } from 'vue'
 import { getCategoryColor } from './ScheduleCommon'
 
 // Props
@@ -263,30 +262,7 @@ const filteredSchedules = computed(() => {
   )
 })
 
-// 3日表示用のスケジュールデータを取得
-async function loadSchedulesFor3Days() {
-  if (viewMode.value === '3days') {
-    // 3日表示の場合は、表示期間のスケジュールを取得
-    const startDate = displayDates.value[0].toISOString().split('T')[0]
-    const endDate = displayDates.value[2].toISOString().split('T')[0]
-    
-    try {
-      const response = await fetch(buildApiUrl(`/schedules/week/${startDate}`))
-      const data = await response.json()
-      // 3日分のデータのみをフィルタリング
-      const filteredData = data.filter((schedule: any) => {
-        const scheduleDate = new Date(schedule.start_datetime)
-        const scheduleDateStr = scheduleDate.toISOString().split('T')[0]
-        return scheduleDateStr >= startDate && scheduleDateStr <= endDate
-      })
-      return filteredData
-    } catch (error) {
-      console.error('3日表示のスケジュール読み込みに失敗しました:', error)
-      return []
-    }
-  }
-  return props.schedules
-}
+// Removed unused loadSchedulesFor3Days function
 
 // メソッド
 function setViewMode(mode: '3days' | 'week') {
@@ -418,7 +394,6 @@ function getSchedulesAtTime(date: Date, timeMinutes: number): any[] {
     
     const scheduleDate = new Date(schedule.start_datetime)
     const scheduleStartMinutes = scheduleDate.getHours() * 60 + scheduleDate.getMinutes()
-    const scheduleEndMinutes = scheduleStartMinutes + schedule.duration
     
     const targetDate = new Date(date)
     targetDate.setHours(0, 0, 0, 0)
@@ -443,11 +418,7 @@ function getScheduleTopOffset(schedule: any, timeMinutes: number): number {
   return (scheduleStartMinutes - timeMinutes) * 2 // 30分 = 30px
 }
 
-function getScheduleHeight(schedule: any): number {
-  // durationは分単位なので、30分間隔のスロットに合わせて計算
-  // 30分 = 30px なので、1分 = 1px
-  return schedule.duration
-}
+// Removed unused getScheduleHeight function
 
 function formatScheduleTime(schedule: any): string {
   const startDate = new Date(schedule.start_datetime)
@@ -592,14 +563,13 @@ function isCellDragged(date: Date, time: number): boolean {
 }
 
 // マウスアップ時の処理
-function handleMouseUp(event: MouseEvent) {
+function handleMouseUp() {
   if (!isDragging.value || !dragStartTime.value || !dragStartDate.value) {
     return
   }
   
   // ドラッグが完了したら新規スケジュール作成ダイアログを表示
   const startTime = formatTime(dragStartTime.value)
-  const endTime = dragEndTime.value ? formatTime(dragEndTime.value) : startTime
   
   // ドラッグ範囲の時間を計算
   let durationMinutes = 30 // デフォルト30分

@@ -577,6 +577,92 @@ def get_budget_summaries(year: int, month: int, db: Session = Depends(get_db)):
     # 返却形式を整形
     return [{"name": r.budget_name, "total": float(r.total or 0)} for r in results]
 
+@app.get("/debit-summary")
+def get_debit_summary(db: Session = Depends(get_db)):
+    """支払日毎の取引金額合計を取得"""
+    try:
+        from datetime import date
+        from dateutil.relativedelta import relativedelta
+        
+        # 現在日を基準に期間を設定
+        today = date.today()
+        
+        # 対象期間: 前月、当月、翌月、翌々月、さらに次の月
+        target_months = []
+        for i in range(-1, 4):  # -1, 0, 1, 2, 3
+            target_date = today + relativedelta(months=i)
+            target_months.append((target_date.year, target_date.month))
+        
+        print(f"Debug: Target months: {target_months}")
+        
+        # 締め日が0日ではない支払元を取得
+        payment_sources = db.query(models.PaymentSource).filter(
+            models.PaymentSource.closing_day > 0
+        ).all()
+        
+        print(f"Debug: Found {len(payment_sources)} payment sources with closing_day > 0")
+        
+        # 各支払元の支払日を計算
+        payment_dates = []
+        for source in payment_sources:
+            print(f"Debug: Processing payment source: {source.name} (closing_day: {source.closing_day}, pay_month_diff: {source.pay_month_diff}, pay_day: {source.pay_day})")
+            for year, month in target_months:
+                # その月の支払日を計算
+                payment_date = crud.calculate_payment_date_for_month(
+                    year, month, source
+                )
+                if payment_date:
+                    print(f"Debug: Calculated payment date for {year}-{month}: {payment_date}")
+                    payment_dates.append({
+                        'date': payment_date,
+                        'source_name': source.name,
+                        'source_id': source.id
+                    })
+                else:
+                    print(f"Debug: No payment date calculated for {year}-{month}")
+        
+        print(f"Debug: Total payment dates calculated: {len(payment_dates)}")
+        
+        # 重複を除去してソート
+        unique_dates = {}
+        for item in payment_dates:
+            date_key = item['date'].strftime('%Y-%m-%d')
+            if date_key not in unique_dates:
+                unique_dates[date_key] = item
+        
+        sorted_dates = sorted(unique_dates.values(), key=lambda x: x['date'])
+        
+        print(f"Debug: Unique payment dates after deduplication: {len(sorted_dates)}")
+        for item in sorted_dates:
+            print(f"Debug: Payment date: {item['date']}, Source: {item['source_name']}")
+        
+        # 各支払日の取引金額を集計
+        result = []
+        for item in sorted_dates:
+            payment_date = item['date']
+            
+            # その支払日に関連する取引を取得
+            transactions = db.query(models.Transaction).filter(
+                models.Transaction.payment_source_id == item['source_id'],
+                models.Transaction.paid_date == payment_date
+            ).all()
+            
+            total_amount = sum(tx.amount for tx in transactions)
+            
+            result.append({
+                'payment_date': payment_date.strftime('%Y-%m-%d'),
+                'source_name': item['source_name'],
+                'total_amount': float(total_amount),
+                'transaction_count': len(transactions)
+            })
+        
+        print(f"Debug: Final result count: {len(result)}")
+        return result
+        
+    except Exception as e:
+        print(f"Error in get_debit_summary: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 # Knowhow API endpoints
 
 @app.get("/knowhows", response_model=List[schemas.Knowhow])

@@ -1,28 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import PaymentSourceList from './components/PaymentSourceList.vue'
-import TransactionList from './components/TransactionList.vue'
-import BudgetList from './components/BudgetList.vue'
-
-const currentTab = ref<'payment' | 'transaction' | 'budget'>('transaction') // デフォルトを取引管理に変更
-
-// スマホ判定
-const isMobile = ref(false)
-
-const checkMobile = () => {
-  isMobile.value = window.innerWidth <= 768
-}
-
-// コンポーネントマウント時にチェック
-import { onMounted, onUnmounted } from 'vue'
-onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
-})
+// This file now only serves as a router view container
 </script>
 
 <template>

@@ -63,13 +63,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
 import PaymentSourceList from './PaymentSourceList.vue'
 import TransactionList from './TransactionList.vue'
 import BudgetList from './BudgetList.vue'
 import DebitList from './DebitList.vue'
-
-const router = useRouter()
 const currentTab = ref<'payment' | 'transaction' | 'budget' | 'debit'>('transaction')
 
 // スマホ判定
@@ -79,9 +76,7 @@ const checkMobile = () => {
   isMobile.value = window.innerWidth <= 768
 }
 
-function goHome() {
-  router.push('/')
-}
+// Removed unused goHome function
 
 onMounted(() => {
   checkMobile()
