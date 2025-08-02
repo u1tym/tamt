@@ -38,55 +38,57 @@
     </div>
 
     <!-- デスクトップ用のテーブル -->
-    <table v-if="!isMobile" border="1" cellspacing="0" cellpadding="4" class="transaction-table">
-      <thead>
-        <tr>
-          <th style="text-align:center;">使用日</th>
-          <th style="text-align:center;">用途</th>
-          <th style="text-align:center;">メモ</th>
-          <th style="text-align:center;">金額</th>
-          <th style="text-align:center;">支出元</th>
-          <th style="text-align:center;">支払日</th>
-          <th style="text-align:center;">予算名称</th>
-          <th class="action-header">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="tx in sortedTransactions"
-          :key="tx.id"
-          class="table-row"
-          @mouseenter="hoveredRow = tx.id"
-          @mouseleave="hoveredRow = null"
-        >
-          <td style="text-align:center;">{{ tx.used_date }}</td>
-          <td style="text-align:left;">{{ tx.purpose }}</td>
-          <td style="text-align:left;"><span style="white-space: pre-line;">{{ tx.memo }}</span></td>
-          <td style="text-align:right;">{{ formatAmount(tx.amount) }}円</td>
-          <td style="text-align:center;">{{ getPaymentSourceName(tx.payment_source_id) }}</td>
-          <td style="text-align:center;">{{ tx.paid_date }}</td>
-          <td style="text-align:center;">{{ tx.budget_name || '未分類' }}</td>
-          <td class="action-cell">
-            <div v-if="hoveredRow === tx.id" class="action-buttons">
-              <button
-                @click="editTransaction(tx)"
-                class="action-btn edit-btn"
-                title="編集"
-              >
-                ✏️
-              </button>
-              <button
-                @click="deleteTransactionDirect(tx)"
-                class="action-btn delete-btn"
-                title="削除"
-              >
-                🗑️
-              </button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-if="!isMobile" class="table-container">
+      <table border="1" cellspacing="0" cellpadding="4" class="transaction-table">
+        <thead>
+          <tr>
+            <th style="text-align:center; width: 10%;">使用日</th>
+            <th style="text-align:center; width: 15%;">用途</th>
+            <th style="text-align:center; width: 20%;">メモ</th>
+            <th style="text-align:center; width: 10%;">金額</th>
+            <th style="text-align:center; width: 12%;">支出元</th>
+            <th style="text-align:center; width: 10%;">支払日</th>
+            <th style="text-align:center; width: 13%;">予算名称</th>
+            <th style="text-align:center; width: 10%;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="tx in sortedTransactions"
+            :key="tx.id"
+            class="table-row"
+            @mouseenter="hoveredRow = tx.id"
+            @mouseleave="hoveredRow = null"
+          >
+            <td style="text-align:center; width: 10%;">{{ tx.used_date }}</td>
+            <td style="text-align:left; width: 15%;">{{ tx.purpose }}</td>
+            <td style="text-align:left; width: 20%;"><span style="white-space: pre-line;">{{ tx.memo }}</span></td>
+            <td style="text-align:right; width: 10%;">{{ formatAmount(tx.amount) }}円</td>
+            <td style="text-align:center; width: 12%;">{{ getPaymentSourceName(tx.payment_source_id) }}</td>
+            <td style="text-align:center; width: 10%;">{{ tx.paid_date }}</td>
+            <td style="text-align:center; width: 13%;">{{ tx.budget_name || '未分類' }}</td>
+            <td style="text-align:center; width: 10%;" class="action-cell">
+              <div v-if="hoveredRow === tx.id" class="action-buttons">
+                <button
+                  @click="editTransaction(tx)"
+                  class="action-btn edit-btn"
+                  title="編集"
+                >
+                  ✏️
+                </button>
+                <button
+                  @click="deleteTransactionDirect(tx)"
+                  class="action-btn delete-btn"
+                  title="削除"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <!-- スマホ用のカード表示 -->
     <div v-else class="mobile-transactions">
@@ -1302,16 +1304,40 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
+.table-container {
+  margin-bottom: 24px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.table-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 .transaction-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 24px;
+  table-layout: fixed;
+}
+
+.transaction-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #f5f5f5;
 }
 
 .transaction-table th,
 .transaction-table td {
   padding: 12px 8px;
   border: 1px solid #ddd;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .transaction-table th {
@@ -1319,13 +1345,7 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.action-header {
-  width: 80px;
-  text-align: center;
-}
-
 .action-cell {
-  width: 80px;
   text-align: center;
   padding: 8px 4px !important;
 }
