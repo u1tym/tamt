@@ -37,7 +37,7 @@
             }"
           @click="date ? selectDate(date) : null"
         >
-          <div class="date-number">{{ date ? date.getDate() : '' }}</div>
+          <div class="date-number" :class="{ 'today': date && isToday(date) }">{{ date ? date.getDate() : '' }}</div>
                           <!-- 休日名称表示 -->
                 <div v-if="date && getHolidayName(date, props.holidays)" class="holiday-label">
                   {{ getHolidayName(date, props.holidays) }}
@@ -193,6 +193,14 @@ const calendarWeeks = computed(() => {
   return weeks
 })
 
+// 今日の日付かどうかを判定する関数
+function isToday(date: Date): boolean {
+  const today = new Date()
+  return date.getDate() === today.getDate() &&
+         date.getMonth() === today.getMonth() &&
+         date.getFullYear() === today.getFullYear()
+}
+
 // メソッド
 function selectDate(date: Date) {
   emit('selectDate', date)
@@ -343,6 +351,16 @@ function editSchedule(schedule: any) {
 .date-number {
   font-weight: bold;
   margin-bottom: 4px;
+}
+
+.date-number.today {
+  background: #007bff;
+  color: white;
+  border-radius: 4px;
+  padding: 2px 6px;
+  display: inline-block;
+  min-width: 20px;
+  text-align: center;
 }
 
 .holiday-label {

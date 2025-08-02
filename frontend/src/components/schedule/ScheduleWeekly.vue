@@ -74,7 +74,13 @@
           }"
         >
           <div class="date-day">{{ getDayOfWeek(date) }}</div>
-          <div class="date-number">{{ date.getDate() }}</div>
+          <div 
+            class="date-number" 
+            :class="{ 'today': isToday(date) }" 
+            :style="isToday(date) ? { background: '#007bff', color: 'white', borderRadius: '4px', padding: '2px 6px', display: 'inline-block', minWidth: '20px', textAlign: 'center' } : {}"
+          >
+            {{ date.getDate() }}
+          </div>
           <div v-if="getHolidayName(date)" class="holiday-name">{{ getHolidayName(date) }}</div>
         </div>
       </div>
@@ -342,7 +348,16 @@ function getDayOfWeek(date: Date): string {
 
 function isToday(date: Date): boolean {
   const today = new Date()
-  return date.toDateString() === today.toDateString()
+  const result = date.getDate() === today.getDate() &&
+         date.getMonth() === today.getMonth() &&
+         date.getFullYear() === today.getFullYear()
+  
+  // デバッグ用：今日の日付をコンソールに出力
+  if (result) {
+    console.log('Today found:', date.toDateString(), 'Current date:', today.toDateString())
+  }
+  
+  return result
 }
 
 function isPast(date: Date): boolean {
@@ -785,6 +800,30 @@ function handleMouseUp(event: MouseEvent) {
 .date-number {
   font-size: 1.2em;
   font-weight: bold;
+}
+
+/* より具体的なセレクターで今日の日付のスタイルを適用 */
+.date-header .date-number.today,
+.schedule-weekly .date-number.today {
+  background: #007bff !important;
+  color: white !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  display: inline-block !important;
+  min-width: 20px !important;
+  text-align: center !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+.date-number.today {
+  background: #007bff !important;
+  color: white !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  display: inline-block !important;
+  min-width: 20px !important;
+  text-align: center !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
 .holiday-name {
