@@ -888,18 +888,22 @@ def get_schedules(db: Session, skip: int = 0, limit: int = 100):
     ).order_by(models.Schedule.start_datetime).offset(skip).limit(limit).all()
 
 def get_schedules_by_month(db: Session, year: int, month: int):
-    """指定月のスケジュールを取得"""
+    """指定月のスケジュールを取得（指定年月の1日-7日前から指定年月の末日+7日後まで）"""
     from datetime import datetime, timedelta
     from calendar import monthrange
 
     # 指定月の最初の日と最後の日を取得
     first_day = datetime(year, month, 1)
     last_day = datetime(year, month, monthrange(year, month)[1], 23, 59, 59)
+    
+    # 期間を拡張：1日-7日前から末日+7日後まで
+    start_date = first_day - timedelta(days=7)
+    end_date = last_day + timedelta(days=7)
 
     return db.query(models.Schedule).filter(
         models.Schedule.is_deleted == False,
-        models.Schedule.start_datetime >= first_day,
-        models.Schedule.start_datetime <= last_day
+        models.Schedule.start_datetime >= start_date,
+        models.Schedule.start_datetime <= end_date
     ).order_by(models.Schedule.start_datetime).all()
 
 def get_schedules_by_date_range(db: Session, start_date: datetime, end_date: datetime):
@@ -968,19 +972,23 @@ def delete_schedule(db: Session, schedule_id: int):
     return True
 
 def get_schedules_by_activity_categories(db: Session, activity_category_ids: list[int], year: int, month: int):
-    """指定された活動区分のスケジュールを取得"""
-    from datetime import datetime
+    """指定された活動区分のスケジュールを取得（指定年月の1日-7日前から指定年月の末日+7日後まで）"""
+    from datetime import datetime, timedelta
     from calendar import monthrange
 
     # 指定月の最初の日と最後の日を取得
     first_day = datetime(year, month, 1)
     last_day = datetime(year, month, monthrange(year, month)[1], 23, 59, 59)
+    
+    # 期間を拡張：1日-7日前から末日+7日後まで
+    start_date = first_day - timedelta(days=7)
+    end_date = last_day + timedelta(days=7)
 
     return db.query(models.Schedule).filter(
         models.Schedule.is_deleted == False,
         models.Schedule.activity_category_id.in_(activity_category_ids),
-        models.Schedule.start_datetime >= first_day,
-        models.Schedule.start_datetime <= last_day
+        models.Schedule.start_datetime >= start_date,
+        models.Schedule.start_datetime <= end_date
     ).order_by(models.Schedule.start_datetime).all()
 
 def get_goods_list(db: Session, skip: int = 0, limit: int = 100):
