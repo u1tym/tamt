@@ -1,6 +1,7 @@
 <template>
   <div class="schedule-management">
-    <div class="header">
+
+    <div class="header-container">
       
       <div class="header-left">
         <img src="/images/SCHEDULE.png" alt="SCHEDULE" class="header-icon" />
@@ -524,11 +525,13 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-.header {
+.header-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding: 16px 0;
+  border-bottom: 2px solid #e0e0e0;
 }
 
 .header-left {

@@ -1,6 +1,7 @@
 <template>
   <div class="goods-management">
-    <div class="header">
+
+    <div class="header-container">
       <div class="header-left">
         <img src="/images/GOODS.png" alt="GOODS" class="header-icon" />
         <h1>GOODS</h1>
@@ -123,11 +124,13 @@ onUnmounted(() => {
   padding: 20px;
 }
 
-.header {
+.header-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding: 16px 0;
+  border-bottom: 2px solid #e0e0e0;
 }
 
 .header-left {
