@@ -14,7 +14,7 @@ const routes = [
   {
     path: '/knowhow',
     name: 'Knowhow',
-    component: () => import('../components/KnowhowManagement.vue'),
+    component: () => import('../components/knowhow/KnowhowManagement.vue'),
   },
   {
     path: '/goods',
