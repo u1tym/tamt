@@ -44,12 +44,19 @@
       >
         支出元管理
       </button>
+      <button
+        @click="currentTab = 'debit'"
+        :class="['tab-button', { active: currentTab === 'debit' }]"
+      >
+        支払管理
+      </button>
     </div>
 
     <!-- コンポーネント表示 -->
     <PaymentSourceList v-if="!isMobile && currentTab === 'payment'" />
     <TransactionList v-else-if="!isMobile && currentTab === 'transaction'" />
     <BudgetList v-else-if="!isMobile && currentTab === 'budget'" />
+    <DebitList v-else-if="!isMobile && currentTab === 'debit'" />
     <TransactionList v-else />
   </div>
 </template>
@@ -60,9 +67,10 @@ import { useRouter } from 'vue-router'
 import PaymentSourceList from './PaymentSourceList.vue'
 import TransactionList from './TransactionList.vue'
 import BudgetList from './BudgetList.vue'
+import DebitList from './DebitList.vue'
 
 const router = useRouter()
-const currentTab = ref<'payment' | 'transaction' | 'budget'>('transaction')
+const currentTab = ref<'payment' | 'transaction' | 'budget' | 'debit'>('transaction')
 
 // スマホ判定
 const isMobile = ref(false)
