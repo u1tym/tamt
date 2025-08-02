@@ -904,11 +904,28 @@ def get_schedules_by_month(db: Session, year: int, month: int):
 
 def get_schedules_by_date_range(db: Session, start_date: datetime, end_date: datetime):
     """指定期間のスケジュールを取得"""
-    return db.query(models.Schedule).filter(
+    # まず、指定期間の終了時刻より前に開始するすべてのスケジュールを取得
+    schedules = db.query(models.Schedule).filter(
         models.Schedule.is_deleted == False,
-        models.Schedule.start_datetime >= start_date,
-        models.Schedule.start_datetime <= end_date
+        models.Schedule.start_datetime < end_date
     ).order_by(models.Schedule.start_datetime).all()
+    
+    # Python側で重複判定を行う
+    result = []
+    for schedule in schedules:
+        # 終日スケジュールの場合は常に含める
+        if schedule.is_all_day:
+            result.append(schedule)
+            continue
+            
+        # 時間指定スケジュールの場合、終了時刻を計算
+        end_datetime = schedule.start_datetime + timedelta(minutes=schedule.duration)
+        
+        # スケジュールの終了時刻が指定期間の開始時刻より後にある場合
+        if end_datetime > start_date:
+            result.append(schedule)
+    
+    return result
 
 def get_schedule(db: Session, schedule_id: int):
     """特定のスケジュールを取得"""

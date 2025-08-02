@@ -155,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { buildApiUrl } from '../../utils/api'
 import { getCategoryColor } from './ScheduleCommon'
 
@@ -177,6 +177,7 @@ const emit = defineEmits<{
   editSchedule: [schedule: any]
   createSchedule: [date: Date, startTime: string, durationMinutes: number]
   createAllDaySchedule: [date: Date]
+  weekStartChanged: [startDate: string]
 }>()
 
 // 状態管理
@@ -230,6 +231,16 @@ const displayDates = computed(() => {
   
   return dates
 })
+
+watch(
+  () => displayDates.value[0],
+  (newStart) => {
+    if (newStart) {
+      emit('weekStartChanged', newStart.toISOString().split('T')[0])
+    }
+  },
+  { immediate: true }
+)
 
 // フィルタリングされたスケジュール
 const filteredSchedules = computed(() => {

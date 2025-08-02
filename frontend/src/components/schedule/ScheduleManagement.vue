@@ -1,10 +1,12 @@
 <template>
   <div class="schedule-management">
     <div class="header">
+      
       <div class="header-left">
         <img src="/images/SCHEDULE.png" alt="SCHEDULE" class="header-icon" />
         <h1>スケジュール</h1>
       </div>
+
       <div class="header-right">
         <img 
           src="/images/CONFIG.png" 
@@ -23,8 +25,8 @@
       </div>
     </div>
 
-         <div class="main-content">
-       <!-- カレンダー -->
+    <div class="main-content">
+      <!-- カレンダー -->
       <div class="calendar-section">
         <div class="view-toggle">
           <button 
@@ -40,10 +42,6 @@
             週間表示
           </button>
         </div>
-
-
-
-
 
         <!-- 月表示 -->
         <div v-if="viewMode === 'month'" class="monthly-view">
@@ -65,14 +63,15 @@
 
         <!-- 週間表示 -->
         <div v-else-if="viewMode === 'week'" class="weekly-view">
-                  <ScheduleWeekly 
-          :schedules="schedules" 
-          :activity-categories="activityCategories"
-          :selected-categories="selectedCategories"
-          @edit-schedule="editSchedule"
-          @create-schedule="createSchedule"
-          @create-all-day-schedule="createAllDaySchedule"
-        />
+          <ScheduleWeekly 
+            :schedules="schedules" 
+            :activity-categories="activityCategories"
+            :selected-categories="selectedCategories"
+            @edit-schedule="editSchedule"
+            @create-schedule="createSchedule"
+            @create-all-day-schedule="createAllDaySchedule"
+            @week-start-changed="onWeekStartChanged"
+          />
         </div>
       </div>
     </div>
@@ -168,26 +167,26 @@
        </div>
      </div>
 
-     <!-- 設定モーダル -->
-     <div v-if="showConfigModal" class="modal-overlay" @wheel.prevent>
-       <div class="modal-content config-modal" @click.stop @wheel.stop>
-         <div class="config-modal-header">
-           <h3>設定</h3>
-           <button class="close-btn" @click="showConfigModal = false">×</button>
-         </div>
-         <div class="config-modal-body">
-           <ScheduleCategoryList
-             :activity-categories="activityCategories"
-             :selected-categories="selectedCategories"
-             @update-activity-categories="updateActivityCategories"
-             @update-selected-categories="updateSelectedCategories"
-             @refresh-schedules="loadSchedules"
-           />
-         </div>
-       </div>
-     </div>
-   </div>
- </template>
+    <!-- 設定モーダル -->
+    <div v-if="showConfigModal" class="modal-overlay" @wheel.prevent>
+      <div class="modal-content config-modal" @click.stop @wheel.stop>
+        <div class="config-modal-header">
+          <h3>設定</h3>
+          <button class="close-btn" @click="showConfigModal = false">×</button>
+        </div>
+        <div class="config-modal-body">
+          <ScheduleCategoryList
+            :activity-categories="activityCategories"
+            :selected-categories="selectedCategories"
+            @update-activity-categories="updateActivityCategories"
+            @update-selected-categories="updateSelectedCategories"
+            @refresh-schedules="loadSchedules"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
@@ -211,6 +210,8 @@ const showScheduleModal = ref(false)
 const showConfigModal = ref(false)
 const editingSchedule = ref<any>(null)
 const viewMode = ref<'month' | 'week'>('month')
+
+const weekStartDate = ref('');
 
 // 休日管理（カレンダー表示用）
 const holidays = ref<any[]>([])
@@ -253,19 +254,21 @@ async function loadActivityCategories() {
   }
 }
 
-async function loadSchedules() {
+const loadSchedules = async () => {
+//async function loadSchedules() {
   try {
     let response
     if (viewMode.value === 'week') {
-      // 週間表示の場合は、現在の週の開始日を計算
-      const today = new Date()
-      const dayOfWeek = today.getDay()
-      const mondayOffset = startWithMonday.value ? 1 : 0
-      const daysFromMonday = (dayOfWeek + 7 - mondayOffset) % 7
-      const weekStart = new Date(today)
-      weekStart.setDate(today.getDate() - daysFromMonday)
-      
-      const startDate = weekStart.toISOString().split('T')[0] // YYYY-MM-DD形式
+      // 週の開始日がセットされていればそれを使う
+      const startDate = weekStartDate.value || (() => {
+        const today = new Date()
+        const dayOfWeek = today.getDay()
+        const mondayOffset = startWithMonday.value ? 1 : 0
+        const daysFromMonday = (dayOfWeek + 7 - mondayOffset) % 7
+        const weekStart = new Date(today)
+        weekStart.setDate(today.getDate() - daysFromMonday)
+        return weekStart.toISOString().split('T')[0]
+      })()
       response = await fetch(buildApiUrl(`/schedules/week/${startDate}`))
     } else {
       // 月表示の場合は従来通り
@@ -288,7 +291,11 @@ async function loadHolidays() {
   }
 }
 
-
+const onWeekStartChanged = (startDate: string) => {
+  console.log("startDate = " + startDate)
+  weekStartDate.value = startDate
+  loadSchedules()
+}
 
 function previousMonth() {
   if (currentMonth.value === 1) {
