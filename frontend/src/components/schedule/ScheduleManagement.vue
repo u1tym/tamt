@@ -401,7 +401,7 @@ function createSchedule(date: Date, startTime: string, durationMinutes: number =
     duration_minutes: durationMinutes, // ドラッグ範囲の時間を使用
     duration_days: 0,
     activity_category_id: '', // 未選択をデフォルトに設定
-    schedule_type: 'normal',
+    schedule_type: '予定',
     location: '',
     details: '',
     is_todo_completed: false
@@ -425,7 +425,7 @@ function createAllDaySchedule(date: Date) {
     duration_minutes: 0,
     duration_days: 1, // 終日の場合は1日
     activity_category_id: '', // 未選択をデフォルトに設定
-    schedule_type: 'normal',
+    schedule_type: '予定',
     location: '',
     details: '',
     is_todo_completed: false
