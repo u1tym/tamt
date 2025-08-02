@@ -7,22 +7,34 @@
       <h3 class="summary-title">支払い額集計</h3>
       <div class="summary-grid">
         <div class="summary-card current-month">
-          <div class="summary-label">当月</div>
-          <div class="summary-period">{{ paymentSummary.current_month?.period }}</div>
-          <div class="summary-amount">{{ formatAmount(paymentSummary.current_month?.total_amount || 0) }}円</div>
-          <div class="summary-count">({{ paymentSummary.current_month?.transaction_count || 0 }}件)</div>
+          <div class="summary-line1">
+            <span class="summary-label">当月</span>
+            <span class="summary-count">({{ paymentSummary.current_month?.transaction_count || 0 }}件)</span>
+            <span class="summary-period">{{ paymentSummary.current_month?.period }}</span>
+          </div>
+          <div class="summary-line2">
+            <span class="summary-amount">{{ formatAmount(paymentSummary.current_month?.total_amount || 0) }}円</span>
+          </div>
         </div>
         <div class="summary-card next-month">
-          <div class="summary-label">翌月</div>
-          <div class="summary-period">{{ paymentSummary.next_month?.period }}</div>
-          <div class="summary-amount">{{ formatAmount(paymentSummary.next_month?.total_amount || 0) }}円</div>
-          <div class="summary-count">({{ paymentSummary.next_month?.transaction_count || 0 }}件)</div>
+          <div class="summary-line1">
+            <span class="summary-label">翌月</span>
+            <span class="summary-count">({{ paymentSummary.next_month?.transaction_count || 0 }}件)</span>
+            <span class="summary-period">{{ paymentSummary.next_month?.period }}</span>
+          </div>
+          <div class="summary-line2">
+            <span class="summary-amount">{{ formatAmount(paymentSummary.next_month?.total_amount || 0) }}円</span>
+          </div>
         </div>
         <div class="summary-card next-next-month">
-          <div class="summary-label">翌々月</div>
-          <div class="summary-period">{{ paymentSummary.next_next_month?.period }}</div>
-          <div class="summary-amount">{{ formatAmount(paymentSummary.next_next_month?.total_amount || 0) }}円</div>
-          <div class="summary-count">({{ paymentSummary.next_next_month?.transaction_count || 0 }}件)</div>
+          <div class="summary-line1">
+            <span class="summary-label">翌々月</span>
+            <span class="summary-count">({{ paymentSummary.next_next_month?.transaction_count || 0 }}件)</span>
+            <span class="summary-period">{{ paymentSummary.next_next_month?.period }}</span>
+          </div>
+          <div class="summary-line2">
+            <span class="summary-amount">{{ formatAmount(paymentSummary.next_next_month?.total_amount || 0) }}円</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1305,11 +1317,10 @@ onUnmounted(() => {
 }
 
 .table-container {
-  margin-bottom: 24px;
   border: 1px solid #ddd;
   border-radius: 4px;
   overflow: hidden;
-  max-height: calc(100vh - 400px);
+  max-height: calc(100vh - 600px);
   overflow-y: auto;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
@@ -1736,6 +1747,14 @@ onUnmounted(() => {
 /* スマホ用のカード表示 */
 .mobile-transactions {
   margin-bottom: 24px;
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-transactions::-webkit-scrollbar {
+  display: none;
 }
 
 .transaction-card {
@@ -1986,14 +2005,14 @@ onUnmounted(() => {
   background: white;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 24px;
+  padding: 16px;
+  margin-bottom: 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .summary-title {
-  margin: 0 0 16px 0;
-  font-size: 18px;
+  margin: 0 0 12px 0;
+  font-size: 16px;
   color: #333;
   font-weight: 600;
   text-align: center;
@@ -2002,14 +2021,14 @@ onUnmounted(() => {
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .summary-card {
   background: #f8f9fa;
   border: 1px solid #dee2e6;
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   text-align: center;
   transition: all 0.2s;
 }
@@ -2034,33 +2053,42 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #f8f9fa 0%, #fff3e0 100%);
 }
 
+.summary-line1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 4px;
+}
+
+.summary-line2 {
+  text-align: center;
+}
+
 .summary-label {
   font-size: 14px;
   font-weight: 600;
   color: #666;
-  margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-
-.summary-period {
-  font-size: 12px;
-  color: #888;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.summary-amount {
-  font-size: 24px;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 4px;
 }
 
 .summary-count {
   font-size: 12px;
   color: #666;
   font-weight: 500;
+}
+
+.summary-period {
+  font-size: 12px;
+  color: #888;
+  font-weight: 500;
+}
+
+.summary-amount {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
 }
 
 /* レスポンシブ対応 */
@@ -2071,26 +2099,43 @@ onUnmounted(() => {
   }
 
   .payment-summary {
-    padding: 16px;
-    margin-bottom: 20px;
+    padding: 12px;
+    margin-bottom: 16px;
   }
 
   .summary-title {
-    font-size: 16px;
-    margin-bottom: 12px;
+    font-size: 14px;
+    margin-bottom: 8px;
   }
 
   .summary-grid {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 8px;
   }
 
   .summary-card {
-    padding: 12px;
+    padding: 8px;
+  }
+
+  .summary-line1 {
+    margin-bottom: 6px;
+    gap: 3px;
+  }
+
+  .summary-label {
+    font-size: 12px;
+  }
+
+  .summary-count {
+    font-size: 10px;
+  }
+
+  .summary-period {
+    font-size: 10px;
   }
 
   .summary-amount {
-    font-size: 20px;
+    font-size: 16px;
   }
 
   .modal-content,
@@ -2118,6 +2163,10 @@ onUnmounted(() => {
   .register-button {
     width: 100%;
     max-width: 300px;
+  }
+
+  .table-container {
+    max-height: calc(100vh - 450px);
   }
 
   .camera-controls {
