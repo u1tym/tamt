@@ -42,75 +42,77 @@
     </div>
 
     <!-- 予算一覧テーブル -->
-    <table border="1" cellspacing="0" cellpadding="4" class="budget-table">
-      <thead>
-        <tr>
-          <th style="text-align:center; width: 40%;">名称</th>
-          <th style="text-align:center; width: 15%;">金額</th>
-          <th style="text-align:center; width: 15%;">集計金額</th>
-          <th class="action-header" style="width: 15%;">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="budget in budgets"
-          :key="budget.id"
-          class="table-row"
-          @mouseenter="hoveredRow = budget.id"
-          @mouseleave="hoveredRow = null"
-        >
-          <td style="width: 40%;">{{ budget.name }}</td>
-          <td style="text-align:right; width: 15%;">{{ formatAmount(budget.amount) }}円</td>
-          <td style="text-align:right; width: 15%;">{{ formatAmount(getSummaryAmount(budget.name)) }}円</td>
-          <td class="action-cell" style="width: 15%;">
-            <div v-if="hoveredRow === budget.id" class="action-buttons">
-                            <button
-                @click="moveBudgetUp(budget)"
-                class="action-btn move-up-btn"
-                title="上に移動"
-                :disabled="isFirstBudget(budget)"
-              >
-                ⬆️
-              </button>
-                            <button
-                @click="moveBudgetDown(budget)"
-                class="action-btn move-down-btn"
-                title="下に移動"
-                :disabled="isLastBudget(budget)"
-              >
-                ⬇️
-              </button>
-              <button
-                @click="editBudget(budget)"
-                class="action-btn edit-btn"
-                title="編集"
-              >
-                ✏️
-              </button>
-              <button
-                @click="deleteBudget(budget)"
-                class="action-btn delete-btn"
-                title="削除"
-              >
-                🗑️
-              </button>
-            </div>
-          </td>
-        </tr>
-        <tr class="table-row unclassified-row">
-          <td style="width: 40%;">未分類</td>
-          <td style="width: 15%;"></td>
-          <td style="text-align:right; width: 15%;">{{ formatAmount(getSummaryAmount('未分類')) }}円</td>
-          <td class="action-cell" style="width: 15%;"></td>
-        </tr>
-        <tr class="table-row total-row">
-          <td style="width: 40%; text-align: right; font-weight: bold;">合計</td>
-          <td style="text-align:right; width: 15%; font-weight: bold;">{{ formatAmount(totalAmount) }}円</td>
-          <td style="text-align:right; width: 15%; font-weight: bold;">{{ formatAmount(totalSummaryAmount + getSummaryAmount('未分類')) }}円</td>
-          <td class="action-cell" style="width: 15%;"></td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-container">
+      <table border="1" cellspacing="0" cellpadding="4" class="budget-table">
+        <thead>
+          <tr>
+            <th style="text-align:center; width: 40%;">名称</th>
+            <th style="text-align:center; width: 15%;">金額</th>
+            <th style="text-align:center; width: 15%;">集計金額</th>
+            <th class="action-header" style="width: 15%;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="budget in budgets"
+            :key="budget.id"
+            class="table-row"
+            @mouseenter="hoveredRow = budget.id"
+            @mouseleave="hoveredRow = null"
+          >
+            <td style="width: 40%;">{{ budget.name }}</td>
+            <td style="text-align:right; width: 15%;">{{ formatAmount(budget.amount) }}円</td>
+            <td style="text-align:right; width: 15%;">{{ formatAmount(getSummaryAmount(budget.name)) }}円</td>
+            <td class="action-cell" style="width: 15%;">
+              <div v-if="hoveredRow === budget.id" class="action-buttons">
+                              <button
+                  @click="moveBudgetUp(budget)"
+                  class="action-btn move-up-btn"
+                  title="上に移動"
+                  :disabled="isFirstBudget(budget)"
+                >
+                  ⬆️
+                </button>
+                              <button
+                  @click="moveBudgetDown(budget)"
+                  class="action-btn move-down-btn"
+                  title="下に移動"
+                  :disabled="isLastBudget(budget)"
+                >
+                  ⬇️
+                </button>
+                <button
+                  @click="editBudget(budget)"
+                  class="action-btn edit-btn"
+                  title="編集"
+                >
+                  ✏️
+                </button>
+                <button
+                  @click="deleteBudget(budget)"
+                  class="action-btn delete-btn"
+                  title="削除"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr class="table-row unclassified-row">
+            <td style="width: 40%;">未分類</td>
+            <td style="width: 15%;"></td>
+            <td style="text-align:right; width: 15%;">{{ formatAmount(getSummaryAmount('未分類')) }}円</td>
+            <td class="action-cell" style="width: 15%;"></td>
+          </tr>
+          <tr class="table-row total-row">
+            <td style="width: 40%; text-align: right; font-weight: bold;">合計</td>
+            <td style="text-align:right; width: 15%; font-weight: bold;">{{ formatAmount(totalAmount) }}円</td>
+            <td style="text-align:right; width: 15%; font-weight: bold;">{{ formatAmount(totalSummaryAmount + getSummaryAmount('未分類')) }}円</td>
+            <td class="action-cell" style="width: 15%;"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <!-- 予算登録・編集モーダル -->
     <div v-if="showDialog" class="modal-overlay" @click="closeDialog">
@@ -661,10 +663,32 @@ onMounted(() => {
   box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
 }
 
+.table-container {
+  margin-bottom: 24px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.table-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 .budget-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 24px;
+  margin-bottom: 0;
+}
+
+.budget-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #f5f5f5;
 }
 
 .budget-table th,
