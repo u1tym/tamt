@@ -67,6 +67,7 @@
             :schedules="schedules" 
             :activity-categories="activityCategories"
             :selected-categories="selectedCategories"
+            :holidays="holidays"
             @edit-schedule="editSchedule"
             @create-schedule="createSchedule"
             @create-all-day-schedule="createAllDaySchedule"

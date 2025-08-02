@@ -67,11 +67,15 @@
           :class="{ 
             'today': isToday(date),
             'past': isPast(date),
-            'future': isFuture(date)
+            'future': isFuture(date),
+            'saturday': isSaturday(date),
+            'sunday': isSunday(date),
+            'holiday': isHoliday(date)
           }"
         >
           <div class="date-day">{{ getDayOfWeek(date) }}</div>
           <div class="date-number">{{ date.getDate() }}</div>
+          <div v-if="getHolidayName(date)" class="holiday-name">{{ getHolidayName(date) }}</div>
         </div>
       </div>
 
@@ -164,12 +168,14 @@ interface Props {
   schedules?: any[]
   activityCategories?: any[]
   selectedCategories?: number[]
+  holidays?: any[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   schedules: () => [],
   activityCategories: () => [],
-  selectedCategories: () => []
+  selectedCategories: () => [],
+  holidays: () => []
 })
 
 // Emits
@@ -349,6 +355,25 @@ function isFuture(date: Date): boolean {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   return date > today
+}
+
+function isSaturday(date: Date): boolean {
+  return date.getDay() === 6 // 6=土曜日
+}
+
+function isSunday(date: Date): boolean {
+  return date.getDay() === 0 // 0=日曜日
+}
+
+function isHoliday(date: Date): boolean {
+  const dateStr = date.toISOString().split('T')[0]
+  return props.holidays.some(holiday => holiday.date === dateStr)
+}
+
+function getHolidayName(date: Date): string | null {
+  const dateStr = date.toISOString().split('T')[0]
+  const holiday = props.holidays.find(holiday => holiday.date === dateStr)
+  return holiday ? holiday.name : null
 }
 
 function formatTime(minutes: number): string {
@@ -736,6 +761,21 @@ function handleMouseUp(event: MouseEvent) {
   background: #f8f8f8;
 }
 
+.date-header.saturday {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.date-header.sunday {
+  background: #ffebee;
+  color: #d32f2f;
+}
+
+.date-header.holiday {
+  background: #ffebee;
+  color: #d32f2f;
+}
+
 .date-day {
   font-size: 0.9em;
   color: #666;
@@ -745,6 +785,14 @@ function handleMouseUp(event: MouseEvent) {
 .date-number {
   font-size: 1.2em;
   font-weight: bold;
+}
+
+.holiday-name {
+  font-size: 0.7em;
+  color: #d32f2f;
+  margin-top: 2px;
+  font-weight: bold;
+  line-height: 1.2;
 }
 
 .calendar-body {
