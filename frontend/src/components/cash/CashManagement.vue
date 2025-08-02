@@ -6,12 +6,6 @@
     <!-- PC用のタブ表示 -->
     <div v-if="!isMobile" class="tab-container">
       <button
-        @click="currentTab = 'payment'"
-        :class="['tab-button', { active: currentTab === 'payment' }]"
-      >
-        支出元管理
-      </button>
-      <button
         @click="currentTab = 'transaction'"
         :class="['tab-button', { active: currentTab === 'transaction' }]"
       >
@@ -22,6 +16,12 @@
         :class="['tab-button', { active: currentTab === 'budget' }]"
       >
         予算管理
+      </button>
+      <button
+        @click="currentTab = 'payment'"
+        :class="['tab-button', { active: currentTab === 'payment' }]"
+      >
+        支出元管理
       </button>
     </div>
 

@@ -9,7 +9,7 @@ const routes = [
   {
     path: '/transactions',
     name: 'Transactions',
-    component: () => import('../components/CashManagement.vue'),
+    component: () => import('../components/cash/CashManagement.vue'),
   },
   {
     path: '/knowhow',

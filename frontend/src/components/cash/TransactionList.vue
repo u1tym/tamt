@@ -371,7 +371,7 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { buildApiUrl } from '../utils/api'
+import { buildApiUrl } from '../../utils/api'
 
 interface Transaction {
   id: number
