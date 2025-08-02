@@ -29,7 +29,7 @@ const routes = [
   {
     path: '/holidays',
     name: 'Holidays',
-    component: () => import('../components/HolidayManagement.vue'),
+          component: () => import('../components/holiday/HolidayManagement.vue'),
   },
 ]
 

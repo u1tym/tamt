@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { buildApiUrl } from '../utils/api'
+import { buildApiUrl } from '../../utils/api'
 
 const router = useRouter()
 
