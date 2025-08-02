@@ -94,7 +94,7 @@
                 backgroundColor: getCategoryColor(schedule.activity_category_id, activityCategories),
                 borderColor: getCategoryColor(schedule.activity_category_id, activityCategories)
               }"
-              @click="editSchedule(schedule)"
+              @click.stop="editSchedule(schedule)"
               :title="`${schedule.title}${schedule.location ? ' - ' + schedule.location : ''}`"
             >
               {{ schedule.title }}
@@ -140,7 +140,7 @@
                    top: `${getScheduleTopOffset(schedule, time)}px`,
                    height: `${getScheduleHeight(schedule)}px`
                  }"
-                 @click="editSchedule(schedule)"
+                 @click.stop="editSchedule(schedule)"
                  :title="`${schedule.title}${schedule.location ? ' - ' + schedule.location : ''}`"
                >
                  <div class="schedule-time">{{ formatScheduleTime(schedule) }}</div>
