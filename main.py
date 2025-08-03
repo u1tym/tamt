@@ -1209,35 +1209,11 @@ def delete_holiday(holiday_id: int, db: Session = Depends(get_db)):
 
 if __name__ == "__main__":
     import uvicorn
-    import ssl
-    import os
 
-    # 現在のディレクトリを取得
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    cert_file = os.path.join(current_dir, "frontend", "localhost.pem")
-    key_file = os.path.join(current_dir, "frontend", "localhost-key.pem")
-
-    # 証明書ファイルの存在確認
-    if os.path.exists(cert_file) and os.path.exists(key_file):
-        print("HTTPS証明書を読み込みました")
-        print(f"証明書: {cert_file}")
-        print(f"鍵: {key_file}")
-        uvicorn.run(
-            "main:app",
-            host="0.0.0.0",
-            port=8001,
-            reload=True,
-            ssl_certfile=cert_file,
-            ssl_keyfile=key_file
-        )
-    else:
-        print("HTTPS証明書が見つかりません")
-        print(f"証明書ファイル: {cert_file}")
-        print(f"鍵ファイル: {key_file}")
-        print("HTTPで起動します")
-        uvicorn.run(
-            "main:app",
-            host="0.0.0.0",
-            port=8001,
-            reload=True
-        )
+    print("HTTPで起動します")
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=5902,
+        reload=True
+    )
