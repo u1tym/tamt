@@ -5,14 +5,14 @@
        <div class="icon-row">
          <div class="icon-item" @click="goTo('knowhow')" title="KNOWHOW管理">
            <div class="icon-wrapper">
-             <img src="/images/KNOWHOW.png" alt="KNOWHOW" class="icon-image" />
+             <img src="/images/KNOWHOW.jpg" alt="KNOWHOW" class="icon-image" />
            </div>
            <span class="icon-label">KNOWHOW</span>
          </div>
          
          <div class="icon-item" @click="goTo('goods')" title="GOODS管理">
            <div class="icon-wrapper">
-             <img src="/images/GOODS.png" alt="GOODS" class="icon-image" />
+             <img src="/images/GOODS.jpg" alt="GOODS" class="icon-image" />
            </div>
            <span class="icon-label">GOODS</span>
          </div>
@@ -21,21 +21,21 @@
        <div class="icon-row">
          <div class="icon-item" @click="goTo('transactions')" title="出納管理">
            <div class="icon-wrapper">
-             <img src="/images/MONEY.png" alt="出納" class="icon-image" />
+             <img src="/images/MONEY.jpg" alt="出納" class="icon-image" />
            </div>
            <span class="icon-label">出納</span>
          </div>
          
          <div class="icon-item" @click="goTo('schedule')" title="スケジュール管理">
            <div class="icon-wrapper">
-             <img src="/images/SCHEDULE.png" alt="スケジュール" class="icon-image" />
+             <img src="/images/SCHEDULE.jpg" alt="スケジュール" class="icon-image" />
            </div>
            <span class="icon-label">スケジュール</span>
          </div>
          
          <div class="icon-item" @click="goTo('holidays')" title="休日管理">
            <div class="icon-wrapper">
-             <img src="/images/HOLIDAY.png" alt="休日" class="icon-image" />
+             <img src="/images/HOLIDAY.jpg" alt="休日" class="icon-image" />
            </div>
            <span class="icon-label">休日</span>
          </div>

@@ -3,19 +3,19 @@
 
     <div class="header-container">
       <div class="header-left">
-        <img src="/images/MONEY.png" alt="MONEY" class="header-icon" />
+        <img src="/images/MONEY.jpg" alt="MONEY" class="header-icon" />
         <h2 class="page-title">出納</h2>
       </div>
       <div class="header-right">
         <!--<img 
-          src="/images/CONFIG.png" 
+          src="/images/CONFIG.jpg" 
           alt="CONFIG" 
           class="config-icon" 
           @click="toggleEditMode"
           title="編集モード切り替え"
         />-->
         <img 
-          src="/images/PORTAL.png" 
+          src="/images/PORTAL.jpg" 
           alt="PORTAL" 
           class="portal-icon" 
           @click="$router.push('/')"

@@ -18,11 +18,13 @@ export const getApiBaseUrl = (): string => {
     if (currentPort === '5173') {
       return `http://${currentHost}:8001`
     }
+    return `https://${currentHost}:8001`
     // その他の場合はlocalhost:8001を使用
-    return 'http://localhost:8001'
+    // return 'http://localhost:8001'
   }
   // 本番環境では相対パスを使用
-  return ''
+  return `https://${window.location.hostname}:8001`
+  //return ''
 }
 
 // APIエンドポイントを構築するヘルパー関数

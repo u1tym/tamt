@@ -4,20 +4,20 @@
     <div class="header-container">
       
       <div class="header-left">
-        <img src="/images/SCHEDULE.png" alt="SCHEDULE" class="header-icon" />
+        <img src="/images/SCHEDULE.jpg" alt="SCHEDULE" class="header-icon" />
         <h1>スケジュール</h1>
       </div>
 
       <div class="header-right">
         <img 
-          src="/images/CONFIG.png" 
+          src="/images/CONFIG.jpg" 
           alt="CONFIG" 
           class="config-icon" 
           @click="showConfigModal = true"
           title="設定"
         />
         <img 
-          src="/images/PORTAL.png" 
+          src="/images/PORTAL.jpg" 
           alt="PORTAL" 
           class="portal-icon" 
           @click="goBack"

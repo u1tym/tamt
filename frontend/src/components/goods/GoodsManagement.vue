@@ -3,19 +3,19 @@
 
     <div class="header-container">
       <div class="header-left">
-        <img src="/images/GOODS.png" alt="GOODS" class="header-icon" />
+        <img src="/images/GOODS.jpg" alt="GOODS" class="header-icon" />
         <h1>GOODS</h1>
       </div>
       <div class="header-right">
                  <img 
-           src="/images/CONFIG.png" 
+           src="/images/CONFIG.jpg" 
            alt="CONFIG" 
            class="config-icon" 
            @click="toggleTabs"
            title="設定"
          />
         <img 
-          src="/images/PORTAL.png" 
+          src="/images/PORTAL.jpg" 
           alt="PORTAL" 
           class="portal-icon" 
           @click="goToTopMenu"
