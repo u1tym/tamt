@@ -3,6 +3,11 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   {
     path: '/',
+    name: 'Login',
+    component: () => import('../components/LoginScreen.vue'),
+  },
+  {
+    path: '/menu',
     name: 'TopMenu',
     component: () => import('../components/TopMenu.vue'),
   },
