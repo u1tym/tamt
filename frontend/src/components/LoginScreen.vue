@@ -32,9 +32,14 @@
           />
         </div>
         
-        <button type="submit" class="login-button">
-          LOGIN
-        </button>
+                       <button type="submit" class="login-button" :disabled="isLoading">
+                 {{ isLoading ? 'ログイン中...' : 'LOGIN' }}
+               </button>
+             
+             <!-- エラーメッセージ表示 -->
+             <div v-if="errorMessage" class="error-message">
+               {{ errorMessage }}
+             </div>
       </form>
     </div>
   </div>
@@ -43,15 +48,73 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { requestRandomNumber, verifyLogin } from '../utils/api'
 
 const router = useRouter()
 const username = ref('')
 const password = ref('')
+const errorMessage = ref('')
+const isLoading = ref(false)
 
-function handleLogin() {
-  // 認証機能は後で実装予定
-  // 現在はログインボタンを押すとトップメニューに遷移
-  router.push('/menu')
+async function handleLogin() {
+  if (!username.value || !password.value) {
+    errorMessage.value = 'ユーザー名とパスワードを入力してください'
+    return
+  }
+
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+         // ステップ1: ランダム数を要求
+     const randomResponse = await requestRandomNumber({
+       username: username.value
+     })
+
+    if (!randomResponse.success) {
+      errorMessage.value = 'ユーザーが見つかりません'
+      password.value = ''
+      return
+    }
+
+    // ステップ2: ハッシュ値を生成
+    const hashValue = await generateHash(username.value, password.value, randomResponse.random_number)
+
+         // ステップ3: ログイン認証
+     const loginResponse = await verifyLogin({
+       username: username.value,
+       hash_value: hashValue
+     })
+
+    if (loginResponse.success) {
+      // セッション情報を保存
+      localStorage.setItem('sessionToken', loginResponse.session_token || '')
+      localStorage.setItem('username', username.value)
+      
+      // トップメニューに遷移
+      router.push('/menu')
+    } else {
+      errorMessage.value = loginResponse.message || 'ログインに失敗しました'
+      password.value = ''
+    }
+
+  } catch (error) {
+    console.error('ログインエラー:', error)
+    errorMessage.value = 'ログイン処理中にエラーが発生しました'
+    password.value = ''
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function generateHash(username: string, password: string, randomNumber: number): Promise<string> {
+  const text = username + password + randomNumber.toString()
+  const encoder = new TextEncoder()
+  const data = encoder.encode(text)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return hashHex
 }
 </script>
 
@@ -161,9 +224,26 @@ function handleLogin() {
   background: linear-gradient(135deg, #A0522D 0%, #CD853F 100%);
 }
 
-.login-button:active {
-  transform: translateY(0);
-}
+       .login-button:active {
+         transform: translateY(0);
+       }
+       
+       .error-message {
+         margin-top: 16px;
+         padding: 12px;
+         background-color: #fee;
+         border: 1px solid #fcc;
+         border-radius: 8px;
+         color: #c33;
+         font-size: 14px;
+         text-align: center;
+       }
+       
+       .login-button:disabled {
+         background: #ccc;
+         cursor: not-allowed;
+         transform: none;
+       }
 
 /* レスポンシブ対応 */
 @media (max-width: 480px) {

@@ -180,3 +180,16 @@ class Holiday(Base):
     name = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Account(Base):
+    __tablename__ = "accounts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, nullable=False, unique=True, index=True)  # ユーザー名
+    password = Column(String, nullable=False)  # パスワード（ハッシュ化されたもの）
+    session_info = Column(Text)  # セッション情報（JSON形式で保存）
+    last_access = Column(DateTime, nullable=False, default=datetime.utcnow)  # 最終アクセス日時
+    is_deleted = Column(Boolean, nullable=False, default=False)  # 削除フラグ
+    random_number = Column(Integer, nullable=True)  # ランダム数
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)  # 登録日時
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # 更新日時
