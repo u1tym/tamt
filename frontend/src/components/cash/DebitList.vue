@@ -74,7 +74,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { buildApiUrl } from '../../utils/api'
+import { getDebitSummary } from '../../utils/api'
 
 interface DebitSummaryItem {
   payment_date: string
@@ -99,13 +99,8 @@ const fetchDebitSummary = async () => {
     loading.value = true
     error.value = ''
     
-    const response = await fetch(buildApiUrl('/debit-summary'))
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const data = await response.json()
-    debitSummary.value = data
+    const response = await getDebitSummary()
+    debitSummary.value = response.data
   } catch (err) {
     console.error('Error fetching debit summary:', err)
     error.value = 'データの取得に失敗しました。'
@@ -124,8 +119,9 @@ const formatDate = (dateStr: string): string => {
 }
 
 // 金額フォーマット
-const formatAmount = (amount: number): string => {
-  return amount.toLocaleString()
+const formatAmount = (amount: number | string): string => {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+  return numAmount.toLocaleString()
 }
 
 onMounted(() => {

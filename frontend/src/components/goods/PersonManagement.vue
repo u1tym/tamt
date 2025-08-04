@@ -65,7 +65,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
-import { buildApiUrl } from '../../utils/api'
+import { getPersons, createPerson, updatePerson as apiUpdatePerson } from '../../utils/api'
 
 interface Person {
   id: number
@@ -89,12 +89,8 @@ const form = ref({
 // データ取得
 const fetchPersons = async () => {
   try {
-    const response = await fetch(buildApiUrl('/persons'))
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    const data = await response.json()
-    persons.value = data
+    const response = await getPersons()
+    persons.value = response.data
   } catch (e: any) {
     console.error('パーソンデータ取得エラー:', e)
     error.value = `パーソンデータの取得に失敗しました: ${e.message}`
@@ -126,16 +122,7 @@ const addPerson = async () => {
   isSubmitting.value = true
 
   try {
-    const response = await fetch(buildApiUrl('/persons'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
-    })
-    
-    if (!response.ok) {
-      throw new Error('登録に失敗しました')
-    }
-
+    await createPerson(form.value)
     closeDialog()
     await fetchPersons()
   } catch (e: any) {
@@ -152,16 +139,7 @@ const updatePerson = async () => {
   isSubmitting.value = true
 
   try {
-    const response = await fetch(buildApiUrl(`/persons/${editingId.value}`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
-    })
-    
-    if (!response.ok) {
-      throw new Error('更新に失敗しました')
-    }
-
+    await apiUpdatePerson(editingId.value, form.value)
     closeDialog()
     await fetchPersons()
   } catch (e: any) {

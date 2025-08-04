@@ -65,7 +65,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
-import { buildApiUrl } from '../../utils/api'
+import { getMedia, createMedia, updateMedia as apiUpdateMedia } from '../../utils/api'
 
 interface Media {
   id: number
@@ -89,12 +89,8 @@ const form = ref({
 // データ取得
 const fetchMedia = async () => {
   try {
-    const response = await fetch(buildApiUrl('/media'))
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    const data = await response.json()
-    mediaList.value = data
+    const response = await getMedia()
+    mediaList.value = response.data
   } catch (e: any) {
     console.error('メディアデータ取得エラー:', e)
     error.value = `メディアデータの取得に失敗しました: ${e.message}`
@@ -126,16 +122,7 @@ const addMedia = async () => {
   isSubmitting.value = true
 
   try {
-    const response = await fetch(buildApiUrl('/media'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
-    })
-    
-    if (!response.ok) {
-      throw new Error('登録に失敗しました')
-    }
-
+    await createMedia(form.value)
     closeDialog()
     await fetchMedia()
   } catch (e: any) {
@@ -152,16 +139,7 @@ const updateMedia = async () => {
   isSubmitting.value = true
 
   try {
-    const response = await fetch(buildApiUrl(`/media/${editingId.value}`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
-    })
-    
-    if (!response.ok) {
-      throw new Error('更新に失敗しました')
-    }
-
+    await apiUpdateMedia(editingId.value, form.value)
     closeDialog()
     await fetchMedia()
   } catch (e: any) {

@@ -49,9 +49,9 @@
       </button>
     </div>
 
-    <!-- デスクトップ用のテーブル -->
-    <div v-if="!isMobile" class="table-container">
-      <table border="1" cellspacing="0" cellpadding="4" class="transaction-table">
+                    <!-- デスクトップ用のテーブル -->
+                <div v-if="!isMobile" class="table-container">
+                  <table border="1" cellspacing="0" cellpadding="4" class="transaction-table">
         <thead>
           <tr>
             <th style="text-align:center; width: 10%;">使用日</th>
@@ -102,10 +102,10 @@
       </table>
     </div>
 
-    <!-- スマホ用のカード表示 -->
-    <div v-else class="mobile-transactions">
-      <div
-        v-for="tx in sortedTransactions"
+                    <!-- スマホ用のカード表示 -->
+                <div v-else class="mobile-transactions">
+                  <div
+                    v-for="tx in sortedTransactions"
         :key="tx.id"
         class="transaction-card"
         @click="editTransaction(tx)"
@@ -385,7 +385,17 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { buildApiUrl } from '../../utils/api'
+import { 
+  getTransactions,
+  createTransaction,
+  updateTransaction as apiUpdateTransaction,
+  deleteTransaction,
+  getPaymentSources,
+  getPaymentSummary,
+  calculatePaymentDate,
+  getBudgetNames,
+  buildApiUrl
+} from '../../utils/api'
 
 interface Transaction {
   id: number
@@ -476,24 +486,17 @@ const budgetNameOptions = ref<string[]>(['未分類'])
 const showDialog = ref(false)
 
 // スマホ判定
-const checkMobile = () => {
-  isMobile.value = window.innerWidth <= 768
-}
+    const checkMobile = () => {
+      isMobile.value = window.innerWidth <= 768
+    }
 
 // データ取得
 const fetchPaymentSources = async () => {
   try {
     console.log('支払い元データ取得開始')
-    const response = await fetch(buildApiUrl('/payment_sources'))
-    console.log('支払い元データ取得レスポンス:', response.status, response.statusText)
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const data = await response.json()
-    console.log('支払い元データ取得成功:', data)
-    paymentSources.value = data
+    const response = await getPaymentSources()
+    console.log('支払い元データ取得成功:', response)
+    paymentSources.value = response.data
 
     // 支払い元が存在する場合、最初のものを選択
     if (paymentSources.value.length > 0 && form.value.payment_source_id === 0) {
@@ -508,23 +511,10 @@ const fetchPaymentSources = async () => {
 const fetchTransactions = async () => {
   try {
     console.log('取引データ取得開始')
-    const apiUrl = buildApiUrl('/transactions')
-    console.log('API URL:', apiUrl)
-    console.log('現在のプロトコル:', window.location.protocol)
-    console.log('現在のホスト:', window.location.host)
-
-    const response = await fetch(apiUrl)
-    console.log('取引データ取得レスポンス:', response.status, response.statusText)
-    console.log('レスポンスヘッダー:', Object.fromEntries(response.headers.entries()))
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const data = await response.json()
-    console.log('取引データ取得成功:', data)
-    console.log('データ件数:', data.length)
-    transactions.value = data
+    const response = await getTransactions()
+    console.log('取引データ取得成功:', response)
+    console.log('データ件数:', response.data.length)
+    transactions.value = response.data
   } catch (e: any) {
     console.error('取引データ取得エラー:', e)
     console.error('エラータイプ:', e.constructor.name)
@@ -546,19 +536,9 @@ const fetchTransactions = async () => {
 const fetchPaymentSummary = async () => {
   try {
     console.log('支払い額集計取得開始')
-    const apiUrl = buildApiUrl('/payment-summary')
-    console.log('支払い額集計API URL:', apiUrl)
-
-    const response = await fetch(apiUrl)
-    console.log('支払い額集計取得レスポンス:', response.status, response.statusText)
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const data = await response.json()
-    console.log('支払い額集計取得成功:', data)
-    paymentSummary.value = data
+    const response = await getPaymentSummary()
+    console.log('支払い額集計取得成功:', response)
+    paymentSummary.value = response.data
   } catch (e: any) {
     console.error('支払い額集計取得エラー:', e)
     // エラーが発生しても取引一覧の表示は継続するため、エラーはログのみ
@@ -570,8 +550,9 @@ const getPaymentSourceName = (id: number) => {
   return source ? source.name : `ID:${id}`
 }
 
-const formatAmount = (amount: number) => {
-  return amount.toLocaleString()
+const formatAmount = (amount: number | string) => {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+  return numAmount.toLocaleString()
 }
 
 const fetchPaymentDate = async () => {
@@ -582,22 +563,10 @@ const fetchPaymentDate = async () => {
   }
 
   try {
-    const response = await fetch(buildApiUrl('/calculate-payment-date'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        used_date: form.value.used_date,
-        payment_source_id: form.value.payment_source_id,
-      }),
+    const data = await calculatePaymentDate({
+      used_date: form.value.used_date,
+      payment_source_id: form.value.payment_source_id,
     })
-
-    if (!response.ok) {
-      throw new Error('支払日の計算に失敗しました')
-    }
-
-    const data = await response.json()
     form.value.paid_date = data.paid_date
   } catch (e: any) {
     console.error('支払日取得エラー:', e)
@@ -647,11 +616,7 @@ const deleteTransactionDirect = async (transaction: Transaction) => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/transactions/${transaction.id}`), {
-      method: 'DELETE',
-    })
-    if (!res.ok) throw new Error('削除に失敗しました')
-
+    await deleteTransaction(transaction.id)
     await fetchTransactions()
     await fetchPaymentSummary()
   } catch (e: any) {
@@ -666,13 +631,7 @@ const addTransaction = async () => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl('/transactions'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value),
-    })
-    if (!res.ok) throw new Error('登録に失敗しました')
-
+    await createTransaction(form.value)
     // 成功時の処理
     closeDialog()
     await fetchTransactions()
@@ -691,13 +650,7 @@ const updateTransaction = async () => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/transactions/${editingId.value}`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value),
-    })
-    if (!res.ok) throw new Error('更新に失敗しました')
-
+    await apiUpdateTransaction(editingId.value, form.value)
     // 成功時の処理
     closeDialog()
     await fetchTransactions()
@@ -709,7 +662,7 @@ const updateTransaction = async () => {
   }
 }
 
-const deleteTransaction = async () => {
+const deleteTransactionFromDialog = async () => {
   if (!editingId.value) return
 
   if (!confirm('この取引を削除しますか？')) return
@@ -718,11 +671,7 @@ const deleteTransaction = async () => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/transactions/${editingId.value}`), {
-      method: 'DELETE',
-    })
-    if (!res.ok) throw new Error('削除に失敗しました')
-
+    await deleteTransaction(editingId.value)
     // 成功時の処理
     closeDialog()
     await fetchTransactions()
@@ -1262,9 +1211,7 @@ const fetchBudgetNames = async () => {
   const paid = new Date(form.value.paid_date)
   const dateStr = paid.toISOString().slice(0, 10)
   try {
-    const res = await fetch(buildApiUrl(`/budget-names?date_str=${dateStr}`))
-    if (!res.ok) throw new Error('予算名称取得に失敗')
-    const data = await res.json()
+    const data = await getBudgetNames(dateStr)
     budgetNameOptions.value = ['未分類', ...(data.names || [])]
     if (!budgetNameOptions.value.includes(form.value.budget_name)) {
       form.value.budget_name = '未分類'
@@ -1279,7 +1226,10 @@ const fetchBudgetNames = async () => {
 watch(() => form.value.paid_date, fetchBudgetNames)
 
 const sortedTransactions = computed(() => {
-  return [...transactions.value].sort((a, b) => {
+  console.log('sortedTransactions computed - transactions.value:', transactions.value)
+  console.log('sortedTransactions computed - transactions.value.length:', transactions.value.length)
+  
+  const sorted = [...transactions.value].sort((a, b) => {
     if (a.used_date > b.used_date) return -1
     if (a.used_date < b.used_date) return 1
     // used_dateが同じ場合はcreated_atの降順
@@ -1287,6 +1237,10 @@ const sortedTransactions = computed(() => {
     if (a.created_at < b.created_at) return 1
     return 0
   })
+  
+
+  
+  return sorted
 })
 
 // コンポーネントマウント時にカメラサポートをチェック

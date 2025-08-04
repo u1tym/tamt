@@ -170,7 +170,12 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { buildApiUrl } from '../../utils/api'
+import { 
+  getPaymentSources,
+  createPaymentSource,
+  updatePaymentSource as apiUpdatePaymentSource,
+  deletePaymentSource
+} from '../../utils/api'
 
 interface PaymentSource {
   id: number
@@ -203,9 +208,8 @@ const checkMobile = () => {
 
 const fetchPaymentSources = async () => {
   try {
-    const res = await fetch(buildApiUrl('/payment_sources'))
-    if (!res.ok) throw new Error('支出元取得に失敗しました')
-    paymentSources.value = await res.json()
+    const response = await getPaymentSources()
+    paymentSources.value = response.data
   } catch (e: any) {
     error.value = e.message
   }
@@ -247,20 +251,12 @@ const addPaymentSource = async () => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl('/payment_sources'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: form.value.name,
-        closing_day: form.value.closing_day,
-        pay_month_diff: form.value.pay_month_diff,
-        pay_day: form.value.pay_day
-      }),
+    await createPaymentSource({
+      name: form.value.name,
+      closing_day: form.value.closing_day,
+      pay_month_diff: form.value.pay_month_diff,
+      pay_day: form.value.pay_day
     })
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`登録に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
 
     closeDialog()
     await fetchPaymentSources()
@@ -278,20 +274,12 @@ const updatePaymentSource = async () => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/payment_sources/${editingId.value}`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: form.value.name,
-        closing_day: form.value.closing_day,
-        pay_month_diff: form.value.pay_month_diff,
-        pay_day: form.value.pay_day
-      }),
+    await apiUpdatePaymentSource(editingId.value, {
+      name: form.value.name,
+      closing_day: form.value.closing_day,
+      pay_month_diff: form.value.pay_month_diff,
+      pay_day: form.value.pay_day
     })
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`更新に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
 
     closeDialog()
     await fetchPaymentSources()

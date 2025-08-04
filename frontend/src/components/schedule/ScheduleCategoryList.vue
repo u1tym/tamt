@@ -42,7 +42,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import { buildApiUrl } from '../../utils/api'
+import { createActivityCategory, deleteActivityCategory, updateActivityCategory } from '../../utils/api'
 import { getCategoryColor } from './ScheduleCommon'
 
 // Props
@@ -81,18 +81,11 @@ async function addCategory() {
   if (!newCategoryName.value.trim()) return
 
   try {
-    const response = await fetch(buildApiUrl('/activity-categories'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: newCategoryName.value.trim()
-      })
+    const response = await createActivityCategory({
+      name: newCategoryName.value.trim()
     })
-    const data = await response.json()
-    const newCategories = [...props.activityCategories, data]
-    const newSelectedCategories = [...props.selectedCategories, data.id]
+    const newCategories = [...props.activityCategories, response.data]
+    const newSelectedCategories = [...props.selectedCategories, response.data.id]
     
     emit('updateActivityCategories', newCategories)
     emit('updateSelectedCategories', newSelectedCategories)
@@ -106,9 +99,7 @@ async function deleteCategory(categoryId: number) {
   if (!confirm('この活動区分を削除しますか？関連するスケジュールも削除されます。')) return
 
   try {
-    await fetch(buildApiUrl(`/activity-categories/${categoryId}`), {
-      method: 'DELETE'
-    })
+    await deleteActivityCategory(categoryId)
     const newCategories = props.activityCategories.filter(cat => cat.id !== categoryId)
     const newSelectedCategories = props.selectedCategories.filter(id => id !== categoryId)
     
@@ -141,19 +132,10 @@ async function saveCategoryName(category: any) {
   }
 
   try {
-    const response = await fetch(buildApiUrl(`/activity-categories/${category.id}`), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: category.editName.trim()
-      })
+    const response = await updateActivityCategory(category.id, {
+      name: category.editName.trim()
     })
-
-    if (response.ok) {
-      category.name = category.editName.trim()
-    }
+    category.name = response.data.name
   } catch (error) {
     console.error('活動区分の更新に失敗しました:', error)
   }

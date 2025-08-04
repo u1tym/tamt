@@ -98,7 +98,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
-import { buildApiUrl } from '../../utils/api'
+import { getArtists, getPersons, createArtist, updateArtist as apiUpdateArtist, getArtistWithPersons } from '../../utils/api'
 
 interface Person {
   id: number
@@ -132,21 +132,14 @@ const form = ref({
 // データ取得
 const fetchArtists = async () => {
   try {
-    const response = await fetch(buildApiUrl('/artists'))
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    const data = await response.json()
-    artists.value = data
+    const response = await getArtists()
+    artists.value = response.data
 
     // 各アーティストのパーソン情報を取得
     for (const artist of artists.value) {
       try {
-        const personResponse = await fetch(buildApiUrl(`/artists/${artist.id}/with-persons`))
-        if (personResponse.ok) {
-          const artistWithPersons = await personResponse.json()
-          artist.persons = artistWithPersons.persons || []
-        }
+        const artistWithPersons = await getArtistWithPersons(artist.id)
+        artist.persons = artistWithPersons.data.persons || []
       } catch (e) {
         console.error(`アーティスト ${artist.id} のパーソン情報取得エラー:`, e)
         artist.persons = []
@@ -160,12 +153,8 @@ const fetchArtists = async () => {
 
 const fetchPersons = async () => {
   try {
-    const response = await fetch(buildApiUrl('/persons'))
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    const data = await response.json()
-    persons.value = data
+    const response = await getPersons()
+    persons.value = response.data
   } catch (e: any) {
     console.error('パーソンデータ取得エラー:', e)
     error.value = `パーソンデータの取得に失敗しました: ${e.message}`
@@ -198,16 +187,7 @@ const addArtist = async () => {
   isSubmitting.value = true
 
   try {
-    const response = await fetch(buildApiUrl('/artists'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
-    })
-    
-    if (!response.ok) {
-      throw new Error('登録に失敗しました')
-    }
-
+    await createArtist(form.value)
     closeDialog()
     await fetchArtists()
   } catch (e: any) {
@@ -224,16 +204,7 @@ const updateArtist = async () => {
   isSubmitting.value = true
 
   try {
-    const response = await fetch(buildApiUrl(`/artists/${editingId.value}`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
-    })
-    
-    if (!response.ok) {
-      throw new Error('更新に失敗しました')
-    }
-
+    await apiUpdateArtist(editingId.value, form.value)
     closeDialog()
     await fetchArtists()
   } catch (e: any) {

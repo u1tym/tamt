@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -13,6 +13,7 @@ from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+import logging
 
 from database import SessionLocal, engine
 import models
@@ -25,6 +26,10 @@ from type_req import rep_get_payment_summary_rec
 from type_req import rep_parse_recipt
 
 from typing import cast
+
+# ログ設定
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # データベーステーブルを作成
 models.Base.metadata.create_all(bind=engine)
@@ -39,6 +44,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# セッション情報をログ出力するミドルウェア
+@app.middleware("http")
+async def log_session_info(request: Request, call_next):
+    # cash、goods、holiday、knowhow、scheduleのAPIエンドポイントかチェック
+    path = request.url.path
+    if any(keyword in path for keyword in ['/transactions', '/payment_sources', '/budgets', '/knowhows', '/persons', '/artists', '/media', '/goods', '/schedules', '/holidays']):
+        username = request.headers.get('X-Username', 'Unknown')
+        session_token = request.headers.get('X-Session-Token', 'Unknown')
+        logger.info(f"API Request - Path: {path}, Method: {request.method}, Username: {username}, Session Token: {session_token}")
+    
+    response = await call_next(request)
+    return response
+
+# セッション情報を取得するヘルパー関数
+def get_session_info(request: Request) -> schemas.SessionInfo:
+    username = request.headers.get('X-Username', 'Unknown')
+    session_token = request.headers.get('X-Session-Token', 'Unknown')
+    return schemas.SessionInfo(username=username, session_token=session_token)
 
 # データベースセッションの依存関係
 def get_db():
@@ -96,8 +120,8 @@ def calculate_payment_periods() -> rep_calculate_payment_periods:
         }
     }
 
-@app.get("/payment-summary")
-def get_payment_summary(db: Session = Depends(get_db)):
+@app.get("/payment-summary", response_model=schemas.BaseResponse[dict])
+def get_payment_summary(db: Session = Depends(get_db), request: Request = None):
     """支払い額の集計を取得"""
     try:
         # 支払い期間を計算
@@ -127,7 +151,8 @@ def get_payment_summary(db: Session = Depends(get_db)):
                 'transaction_count': len(transactions)
             }
 
-        return summary
+        session_info = get_session_info(request)
+        return schemas.BaseResponse(processing_result=True, session_info=session_info, data=summary)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"支払い集計の取得に失敗しました: {str(e)}")
@@ -364,48 +389,63 @@ async def parse_receipt_endpoint(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"レシート解析中にエラーが発生しました: {str(e)}")
 
 # 既存のエンドポイント
-@app.get("/transactions", response_model=List[schemas.Transaction])
-def read_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@app.get("/transactions", response_model=schemas.ListResponse[schemas.Transaction])
+def read_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
     transactions = crud.get_transactions(db, skip=skip, limit=limit)
-    return transactions
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=transactions)
 
-@app.post("/transactions", response_model=schemas.Transaction)
-def create_transaction(transaction: schemas.TransactionCreate, db: Session = Depends(get_db)):
-    return crud.create_transaction(db=db, tx=transaction)
+@app.post("/transactions", response_model=schemas.BaseResponse[schemas.Transaction])
+def create_transaction(transaction: schemas.TransactionCreate, db: Session = Depends(get_db), request: Request = None):
+    result = crud.create_transaction(db=db, tx=transaction)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.put("/transactions/{transaction_id}", response_model=schemas.Transaction)
-def update_transaction(transaction_id: int, transaction: schemas.TransactionUpdate, db: Session = Depends(get_db)):
+@app.put("/transactions/{transaction_id}", response_model=schemas.BaseResponse[schemas.Transaction])
+def update_transaction(transaction_id: int, transaction: schemas.TransactionUpdate, db: Session = Depends(get_db), request: Request = None):
     db_transaction = crud.get_transaction(db, tx_id=transaction_id)
     if db_transaction is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    return crud.update_transaction(db=db, tx_id=transaction_id, tx=transaction)
+    result = crud.update_transaction(db=db, tx_id=transaction_id, tx=transaction)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.delete("/transactions/{transaction_id}")
-def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
-    db_transaction = crud.get_transaction(db, tx_id=transaction_id)
-    if db_transaction is None:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    crud.delete_transaction(db=db, transaction_id=transaction_id)
-    return {"message": "Transaction deleted successfully"}
+@app.delete("/transactions/{transaction_id}", response_model=schemas.SimpleResponse)
+def delete_transaction(transaction_id: int, db: Session = Depends(get_db), request: Request = None):
+    try:
+        db_transaction = crud.get_transaction(db, tx_id=transaction_id)
+        if db_transaction is None:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        crud.delete_transaction(db=db, tx_id=transaction_id)
+        session_info = get_session_info(request)
+        return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="Transaction deleted successfully")
+    except Exception as e:
+        print(f"Error deleting transaction {transaction_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete transaction: {str(e)}")
 
-@app.get("/payment_sources", response_model=List[schemas.PaymentSource])
-def read_payment_sources(db: Session = Depends(get_db)):
+@app.get("/payment_sources", response_model=schemas.ListResponse[schemas.PaymentSource])
+def read_payment_sources(db: Session = Depends(get_db), request: Request = None):
     payment_sources = crud.get_payment_sources(db)
-    return payment_sources
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=payment_sources)
 
-@app.post("/payment_sources", response_model=schemas.PaymentSource)
-def create_payment_source(payment_source: schemas.PaymentSourceCreate, db: Session = Depends(get_db)):
-    return crud.create_payment_source(db=db, source=payment_source)
+@app.post("/payment_sources", response_model=schemas.BaseResponse[schemas.PaymentSource])
+def create_payment_source(payment_source: schemas.PaymentSourceCreate, db: Session = Depends(get_db), request: Request = None):
+    result = crud.create_payment_source(db=db, source=payment_source)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.put("/payment_sources/{payment_source_id}", response_model=schemas.PaymentSource)
-def update_payment_source(payment_source_id: int, payment_source: schemas.PaymentSourceCreate, db: Session = Depends(get_db)):
+@app.put("/payment_sources/{payment_source_id}", response_model=schemas.BaseResponse[schemas.PaymentSource])
+def update_payment_source(payment_source_id: int, payment_source: schemas.PaymentSourceCreate, db: Session = Depends(get_db), request: Request = None):
     db_payment_source = crud.get_payment_source(db, source_id=payment_source_id)
     if db_payment_source is None:
         raise HTTPException(status_code=404, detail="Payment source not found")
-    return crud.update_payment_source(db=db, source_id=payment_source_id, source=payment_source)
+    result = crud.update_payment_source(db=db, source_id=payment_source_id, source=payment_source)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.delete("/payment_sources/{payment_source_id}")
-def delete_payment_source(payment_source_id: int, db: Session = Depends(get_db)):
+@app.delete("/payment_sources/{payment_source_id}", response_model=schemas.SimpleResponse)
+def delete_payment_source(payment_source_id: int, db: Session = Depends(get_db), request: Request = None):
     db_payment_source = crud.get_payment_source(db, source_id=payment_source_id)
     if db_payment_source is None:
         raise HTTPException(status_code=404, detail="Payment source not found")
@@ -422,29 +462,33 @@ def delete_payment_source(payment_source_id: int, db: Session = Depends(get_db))
         )
 
     crud.delete_payment_source(db=db, source_id=payment_source_id)
-    return {"message": "Payment source deleted successfully"}
+    session_info = get_session_info(request)
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="Payment source deleted successfully")
 
 # Budget API endpoints
 
-@app.get("/budgets/{target_year}/{target_month}", response_model=List[schemas.Budget])
-def read_budgets_by_year_month(target_year: int, target_month: int, db: Session = Depends(get_db)):
+@app.get("/budgets/{target_year}/{target_month}", response_model=schemas.ListResponse[schemas.Budget])
+def read_budgets_by_year_month(target_year: int, target_month: int, db: Session = Depends(get_db), request: Request = None):
     """指定された年月の予算一覧を取得"""
     if target_month < 1 or target_month > 12:
         raise HTTPException(status_code=400, detail="月は1～12の範囲で指定してください")
 
     budgets = crud.get_budgets_by_year_month(db, target_year=target_year, target_month=target_month)
-    return budgets
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=budgets)
 
-@app.post("/budgets", response_model=schemas.Budget)
-def create_budget(budget: schemas.BudgetCreate, db: Session = Depends(get_db)):
+@app.post("/budgets", response_model=schemas.BaseResponse[schemas.Budget])
+def create_budget(budget: schemas.BudgetCreate, db: Session = Depends(get_db), request: Request = None):
     """新規予算を作成"""
     if budget.target_month < 1 or budget.target_month > 12:
         raise HTTPException(status_code=400, detail="月は1～12の範囲で指定してください")
 
-    return crud.create_budget(db=db, budget=budget)
+    result = crud.create_budget(db=db, budget=budget)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.put("/budgets/{budget_id}", response_model=schemas.Budget)
-def update_budget(budget_id: int, budget: schemas.BudgetUpdate, db: Session = Depends(get_db)):
+@app.put("/budgets/{budget_id}", response_model=schemas.BaseResponse[schemas.Budget])
+def update_budget(budget_id: int, budget: schemas.BudgetUpdate, db: Session = Depends(get_db), request: Request = None):
     """予算を更新"""
     db_budget = crud.get_budget(db, budget_id=budget_id)
     if db_budget is None:
@@ -454,20 +498,23 @@ def update_budget(budget_id: int, budget: schemas.BudgetUpdate, db: Session = De
     if budget.target_month is not None and (budget.target_month < 1 or budget.target_month > 12):
         raise HTTPException(status_code=400, detail="月は1～12の範囲で指定してください")
 
-    return crud.update_budget(db=db, budget_id=budget_id, budget=budget)
+    result = crud.update_budget(db=db, budget_id=budget_id, budget=budget)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.delete("/budgets/{budget_id}")
-def delete_budget(budget_id: int, db: Session = Depends(get_db)):
+@app.delete("/budgets/{budget_id}", response_model=schemas.SimpleResponse)
+def delete_budget(budget_id: int, db: Session = Depends(get_db), request: Request = None):
     """予算を削除"""
     db_budget = crud.get_budget(db, budget_id=budget_id)
     if db_budget is None:
         raise HTTPException(status_code=404, detail="Budget not found")
 
     crud.delete_budget(db=db, budget_id=budget_id)
-    return {"message": "Budget deleted successfully"}
+    session_info = get_session_info(request)
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="Budget deleted successfully")
 
-@app.post("/budgets/copy")
-def copy_budgets(source_year: int, source_month: int, target_year: int, target_month: int, db: Session = Depends(get_db)):
+@app.post("/budgets/copy", response_model=schemas.SimpleResponse)
+def copy_budgets(source_year: int, source_month: int, target_year: int, target_month: int, db: Session = Depends(get_db), request: Request = None):
     """指定された年月の予算を別の年月にコピー"""
     if source_month < 1 or source_month > 12 or target_month < 1 or target_month > 12:
         raise HTTPException(status_code=400, detail="月は1～12の範囲で指定してください")
@@ -480,13 +527,12 @@ def copy_budgets(source_year: int, source_month: int, target_year: int, target_m
         target_month=target_month
     )
 
-    return {
-        "message": f"{source_year}年{source_month}月の予算を{target_year}年{target_month}月にコピーしました",
-        "copied_count": len(copied_budgets)
-    }
+    session_info = get_session_info(request)
+    message = f"{source_year}年{source_month}月の予算を{target_year}年{target_month}月にコピーしました"
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message=message)
 
-@app.post("/budgets/{budget_id}/move-up")
-def move_budget_up(budget_id: int, db: Session = Depends(get_db)):
+@app.post("/budgets/{budget_id}/move-up", response_model=schemas.SimpleResponse)
+def move_budget_up(budget_id: int, db: Session = Depends(get_db), request: Request = None):
     """予算を上に移動"""
     db_budget = crud.get_budget(db, budget_id=budget_id)
     if db_budget is None:
@@ -496,10 +542,11 @@ def move_budget_up(budget_id: int, db: Session = Depends(get_db)):
     if updated_budget is None:
         raise HTTPException(status_code=400, detail="既に最上部にあります")
 
-    return {"message": "予算を上に移動しました"}
+    session_info = get_session_info(request)
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="予算を上に移動しました")
 
-@app.post("/budgets/{budget_id}/move-down")
-def move_budget_down(budget_id: int, db: Session = Depends(get_db)):
+@app.post("/budgets/{budget_id}/move-down", response_model=schemas.SimpleResponse)
+def move_budget_down(budget_id: int, db: Session = Depends(get_db), request: Request = None):
     """予算を下に移動"""
     db_budget = crud.get_budget(db, budget_id=budget_id)
     if db_budget is None:
@@ -509,7 +556,8 @@ def move_budget_down(budget_id: int, db: Session = Depends(get_db)):
     if updated_budget is None:
         raise HTTPException(status_code=400, detail="既に最下部にあります")
 
-    return {"message": "予算を下に移動しました"}
+    session_info = get_session_info(request)
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="予算を下に移動しました")
 
 @app.post("/calculate-payment-date")
 def calculate_payment_date(request: schemas.PaymentDateRequest, db: Session = Depends(get_db)):
@@ -565,8 +613,8 @@ def get_budget_names(date_str: str, db: Session = Depends(get_db)):
     names = [b.name for b in budgets]
     return {"names": names}
 
-@app.get("/budgets/{year}/{month}/summary")
-def get_budget_summaries(year: int, month: int, db: Session = Depends(get_db)):
+@app.get("/budgets/{year}/{month}/summary", response_model=schemas.ListResponse[dict])
+def get_budget_summaries(year: int, month: int, db: Session = Depends(get_db), request: Request = None):
     """指定年月の各予算名称ごとに支払日が対象期間内の取引合計金額を返す"""
     # 期間計算（23日～翌月22日）
     from datetime import date
@@ -585,10 +633,12 @@ def get_budget_summaries(year: int, month: int, db: Session = Depends(get_db)):
         models.Transaction.paid_date <= end_date
     ).group_by(models.Transaction.budget_name).all()
     # 返却形式を整形
-    return [{"name": r.budget_name, "total": float(r.total or 0)} for r in results]
+    data = [{"name": r.budget_name, "total": float(r.total or 0)} for r in results]
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=data)
 
-@app.get("/debit-summary")
-def get_debit_summary(db: Session = Depends(get_db)):
+@app.get("/debit-summary", response_model=schemas.ListResponse[dict])
+def get_debit_summary(db: Session = Depends(get_db), request: Request = None):
     """支払日毎の取引金額合計を取得"""
     try:
         from datetime import date
@@ -667,7 +717,8 @@ def get_debit_summary(db: Session = Depends(get_db)):
             })
 
         print(f"Debug: Final result count: {len(result)}")
-        return result
+        session_info = get_session_info(request)
+        return schemas.ListResponse(processing_result=True, session_info=session_info, data=result)
 
     except Exception as e:
         print(f"Error in get_debit_summary: {e}")
@@ -675,12 +726,13 @@ def get_debit_summary(db: Session = Depends(get_db)):
 
 # Knowhow API endpoints
 
-@app.get("/knowhows", response_model=List[schemas.Knowhow])
-def read_knowhows(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@app.get("/knowhows", response_model=schemas.ListResponse[schemas.Knowhow])
+def read_knowhows(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
     """KNOWHOW一覧を取得"""
     try:
         knowhows = crud.get_knowhows(db, skip=skip, limit=limit)
-        return knowhows
+        session_info = get_session_info(request)
+        return schemas.ListResponse(processing_result=True, session_info=session_info, data=knowhows)
     except Exception as e:
         print(f"KNOWHOW list error: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -713,79 +765,90 @@ def search_knowhows(
     )
     return knowhows
 
-@app.get("/knowhows/tree")
-def get_knowhow_tree(db: Session = Depends(get_db)):
+@app.get("/knowhows/tree", response_model=schemas.BaseResponse[dict])
+def get_knowhow_tree(db: Session = Depends(get_db), request: Request = None):
     """KNOWHOWのツリー構造を取得"""
     print("KNOWHOW tree endpoint called")
     try:
         print("Calling crud.get_knowhow_tree...")
         tree = crud.get_knowhow_tree(db)
         print(f"Tree result: {tree}")
-        return tree
+        session_info = get_session_info(request)
+        return schemas.BaseResponse(processing_result=True, session_info=session_info, data=tree)
     except Exception as e:
         print(f"KNOWHOW tree error: {e}")
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.get("/knowhows/{knowhow_id}", response_model=schemas.Knowhow)
-def read_knowhow(knowhow_id: int, db: Session = Depends(get_db)):
+@app.get("/knowhows/{knowhow_id}", response_model=schemas.BaseResponse[schemas.Knowhow])
+def read_knowhow(knowhow_id: int, db: Session = Depends(get_db), request: Request = None):
     """特定のKNOWHOWを取得"""
     knowhow = crud.get_knowhow(db, knowhow_id=knowhow_id)
     if knowhow is None:
         raise HTTPException(status_code=404, detail="Knowhow not found")
-    return knowhow
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=knowhow)
 
-@app.post("/knowhows", response_model=schemas.Knowhow)
-def create_knowhow(knowhow: schemas.KnowhowCreate, db: Session = Depends(get_db)):
+@app.post("/knowhows", response_model=schemas.BaseResponse[schemas.Knowhow])
+def create_knowhow(knowhow: schemas.KnowhowCreate, db: Session = Depends(get_db), request: Request = None):
     """新しいKNOWHOWを作成"""
-    return crud.create_knowhow(db=db, knowhow=knowhow)
+    result = crud.create_knowhow(db=db, knowhow=knowhow)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.put("/knowhows/{knowhow_id}", response_model=schemas.Knowhow)
-def update_knowhow(knowhow_id: int, knowhow: schemas.KnowhowUpdate, db: Session = Depends(get_db)):
+@app.put("/knowhows/{knowhow_id}", response_model=schemas.BaseResponse[schemas.Knowhow])
+def update_knowhow(knowhow_id: int, knowhow: schemas.KnowhowUpdate, db: Session = Depends(get_db), request: Request = None):
     """KNOWHOWを更新"""
     db_knowhow = crud.update_knowhow(db, knowhow_id=knowhow_id, knowhow=knowhow)
     if db_knowhow is None:
         raise HTTPException(status_code=404, detail="Knowhow not found")
-    return db_knowhow
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=db_knowhow)
 
-@app.delete("/knowhows/{knowhow_id}")
-def delete_knowhow(knowhow_id: int, db: Session = Depends(get_db)):
+@app.delete("/knowhows/{knowhow_id}", response_model=schemas.SimpleResponse)
+def delete_knowhow(knowhow_id: int, db: Session = Depends(get_db), request: Request = None):
     """KNOWHOWを削除（論理削除）"""
     success = crud.delete_knowhow(db, knowhow_id=knowhow_id)
     if not success:
         raise HTTPException(status_code=404, detail="Knowhow not found")
-    return {"message": "Knowhow deleted successfully"}
+    session_info = get_session_info(request)
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="Knowhow deleted successfully")
 
-@app.post("/knowhows/{knowhow_id}/move-up")
-def move_knowhow_up(knowhow_id: int, db: Session = Depends(get_db)):
+@app.post("/knowhows/{knowhow_id}/move-up", response_model=schemas.SimpleResponse)
+def move_knowhow_up(knowhow_id: int, db: Session = Depends(get_db), request: Request = None):
     """KNOWHOWを上に移動"""
     knowhow = crud.move_knowhow_up(db, knowhow_id=knowhow_id)
     if knowhow is None:
         raise HTTPException(status_code=404, detail="Knowhow not found")
-    return {"message": "Knowhow moved up successfully"}
+    session_info = get_session_info(request)
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="Knowhow moved up successfully")
 
-@app.post("/knowhows/{knowhow_id}/move-down")
-def move_knowhow_down(knowhow_id: int, db: Session = Depends(get_db)):
+@app.post("/knowhows/{knowhow_id}/move-down", response_model=schemas.SimpleResponse)
+def move_knowhow_down(knowhow_id: int, db: Session = Depends(get_db), request: Request = None):
     """KNOWHOWを下に移動"""
     knowhow = crud.move_knowhow_down(db, knowhow_id=knowhow_id)
     if knowhow is None:
         raise HTTPException(status_code=404, detail="Knowhow not found")
-    return {"message": "Knowhow moved down successfully"}
+    session_info = get_session_info(request)
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="Knowhow moved down successfully")
 
 # 大項目管理エンドポイント
-@app.get("/major-categories", response_model=List[schemas.MajorCategory])
-def read_major_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@app.get("/major-categories", response_model=schemas.ListResponse[schemas.MajorCategory])
+def read_major_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
     """大項目一覧を取得"""
-    return crud.get_major_categories(db, skip=skip, limit=limit)
+    major_categories = crud.get_major_categories(db, skip=skip, limit=limit)
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=major_categories)
 
-@app.get("/major-categories/{major_category_id}", response_model=schemas.MajorCategory)
-def read_major_category(major_category_id: int, db: Session = Depends(get_db)):
+@app.get("/major-categories/{major_category_id}", response_model=schemas.BaseResponse[schemas.MajorCategory])
+def read_major_category(major_category_id: int, db: Session = Depends(get_db), request: Request = None):
     """特定の大項目を取得"""
     major_category = crud.get_major_category(db, major_category_id=major_category_id)
     if major_category is None:
         raise HTTPException(status_code=404, detail="Major category not found")
-    return major_category
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=major_category)
 
 @app.post("/major-categories", response_model=schemas.MajorCategory)
 def create_major_category(major_category: schemas.MajorCategoryCreate, db: Session = Depends(get_db)):
@@ -809,23 +872,28 @@ def delete_major_category(major_category_id: int, db: Session = Depends(get_db))
     return {"message": "Major category deleted successfully"}
 
 # 中項目管理エンドポイント
-@app.get("/major-categories/{major_category_id}/middle-categories", response_model=List[schemas.MiddleCategory])
-def read_middle_categories(major_category_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@app.get("/major-categories/{major_category_id}/middle-categories", response_model=schemas.ListResponse[schemas.MiddleCategory])
+def read_middle_categories(major_category_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
     """中項目一覧を取得"""
-    return crud.get_middle_categories(db, major_category_id=major_category_id, skip=skip, limit=limit)
+    middle_categories = crud.get_middle_categories(db, major_category_id=major_category_id, skip=skip, limit=limit)
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=middle_categories)
 
-@app.get("/middle-categories", response_model=List[schemas.MiddleCategory])
-def read_all_middle_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@app.get("/middle-categories", response_model=schemas.ListResponse[schemas.MiddleCategory])
+def read_all_middle_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
     """全中項目一覧を取得"""
-    return crud.get_all_middle_categories(db, skip=skip, limit=limit)
+    middle_categories = crud.get_all_middle_categories(db, skip=skip, limit=limit)
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=middle_categories)
 
-@app.get("/middle-categories/{middle_category_id}", response_model=schemas.MiddleCategory)
-def read_middle_category(middle_category_id: int, db: Session = Depends(get_db)):
+@app.get("/middle-categories/{middle_category_id}", response_model=schemas.BaseResponse[schemas.MiddleCategory])
+def read_middle_category(middle_category_id: int, db: Session = Depends(get_db), request: Request = None):
     """特定の中項目を取得"""
     middle_category = crud.get_middle_category(db, middle_category_id=middle_category_id)
     if middle_category is None:
         raise HTTPException(status_code=404, detail="Middle category not found")
-    return middle_category
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=middle_category)
 
 @app.post("/middle-categories", response_model=schemas.MiddleCategory)
 def create_middle_category(middle_category: schemas.MiddleCategoryCreate, db: Session = Depends(get_db)):
@@ -851,92 +919,114 @@ def delete_middle_category(middle_category_id: int, db: Session = Depends(get_db
 # GOODS管理システム用のAPIエンドポイント
 
 # Person API
-@app.get("/persons", response_model=List[schemas.Person])
-def read_persons(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_persons(db, skip=skip, limit=limit)
+@app.get("/persons", response_model=schemas.ListResponse[schemas.Person])
+def read_persons(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
+    persons = crud.get_persons(db, skip=skip, limit=limit)
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=persons)
 
-@app.get("/persons/{person_id}", response_model=schemas.Person)
-def read_person(person_id: int, db: Session = Depends(get_db)):
+@app.get("/persons/{person_id}", response_model=schemas.BaseResponse[schemas.Person])
+def read_person(person_id: int, db: Session = Depends(get_db), request: Request = None):
     person = crud.get_person(db, person_id=person_id)
     if person is None:
         raise HTTPException(status_code=404, detail="Person not found")
-    return person
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=person)
 
-@app.post("/persons", response_model=schemas.Person)
-def create_person(person: schemas.PersonCreate, db: Session = Depends(get_db)):
-    return crud.create_person(db=db, person=person)
+@app.post("/persons", response_model=schemas.BaseResponse[schemas.Person])
+def create_person(person: schemas.PersonCreate, db: Session = Depends(get_db), request: Request = None):
+    result = crud.create_person(db=db, person=person)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.put("/persons/{person_id}", response_model=schemas.Person)
-def update_person(person_id: int, person: schemas.PersonUpdate, db: Session = Depends(get_db)):
+@app.put("/persons/{person_id}", response_model=schemas.BaseResponse[schemas.Person])
+def update_person(person_id: int, person: schemas.PersonUpdate, db: Session = Depends(get_db), request: Request = None):
     updated_person = crud.update_person(db=db, person_id=person_id, person=person)
     if updated_person is None:
         raise HTTPException(status_code=404, detail="Person not found")
-    return updated_person
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=updated_person)
 
 # Artist API
-@app.get("/artists", response_model=List[schemas.Artist])
-def read_artists(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_artists(db, skip=skip, limit=limit)
+@app.get("/artists", response_model=schemas.ListResponse[schemas.Artist])
+def read_artists(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
+    artists = crud.get_artists(db, skip=skip, limit=limit)
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=artists)
 
-@app.get("/artists/{artist_id}", response_model=schemas.Artist)
-def read_artist(artist_id: int, db: Session = Depends(get_db)):
+@app.get("/artists/{artist_id}", response_model=schemas.BaseResponse[schemas.Artist])
+def read_artist(artist_id: int, db: Session = Depends(get_db), request: Request = None):
     artist = crud.get_artist(db, artist_id=artist_id)
     if artist is None:
         raise HTTPException(status_code=404, detail="Artist not found")
-    return artist
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=artist)
 
-@app.get("/artists/{artist_id}/with-persons")
-def read_artist_with_persons(artist_id: int, db: Session = Depends(get_db)):
+@app.get("/artists/{artist_id}/with-persons", response_model=schemas.BaseResponse[schemas.ArtistWithPersons])
+def read_artist_with_persons(artist_id: int, db: Session = Depends(get_db), request: Request = None):
     artist_with_persons = crud.get_artist_with_persons(db, artist_id=artist_id)
     if artist_with_persons is None:
         raise HTTPException(status_code=404, detail="Artist not found")
-    return artist_with_persons
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=artist_with_persons)
 
-@app.post("/artists", response_model=schemas.Artist)
-def create_artist(artist: schemas.ArtistCreate, db: Session = Depends(get_db)):
-    return crud.create_artist(db=db, artist=artist)
+@app.post("/artists", response_model=schemas.BaseResponse[schemas.Artist])
+def create_artist(artist: schemas.ArtistCreate, db: Session = Depends(get_db), request: Request = None):
+    result = crud.create_artist(db=db, artist=artist)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.put("/artists/{artist_id}", response_model=schemas.Artist)
-def update_artist(artist_id: int, artist: schemas.ArtistUpdate, db: Session = Depends(get_db)):
+@app.put("/artists/{artist_id}", response_model=schemas.BaseResponse[schemas.Artist])
+def update_artist(artist_id: int, artist: schemas.ArtistUpdate, db: Session = Depends(get_db), request: Request = None):
     updated_artist = crud.update_artist(db=db, artist_id=artist_id, artist=artist)
     if updated_artist is None:
         raise HTTPException(status_code=404, detail="Artist not found")
-    return updated_artist
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=updated_artist)
 
 # Media API
-@app.get("/media", response_model=List[schemas.Media])
-def read_media_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_media_list(db, skip=skip, limit=limit)
+@app.get("/media", response_model=schemas.ListResponse[schemas.Media])
+def read_media_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
+    media_list = crud.get_media_list(db, skip=skip, limit=limit)
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=media_list)
 
-@app.get("/media/{media_id}", response_model=schemas.Media)
-def read_media(media_id: int, db: Session = Depends(get_db)):
+@app.get("/media/{media_id}", response_model=schemas.BaseResponse[schemas.Media])
+def read_media(media_id: int, db: Session = Depends(get_db), request: Request = None):
     media = crud.get_media(db, media_id=media_id)
     if media is None:
         raise HTTPException(status_code=404, detail="Media not found")
-    return media
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=media)
 
-@app.post("/media", response_model=schemas.Media)
-def create_media(media: schemas.MediaCreate, db: Session = Depends(get_db)):
-    return crud.create_media(db=db, media=media)
+@app.post("/media", response_model=schemas.BaseResponse[schemas.Media])
+def create_media(media: schemas.MediaCreate, db: Session = Depends(get_db), request: Request = None):
+    result = crud.create_media(db=db, media=media)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.put("/media/{media_id}", response_model=schemas.Media)
-def update_media(media_id: int, media: schemas.MediaUpdate, db: Session = Depends(get_db)):
+@app.put("/media/{media_id}", response_model=schemas.BaseResponse[schemas.Media])
+def update_media(media_id: int, media: schemas.MediaUpdate, db: Session = Depends(get_db), request: Request = None):
     updated_media = crud.update_media(db=db, media_id=media_id, media=media)
     if updated_media is None:
         raise HTTPException(status_code=404, detail="Media not found")
-    return updated_media
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=updated_media)
 
 # Goods API
-@app.get("/goods", response_model=List[schemas.Goods])
-def read_goods_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_goods_list(db, skip=skip, limit=limit)
+@app.get("/goods", response_model=schemas.ListResponse[schemas.Goods])
+def read_goods_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
+    goods = crud.get_goods_list(db, skip=skip, limit=limit)
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=goods)
 
-@app.get("/goods/{goods_id}", response_model=schemas.Goods)
-def read_goods(goods_id: int, db: Session = Depends(get_db)):
+@app.get("/goods/{goods_id}", response_model=schemas.BaseResponse[schemas.Goods])
+def read_goods(goods_id: int, db: Session = Depends(get_db), request: Request = None):
     goods = crud.get_goods(db, goods_id=goods_id)
     if goods is None:
         raise HTTPException(status_code=404, detail="Goods not found")
-    return goods
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=goods)
 
 @app.get("/goods/{goods_id}/with-details")
 def read_goods_with_details(goods_id: int, db: Session = Depends(get_db)):
@@ -945,23 +1035,27 @@ def read_goods_with_details(goods_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Goods not found")
     return goods_with_details
 
-@app.post("/goods", response_model=schemas.Goods)
-def create_goods(goods: schemas.GoodsCreate, db: Session = Depends(get_db)):
-    return crud.create_goods(db=db, goods=goods)
+@app.post("/goods", response_model=schemas.BaseResponse[schemas.Goods])
+def create_goods(goods: schemas.GoodsCreate, db: Session = Depends(get_db), request: Request = None):
+    result = crud.create_goods(db=db, goods=goods)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.put("/goods/{goods_id}", response_model=schemas.Goods)
-def update_goods(goods_id: int, goods: schemas.GoodsUpdate, db: Session = Depends(get_db)):
+@app.put("/goods/{goods_id}", response_model=schemas.BaseResponse[schemas.Goods])
+def update_goods(goods_id: int, goods: schemas.GoodsUpdate, db: Session = Depends(get_db), request: Request = None):
     updated_goods = crud.update_goods(db=db, goods_id=goods_id, goods=goods)
     if updated_goods is None:
         raise HTTPException(status_code=404, detail="Goods not found")
-    return updated_goods
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=updated_goods)
 
-@app.delete("/goods/{goods_id}")
-def delete_goods(goods_id: int, db: Session = Depends(get_db)):
+@app.delete("/goods/{goods_id}", response_model=schemas.SimpleResponse)
+def delete_goods(goods_id: int, db: Session = Depends(get_db), request: Request = None):
     success = crud.delete_goods(db=db, goods_id=goods_id)
     if not success:
         raise HTTPException(status_code=404, detail="Goods not found")
-    return {"message": "Goods deleted successfully"}
+    session_info = get_session_info(request)
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="Goods deleted successfully")
 
 # 画像取得API
 @app.get("/goods/{goods_id}/images/{image_id}")
@@ -983,10 +1077,12 @@ def get_goods_image(goods_id: int, image_id: int, db: Session = Depends(get_db))
 # スケジュール管理用のAPIエンドポイント
 
 # ActivityCategory API
-@app.get("/activity-categories", response_model=List[schemas.ActivityCategory])
-def read_activity_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@app.get("/activity-categories", response_model=schemas.ListResponse[schemas.ActivityCategory])
+def read_activity_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
     """活動区分一覧を取得"""
-    return crud.get_activity_categories(db, skip=skip, limit=limit)
+    activity_categories = crud.get_activity_categories(db, skip=skip, limit=limit)
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=activity_categories)
 
 @app.get("/activity-categories/{activity_category_id}", response_model=schemas.ActivityCategory)
 def read_activity_category(activity_category_id: int, db: Session = Depends(get_db)):
@@ -996,35 +1092,41 @@ def read_activity_category(activity_category_id: int, db: Session = Depends(get_
         raise HTTPException(status_code=404, detail="Activity category not found")
     return db_activity_category
 
-@app.post("/activity-categories", response_model=schemas.ActivityCategory)
-def create_activity_category(activity_category: schemas.ActivityCategoryCreate, db: Session = Depends(get_db)):
+@app.post("/activity-categories", response_model=schemas.BaseResponse[schemas.ActivityCategory])
+def create_activity_category(activity_category: schemas.ActivityCategoryCreate, db: Session = Depends(get_db), request: Request = None):
     """活動区分を作成"""
-    return crud.create_activity_category(db=db, activity_category=activity_category)
+    result = crud.create_activity_category(db=db, activity_category=activity_category)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.put("/activity-categories/{activity_category_id}", response_model=schemas.ActivityCategory)
-def update_activity_category(activity_category_id: int, activity_category: schemas.ActivityCategoryUpdate, db: Session = Depends(get_db)):
+@app.put("/activity-categories/{activity_category_id}", response_model=schemas.BaseResponse[schemas.ActivityCategory])
+def update_activity_category(activity_category_id: int, activity_category: schemas.ActivityCategoryUpdate, db: Session = Depends(get_db), request: Request = None):
     """活動区分を更新"""
     db_activity_category = crud.update_activity_category(db, activity_category_id=activity_category_id, activity_category=activity_category)
     if db_activity_category is None:
         raise HTTPException(status_code=404, detail="Activity category not found")
-    return db_activity_category
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=db_activity_category)
 
-@app.delete("/activity-categories/{activity_category_id}")
-def delete_activity_category(activity_category_id: int, db: Session = Depends(get_db)):
+@app.delete("/activity-categories/{activity_category_id}", response_model=schemas.SimpleResponse)
+def delete_activity_category(activity_category_id: int, db: Session = Depends(get_db), request: Request = None):
     """活動区分を削除"""
     success = crud.delete_activity_category(db, activity_category_id=activity_category_id)
     if not success:
         raise HTTPException(status_code=404, detail="Activity category not found")
-    return {"message": "Activity category deleted successfully"}
+    session_info = get_session_info(request)
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="Activity category deleted successfully")
 
 # Schedule API
-@app.get("/schedules", response_model=List[schemas.Schedule])
-def read_schedules(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@app.get("/schedules", response_model=schemas.ListResponse[schemas.Schedule])
+def read_schedules(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
     """スケジュール一覧を取得"""
-    return crud.get_schedules(db, skip=skip, limit=limit)
+    schedules = crud.get_schedules(db, skip=skip, limit=limit)
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=schedules)
 
-@app.get("/schedules/month/{year}/{month}", response_model=List[schemas.ScheduleWithCategory])
-def read_schedules_by_month(year: int, month: int, db: Session = Depends(get_db)):
+@app.get("/schedules/month/{year}/{month}", response_model=schemas.ListResponse[schemas.ScheduleWithCategory])
+def read_schedules_by_month(year: int, month: int, db: Session = Depends(get_db), request: Request = None):
     """指定月のスケジュールを取得"""
     schedules = crud.get_schedules_by_month(db, year=year, month=month)
     result = []
@@ -1047,7 +1149,8 @@ def read_schedules_by_month(year: int, month: int, db: Session = Depends(get_db)
             'activity_category': category
         }
         result.append(schedule_dict)
-    return result
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=result)
 
 @app.get("/schedules/filtered/{year}/{month}")
 def read_schedules_by_activity_categories(year: int, month: int, category_ids: str, db: Session = Depends(get_db)):
@@ -1079,8 +1182,8 @@ def read_schedules_by_activity_categories(year: int, month: int, category_ids: s
         result.append(schedule_dict)
     return result
 
-@app.get("/schedules/week/{start_date}")
-def read_schedules_by_week(start_date: str, db: Session = Depends(get_db)):
+@app.get("/schedules/week/{start_date}", response_model=schemas.ListResponse[schemas.ScheduleWithCategory])
+def read_schedules_by_week(start_date: str, db: Session = Depends(get_db), request: Request = None):
     """指定週のスケジュールを取得"""
     try:
         # start_dateは "YYYY-MM-DD" 形式
@@ -1108,7 +1211,8 @@ def read_schedules_by_week(start_date: str, db: Session = Depends(get_db)):
                 'activity_category': category
             }
             result.append(schedule_dict)
-        return result
+        session_info = get_session_info(request)
+        return schemas.ListResponse(processing_result=True, session_info=session_info, data=result)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
 
@@ -1137,35 +1241,40 @@ def read_schedule(schedule_id: int, db: Session = Depends(get_db)):
         'activity_category': category
     }
 
-@app.post("/schedules", response_model=schemas.Schedule)
-def create_schedule(schedule: schemas.ScheduleCreate, db: Session = Depends(get_db)):
+@app.post("/schedules", response_model=schemas.BaseResponse[schemas.Schedule])
+def create_schedule(schedule: schemas.ScheduleCreate, db: Session = Depends(get_db), request: Request = None):
     """スケジュールを作成"""
-    return crud.create_schedule(db=db, schedule=schedule)
+    result = crud.create_schedule(db=db, schedule=schedule)
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
-@app.put("/schedules/{schedule_id}", response_model=schemas.Schedule)
-def update_schedule(schedule_id: int, schedule: schemas.ScheduleUpdate, db: Session = Depends(get_db)):
+@app.put("/schedules/{schedule_id}", response_model=schemas.BaseResponse[schemas.Schedule])
+def update_schedule(schedule_id: int, schedule: schemas.ScheduleUpdate, db: Session = Depends(get_db), request: Request = None):
     """スケジュールを更新"""
     db_schedule = crud.update_schedule(db, schedule_id=schedule_id, schedule=schedule)
     if db_schedule is None:
         raise HTTPException(status_code=404, detail="Schedule not found")
-    return db_schedule
+    session_info = get_session_info(request)
+    return schemas.BaseResponse(processing_result=True, session_info=session_info, data=db_schedule)
 
-@app.delete("/schedules/{schedule_id}")
-def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
+@app.delete("/schedules/{schedule_id}", response_model=schemas.SimpleResponse)
+def delete_schedule(schedule_id: int, db: Session = Depends(get_db), request: Request = None):
     """スケジュールを削除"""
     success = crud.delete_schedule(db, schedule_id=schedule_id)
     if not success:
         raise HTTPException(status_code=404, detail="Schedule not found")
-    return {"message": "Schedule deleted successfully"}
+    session_info = get_session_info(request)
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="Schedule deleted successfully")
 
 # 休日管理のエンドポイント
-@app.get("/holidays", response_model=List[schemas.Holiday])
-def get_holidays(db: Session = Depends(get_db)):
+@app.get("/holidays", response_model=schemas.ListResponse[schemas.Holiday])
+def get_holidays(db: Session = Depends(get_db), request: Request = None):
     holidays = db.query(models.Holiday).order_by(models.Holiday.date).all()
-    return holidays
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=holidays)
 
-@app.get("/holidays/month/{year}/{month}", response_model=List[schemas.Holiday])
-def get_holidays_by_month(year: int, month: int, db: Session = Depends(get_db)):
+@app.get("/holidays/month/{year}/{month}", response_model=schemas.ListResponse[schemas.Holiday])
+def get_holidays_by_month(year: int, month: int, db: Session = Depends(get_db), request: Request = None):
     start_date = date(year, month, 1)
     if month == 12:
         end_date = date(year + 1, 1, 1) - timedelta(days=1)
@@ -1176,22 +1285,24 @@ def get_holidays_by_month(year: int, month: int, db: Session = Depends(get_db)):
         models.Holiday.date >= start_date,
         models.Holiday.date <= end_date
     ).order_by(models.Holiday.date).all()
-    return holidays
+    session_info = get_session_info(request)
+    return schemas.ListResponse(processing_result=True, session_info=session_info, data=holidays)
 
-@app.post("/holidays", response_model=schemas.Holiday)
-def create_holiday(holiday: schemas.HolidayCreate, db: Session = Depends(get_db)):
+@app.post("/holidays", response_model=schemas.BaseResponse[schemas.Holiday])
+def create_holiday(holiday: schemas.HolidayCreate, db: Session = Depends(get_db), request: Request = None):
     db_holiday = models.Holiday(**holiday.dict())
     db.add(db_holiday)
     try:
         db.commit()
         db.refresh(db_holiday)
-        return db_holiday
+        session_info = get_session_info(request)
+        return schemas.BaseResponse(processing_result=True, session_info=session_info, data=db_holiday)
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="この日付は既に休日として登録されています")
 
-@app.put("/holidays/{holiday_id}", response_model=schemas.Holiday)
-def update_holiday(holiday_id: int, holiday: schemas.HolidayUpdate, db: Session = Depends(get_db)):
+@app.put("/holidays/{holiday_id}", response_model=schemas.BaseResponse[schemas.Holiday])
+def update_holiday(holiday_id: int, holiday: schemas.HolidayUpdate, db: Session = Depends(get_db), request: Request = None):
     db_holiday = db.query(models.Holiday).filter(models.Holiday.id == holiday_id).first()
     if not db_holiday:
         raise HTTPException(status_code=404, detail="休日が見つかりません")
@@ -1202,20 +1313,22 @@ def update_holiday(holiday_id: int, holiday: schemas.HolidayUpdate, db: Session 
     try:
         db.commit()
         db.refresh(db_holiday)
-        return db_holiday
+        session_info = get_session_info(request)
+        return schemas.BaseResponse(processing_result=True, session_info=session_info, data=db_holiday)
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="この日付は既に休日として登録されています")
 
-@app.delete("/holidays/{holiday_id}")
-def delete_holiday(holiday_id: int, db: Session = Depends(get_db)):
+@app.delete("/holidays/{holiday_id}", response_model=schemas.SimpleResponse)
+def delete_holiday(holiday_id: int, db: Session = Depends(get_db), request: Request = None):
     db_holiday = db.query(models.Holiday).filter(models.Holiday.id == holiday_id).first()
     if not db_holiday:
         raise HTTPException(status_code=404, detail="休日が見つかりません")
 
     db.delete(db_holiday)
     db.commit()
-    return {"message": "休日を削除しました"}
+    session_info = get_session_info(request)
+    return schemas.SimpleResponse(processing_result=True, session_info=session_info, message="休日を削除しました")
 
 # アカウント管理のエンドポイント
 @app.get("/accounts", response_model=List[schemas.Account])

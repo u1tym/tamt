@@ -256,7 +256,16 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue'
-import { buildApiUrl } from '../../utils/api'
+import { 
+  getBudgets as apiGetBudgets, 
+  getBudgetSummaries as apiGetBudgetSummaries, 
+  createBudget as apiCreateBudget, 
+  updateBudget as apiUpdateBudget, 
+  deleteBudget as apiDeleteBudget, 
+  moveBudgetUp as apiMoveBudgetUp, 
+  moveBudgetDown as apiMoveBudgetDown, 
+  copyBudgets as apiCopyBudgets 
+} from '../../utils/api'
 
 interface Budget {
   id: number
@@ -308,9 +317,8 @@ const copyForm = ref({
 
 const fetchBudgetSummaries = async () => {
   try {
-    const res = await fetch(buildApiUrl(`/budgets/${selectedYear.value}/${selectedMonth.value}/summary`))
-    if (!res.ok) throw new Error('集計取得に失敗')
-    const data = await res.json()
+    const response = await apiGetBudgetSummaries(selectedYear.value, selectedMonth.value)
+    const data = response.data
     const map: { [name: string]: number } = {}
     for (const item of data) {
       map[item.name] = item.total
@@ -328,9 +336,8 @@ const getSummaryAmount = (name: string) => {
 // fetchBudgetsの後にfetchBudgetSummariesも呼ぶ
 const fetchBudgets = async () => {
   try {
-    const res = await fetch(buildApiUrl(`/budgets/${selectedYear.value}/${selectedMonth.value}`))
-    if (!res.ok) throw new Error('予算取得に失敗しました')
-    budgets.value = await res.json()
+    const response = await apiGetBudgets(selectedYear.value, selectedMonth.value)
+    budgets.value = response.data
     await fetchBudgetSummaries()
   } catch (e: any) {
     error.value = e.message
@@ -374,14 +381,7 @@ const deleteBudget = async (budget: Budget) => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/budgets/${budget.id}`), {
-      method: 'DELETE',
-    })
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`削除に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
-
+    await apiDeleteBudget(budget.id)
     await fetchBudgets()
   } catch (e: any) {
     error.value = e.message
@@ -399,14 +399,7 @@ const deleteBudgetFromDialog = async () => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/budgets/${editingId.value}`), {
-      method: 'DELETE',
-    })
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`削除に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
-
+    await apiDeleteBudget(editingId.value)
     closeDialog()
     await fetchBudgets()
   } catch (e: any) {
@@ -429,14 +422,7 @@ const moveBudgetUp = async (budget: Budget) => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/budgets/${budget.id}/move-up`), {
-      method: 'POST',
-    })
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`上移動に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
-
+    await apiMoveBudgetUp(budget.id)
     await fetchBudgets()
   } catch (e: any) {
     error.value = e.message
@@ -458,14 +444,7 @@ const moveBudgetDown = async (budget: Budget) => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/budgets/${budget.id}/move-down`), {
-      method: 'POST',
-    })
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`下移動に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
-
+    await apiMoveBudgetDown(budget.id)
     await fetchBudgets()
   } catch (e: any) {
     error.value = e.message
@@ -479,20 +458,12 @@ const addBudget = async () => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl('/budgets'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        target_year: selectedYear.value,
-        target_month: selectedMonth.value,
-        name: form.value.name,
-        amount: form.value.amount
-      }),
+    await apiCreateBudget({
+      target_year: selectedYear.value,
+      target_month: selectedMonth.value,
+      name: form.value.name,
+      amount: form.value.amount
     })
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`登録に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
 
     closeDialog()
     await fetchBudgets()
@@ -510,19 +481,10 @@ const updateBudget = async () => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/budgets/${editingId.value}`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: form.value.name,
-        amount: form.value.amount
-      }),
+    await apiUpdateBudget(editingId.value, {
+      name: form.value.name,
+      amount: form.value.amount
     })
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`更新に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
-
     closeDialog()
     await fetchBudgets()
   } catch (e: any) {
@@ -537,29 +499,17 @@ const copyBudgets = async () => {
   isSubmitting.value = true
 
   try {
-    const params = new URLSearchParams({
-      source_year: copyForm.value.sourceYear.toString(),
-      source_month: copyForm.value.sourceMonth.toString(),
-      target_year: copyForm.value.targetYear.toString(),
-      target_month: copyForm.value.targetMonth.toString(),
-    })
-
-    const res = await fetch(buildApiUrl(`/budgets/copy?${params}`), {
-      method: 'POST',
-    })
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`コピーに失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
-
-    const result = await res.json()
+    const result = await apiCopyBudgets(
+      copyForm.value.sourceYear,
+      copyForm.value.sourceMonth,
+      copyForm.value.targetYear,
+      copyForm.value.targetMonth
+    )
     alert(result.message)
-
     // コピー先の年月に切り替えて予算を表示
     selectedYear.value = copyForm.value.targetYear
     selectedMonth.value = copyForm.value.targetMonth
     await fetchBudgets()
-
     closeCopyDialog()
   } catch (e: any) {
     error.value = e.message
@@ -568,8 +518,9 @@ const copyBudgets = async () => {
   }
 }
 
-const formatAmount = (amount: number) => {
-  return amount.toLocaleString()
+const formatAmount = (amount: number | string) => {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+  return numAmount.toLocaleString()
 }
 
 const formatPeriod = (year: number, month: number) => {

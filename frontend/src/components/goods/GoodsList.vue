@@ -291,7 +291,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { buildApiUrl } from '../../utils/api'
+import { getGoods, getMedia, getArtists, createGoods, updateGoods as apiUpdateGoods, deleteGoods as apiDeleteGoods } from '../../utils/api'
 
 interface Media {
   id: number
@@ -378,12 +378,8 @@ const form = ref({
 // データ取得
 const fetchGoods = async () => {
   try {
-    const response = await fetch(buildApiUrl('/goods'))
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    const data = await response.json()
-    allGoodsList.value = data
+    const response = await getGoods()
+    allGoodsList.value = response.data
     applyFilters() // 初期表示時にフィルタを適用
   } catch (e: any) {
     console.error('GOODSデータ取得エラー:', e)
@@ -439,12 +435,8 @@ const clearFilters = () => {
 
 const fetchMedia = async () => {
   try {
-    const response = await fetch(buildApiUrl('/media'))
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    const data = await response.json()
-    mediaList.value = data
+    const response = await getMedia()
+    mediaList.value = response.data
   } catch (e: any) {
     console.error('メディアデータ取得エラー:', e)
     error.value = `メディアデータの取得に失敗しました: ${e.message}`
@@ -453,12 +445,8 @@ const fetchMedia = async () => {
 
 const fetchArtists = async () => {
   try {
-    const response = await fetch(buildApiUrl('/artists'))
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    const data = await response.json()
-    artists.value = data
+    const response = await getArtists()
+    artists.value = response.data
   } catch (e: any) {
     console.error('アーティストデータ取得エラー:', e)
     error.value = `アーティストデータの取得に失敗しました: ${e.message}`
@@ -536,16 +524,7 @@ const addGoods = async () => {
       }))
     }
 
-    const response = await fetch(buildApiUrl('/goods'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(goodsData)
-    })
-    
-    if (!response.ok) {
-      throw new Error('登録に失敗しました')
-    }
-
+    await createGoods(goodsData)
     closeDialog()
     await fetchGoods()
   } catch (e: any) {
@@ -577,16 +556,7 @@ const updateGoods = async () => {
       }))
     }
 
-    const response = await fetch(buildApiUrl(`/goods/${editingId.value}`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(goodsData)
-    })
-    
-    if (!response.ok) {
-      throw new Error('更新に失敗しました')
-    }
-
+    await apiUpdateGoods(editingId.value, goodsData)
     closeDialog()
     await fetchGoods()
   } catch (e: any) {
@@ -603,14 +573,7 @@ const deleteGoods = async (goods: Goods | null) => {
   isSubmitting.value = true
 
   try {
-    const response = await fetch(buildApiUrl(`/goods/${goods.id}`), {
-      method: 'DELETE'
-    })
-    
-    if (!response.ok) {
-      throw new Error('削除に失敗しました')
-    }
-
+    await apiDeleteGoods(goods.id)
     closeDialog()
     await fetchGoods()
   } catch (e: any) {

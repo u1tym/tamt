@@ -171,7 +171,10 @@ def create_budget(db: Session, budget: schemas.BudgetCreate):
     if max_order is None:
         max_order = 0
 
-    db_budget = models.Budget(**budget.model_dump(), order_index=max_order + 1)
+    # order_indexを除外してからモデルを作成
+    budget_data = budget.model_dump()
+    budget_data.pop('order_index', None)  # order_indexを削除
+    db_budget = models.Budget(**budget_data, order_index=max_order + 1)
     db.add(db_budget)
     db.commit()
     db.refresh(db_budget)

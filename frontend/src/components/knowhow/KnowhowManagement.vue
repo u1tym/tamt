@@ -513,7 +513,15 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue'
-import { buildApiUrl } from '../../utils/api'
+import { 
+  getKnowhowTree, 
+  getMajorCategories, 
+  getMiddleCategories,
+  createMajorCategory,
+  updateMajorCategory,
+  createMiddleCategory,
+  updateMiddleCategory
+} from '../../utils/api'
 
 interface Knowhow {
   id: number
@@ -572,32 +580,10 @@ const form = ref({
 const fetchKnowhowTree = async () => {
   try {
     console.log('ツリー構造を取得中...')
-    const res = await fetch(buildApiUrl('/knowhows/tree'))
-    console.log('レスポンスステータス:', res.status)
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}))
-      console.error('エラーレスポンス:', errorData)
-      console.error('エラーレスポンス詳細:', JSON.stringify(errorData, null, 2))
-
-      let errorMessage = 'ツリー構造の取得に失敗しました'
-      if (errorData.detail) {
-        if (Array.isArray(errorData.detail)) {
-          errorMessage += ': ' + errorData.detail.map((e: any) => e.msg || e).join(', ')
-        } else {
-          errorMessage += ': ' + errorData.detail
-        }
-      } else {
-        errorMessage += ': ' + res.statusText
-      }
-
-      throw new Error(errorMessage)
-    }
-
-    const data = await res.json()
-    console.log('取得したデータ:', data)
-    knowhowTree.value = data
-    filteredTree.value = { ...data }
+    const response = await getKnowhowTree()
+    console.log('取得したデータ:', response)
+    knowhowTree.value = response.data
+    filteredTree.value = { ...response.data }
     error.value = '' // エラーをクリア
   } catch (e: any) {
     console.error('ツリー構造取得エラー:', e)
@@ -612,7 +598,8 @@ const fetchKnowhow = async (id: number) => {
   try {
     const res = await fetch(buildApiUrl(`/knowhows/${id}`))
     if (!res.ok) throw new Error('KNOWHOWの取得に失敗しました')
-    return await res.json()
+    const response = await res.json()
+    return response.data
   } catch (e: any) {
     error.value = e.message
     return null
@@ -892,14 +879,12 @@ const middleCategories = ref<Array<{id: number, name: string, major_category_id:
 const fetchCategories = async () => {
   try {
     // 大項目を取得
-    const majorRes = await fetch(buildApiUrl('/major-categories'))
-    if (!majorRes.ok) throw new Error('大項目の取得に失敗しました')
-    majorCategories.value = await majorRes.json()
+    const majorResponse = await getMajorCategories()
+    majorCategories.value = majorResponse.data
 
     // 中項目を取得
-    const middleRes = await fetch(buildApiUrl('/middle-categories'))
-    if (!middleRes.ok) throw new Error('中項目の取得に失敗しました')
-    middleCategories.value = await middleRes.json()
+    const middleResponse = await getMiddleCategories()
+    middleCategories.value = middleResponse.data
   } catch (e: any) {
     error.value = e.message
   }
@@ -929,18 +914,9 @@ const saveMajorCategory = async () => {
       throw new Error('大項目が見つかりません')
     }
 
-    const res = await fetch(buildApiUrl(`/major-categories/${targetMajorCategory.id}`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: editingMajorCategory.value.trim()
-      })
+    await updateMajorCategory(targetMajorCategory.id, {
+      name: editingMajorCategory.value.trim()
     })
-
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`大項目の更新に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
 
     await fetchCategories()
     await fetchKnowhowTree()
@@ -960,18 +936,9 @@ const addMajorCategory = async () => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl('/major-categories'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: newMajorCategory.value.trim()
-      })
+    await createMajorCategory({
+      name: newMajorCategory.value.trim()
     })
-
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`大項目の追加に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
 
     await fetchCategories()
     await fetchKnowhowTree()
@@ -1010,18 +977,9 @@ const saveMiddleCategory = async () => {
       throw new Error('中項目が見つかりません')
     }
 
-    const res = await fetch(buildApiUrl(`/middle-categories/${targetMiddleCategory.id}`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: editingMiddleCategory.value.trim()
-      })
+    await updateMiddleCategory(targetMiddleCategory.id, {
+      name: editingMiddleCategory.value.trim()
     })
-
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`中項目の更新に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
 
     await fetchCategories()
     await fetchKnowhowTree()
@@ -1041,19 +999,10 @@ const addMiddleCategory = async () => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl('/middle-categories'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        major_category_id: parseInt(selectedMajorCategory.value),
-        name: newMiddleCategory.value.trim()
-      })
+    await createMiddleCategory({
+      major_category_id: parseInt(selectedMajorCategory.value),
+      name: newMiddleCategory.value.trim()
     })
-
-    if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(`中項目の追加に失敗しました: ${errorData.detail || '不明なエラー'}`)
-    }
 
     await fetchCategories()
     await fetchKnowhowTree()

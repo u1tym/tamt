@@ -193,7 +193,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { buildApiUrl } from '../../utils/api'
+import { getActivityCategories, getSchedulesByMonth, getSchedulesByWeek, getHolidays } from '../../utils/api'
 import ScheduleWeekly from './ScheduleWeekly.vue'
 import ScheduleMonthly from './ScheduleMonthly.vue'
 import ScheduleCategoryList from './ScheduleCategoryList.vue'
@@ -246,9 +246,8 @@ function setViewMode(mode: 'month' | 'week') {
 
 async function loadActivityCategories() {
   try {
-    const response = await fetch(buildApiUrl('/activity-categories'))
-    const data = await response.json()
-    activityCategories.value = data
+    const response = await getActivityCategories()
+    activityCategories.value = response.data
     // 初期状態では全て選択
     selectedCategories.value = activityCategories.value.map(cat => cat.id)
   } catch (error) {
@@ -271,13 +270,12 @@ const loadSchedules = async () => {
         weekStart.setDate(today.getDate() - daysFromMonday)
         return weekStart.toISOString().split('T')[0]
       })()
-      response = await fetch(buildApiUrl(`/schedules/week/${startDate}`))
+      response = await getSchedulesByWeek(startDate)
     } else {
       // 月表示の場合は従来通り
-      response = await fetch(buildApiUrl(`/schedules/month/${currentYear.value}/${currentMonth.value}`))
+      response = await getSchedulesByMonth(currentYear.value, currentMonth.value)
     }
-    const data = await response.json()
-    schedules.value = data
+    schedules.value = response.data
   } catch (error) {
     console.error('スケジュールの読み込みに失敗しました:', error)
   }
@@ -285,9 +283,8 @@ const loadSchedules = async () => {
 
 async function loadHolidays() {
   try {
-    const response = await fetch(buildApiUrl('/holidays'))
-    const data = await response.json()
-    holidays.value = data
+    const response = await getHolidays()
+    holidays.value = response.data
   } catch (error) {
     console.error('休日の読み込みに失敗しました:', error)
   }

@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { buildApiUrl } from '../../utils/api'
+import { getHolidays, createHoliday, deleteHoliday as apiDeleteHoliday } from '../../utils/api'
 
 const router = useRouter()
 
@@ -71,9 +71,8 @@ function goBack() {
 
 async function loadHolidays() {
   try {
-    const response = await fetch(buildApiUrl('/holidays'))
-    const data = await response.json()
-    holidays.value = data
+    const response = await getHolidays()
+    holidays.value = response.data
   } catch (error) {
     console.error('休日の読み込みに失敗しました:', error)
   }
@@ -88,18 +87,11 @@ async function saveHoliday() {
   if (!holidayForm.value.date || !holidayForm.value.name) return
 
   try {
-    const response = await fetch(buildApiUrl('/holidays'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        date: holidayForm.value.date,
-        name: holidayForm.value.name
-      })
+    const response = await createHoliday({
+      date: holidayForm.value.date,
+      name: holidayForm.value.name
     })
-    const data = await response.json()
-    holidays.value.push(data)
+    holidays.value.push(response.data)
     closeHolidayModal()
     await loadHolidays()
   } catch (error) {
@@ -111,9 +103,7 @@ async function deleteHoliday(holidayId: number) {
   if (!confirm('この休日を削除しますか？')) return
 
   try {
-    await fetch(buildApiUrl(`/holidays/${holidayId}`), {
-      method: 'DELETE'
-    })
+    await apiDeleteHoliday(holidayId)
     holidays.value = holidays.value.filter(h => h.id !== holidayId)
     await loadHolidays()
   } catch (error) {
