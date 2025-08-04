@@ -5,7 +5,8 @@ import models
 import schemas
 from PIL import Image
 import io
-import base64
+
+from typing import Optional
 
 # 支払日自動計算
 def calculate_paid_date(used_date: date, closing_day: int, pay_month_diff: int, pay_day: int) -> date:
@@ -60,32 +61,32 @@ def calculate_payment_date(used_date: date, payment_source: models.PaymentSource
     print(f"DEBUG: calculate_payment_date result: {result}")
     return result
 
-def calculate_payment_date_for_month(year: int, month: int, payment_source: models.PaymentSource) -> date:
+def calculate_payment_date_for_month(year: int, month: int, payment_source: models.PaymentSource) -> Optional[date]:
     """指定月の支払日を計算"""
     if payment_source.closing_day == 0:
         print(f"Debug: Payment source {payment_source.name} has closing_day = 0, returning None")
         return None
-    
+
     # その月の締め日を基準に支払日を計算
     # 締め日が月末を超える場合は月末を使用
     import calendar
     last_day = calendar.monthrange(year, month)[1]
     closing_day = min(payment_source.closing_day, last_day)
-    
+
     print(f"Debug: Processing {year}-{month}, closing_day: {closing_day}, last_day: {last_day}")
-    
-    # 締め日を基準に支払日を計算
-    closing_date = date(year, month, closing_day)
-    
+
+    # # 締め日を基準に支払日を計算
+    # closing_date = date(year, month, closing_day)
+
     # 支払い月までの差分を加算
     result_month = month + payment_source.pay_month_diff
     result_year = year
     while result_month > 12:
         result_month -= 12
         result_year += 1
-    
+
     print(f"Debug: Result month/year: {result_month}/{result_year}, pay_month_diff: {payment_source.pay_month_diff}")
-    
+
     # 支払日の日付を決定
     if payment_source.pay_day > 0:
         # 指定された支払日を使用
@@ -99,7 +100,7 @@ def calculate_payment_date_for_month(year: int, month: int, payment_source: mode
         pay_day = min(closing_day, last_day)
         payment_date = date(result_year, result_month, pay_day)
         print(f"Debug: Using closing_day {closing_day}, final pay_day: {pay_day}, payment_date: {payment_date}")
-    
+
     return payment_date
 
 # 画像リサイズ関数
@@ -170,7 +171,7 @@ def create_budget(db: Session, budget: schemas.BudgetCreate):
     if max_order is None:
         max_order = 0
 
-    db_budget = models.Budget(**budget.dict(), order_index=max_order + 1)
+    db_budget = models.Budget(**budget.model_dump(), order_index=max_order + 1)
     db.add(db_budget)
     db.commit()
     db.refresh(db_budget)
@@ -191,7 +192,7 @@ def update_budget(db: Session, budget_id: int, budget: schemas.BudgetUpdate):
         return None
 
     # 更新データを辞書に変換
-    update_data = budget.dict(exclude_unset=True)
+    update_data = budget.model_dump(exclude_unset=True)
 
     # データベースのレコードを更新
     for field, value in update_data.items():
@@ -327,7 +328,7 @@ def create_transaction(db: Session, tx: schemas.TransactionCreate):
     else:
         paid_date = tx.paid_date
 
-    db_tx = models.Transaction(**tx.dict(exclude={'paid_date', 'budget_name'}), paid_date=paid_date, budget_name=tx.budget_name or '未分類')
+    db_tx = models.Transaction(**tx.model_dump(exclude={'paid_date', 'budget_name'}), paid_date=paid_date, budget_name=tx.budget_name or '未分類')
     db.add(db_tx)
     db.commit()
     db.refresh(db_tx)
@@ -345,7 +346,7 @@ def update_transaction(db: Session, tx_id: int, tx: schemas.TransactionUpdate):
         return None
 
     # 更新データを辞書に変換
-    update_data = tx.dict(exclude_unset=True)
+    update_data = tx.model_dump(exclude_unset=True)
 
     # 支払日の処理
     if 'paid_date' in update_data:
@@ -388,7 +389,7 @@ def create_major_category(db: Session, major_category: schemas.MajorCategoryCrea
 
     display_order = (max_order or -1) + 1
 
-    major_category_data = major_category.dict()
+    major_category_data = major_category.model_dump()
     major_category_data.pop('display_order', None)
 
     db_major_category = models.MajorCategory(**major_category_data, display_order=display_order)
@@ -416,7 +417,7 @@ def update_major_category(db: Session, major_category_id: int, major_category: s
     if db_major_category is None:
         return None
 
-    update_data = major_category.dict(exclude_unset=True)
+    update_data = major_category.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_major_category, field, value)
 
@@ -445,7 +446,7 @@ def create_middle_category(db: Session, middle_category: schemas.MiddleCategoryC
 
     display_order = (max_order or -1) + 1
 
-    middle_category_data = middle_category.dict()
+    middle_category_data = middle_category.model_dump()
     middle_category_data.pop('display_order', None)
 
     db_middle_category = models.MiddleCategory(**middle_category_data, display_order=display_order)
@@ -480,7 +481,7 @@ def update_middle_category(db: Session, middle_category_id: int, middle_category
     if db_middle_category is None:
         return None
 
-    update_data = middle_category.dict(exclude_unset=True)
+    update_data = middle_category.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_middle_category, field, value)
 
@@ -511,7 +512,7 @@ def create_knowhow(db: Session, knowhow: schemas.KnowhowCreate):
     display_order = 0 if max_order is None else max_order + 1
 
     # display_orderを除外してからdict()を取得
-    knowhow_data = knowhow.dict()
+    knowhow_data = knowhow.model_dump()
     knowhow_data.pop('display_order', None)  # display_orderが存在する場合は削除
 
     db_knowhow = models.Knowhow(**knowhow_data, display_order=display_order)
@@ -541,7 +542,7 @@ def update_knowhow(db: Session, knowhow_id: int, knowhow: schemas.KnowhowUpdate)
     if db_knowhow is None:
         return None
 
-    update_data = knowhow.dict(exclude_unset=True)
+    update_data = knowhow.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_knowhow, field, value)
 
@@ -559,7 +560,7 @@ def delete_knowhow(db: Session, knowhow_id: int):
     db.commit()
     return True
 
-def search_knowhows(db: Session, major_category: str = None, middle_category: str = None, keywords: str = None):
+def search_knowhows(db: Session, major_category: Optional[str] = None, middle_category: Optional[str] = None, keywords: Optional[str] = None):
     query = db.query(models.Knowhow).filter(models.Knowhow.is_deleted == False)
 
     if major_category:
@@ -688,7 +689,7 @@ def normalize_knowhow_order_indexes(db: Session):
 
 # Person CRUD
 def create_person(db: Session, person: schemas.PersonCreate):
-    db_person = models.Person(**person.dict())
+    db_person = models.Person(**person.model_dump())
     db.add(db_person)
     db.commit()
     db.refresh(db_person)
@@ -705,7 +706,7 @@ def update_person(db: Session, person_id: int, person: schemas.PersonUpdate):
     if db_person is None:
         return None
 
-    update_data = person.dict(exclude_unset=True)
+    update_data = person.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_person, field, value)
 
@@ -762,7 +763,7 @@ def update_artist(db: Session, artist_id: int, artist: schemas.ArtistUpdate):
     if db_artist is None:
         return None
 
-    update_data = artist.dict(exclude_unset=True)
+    update_data = artist.model_dump(exclude_unset=True)
 
     # 名前の更新
     if 'name' in update_data:
@@ -789,7 +790,7 @@ def update_artist(db: Session, artist_id: int, artist: schemas.ArtistUpdate):
 
 # Media CRUD
 def create_media(db: Session, media: schemas.MediaCreate):
-    db_media = models.Media(**media.dict())
+    db_media = models.Media(**media.model_dump())
     db.add(db_media)
     db.commit()
     db.refresh(db_media)
@@ -806,7 +807,7 @@ def update_media(db: Session, media_id: int, media: schemas.MediaUpdate):
     if db_media is None:
         return None
 
-    update_data = media.dict(exclude_unset=True)
+    update_data = media.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_media, field, value)
 
@@ -864,7 +865,7 @@ def create_goods(db: Session, goods: schemas.GoodsCreate):
 # ActivityCategory CRUD
 def create_activity_category(db: Session, activity_category: schemas.ActivityCategoryCreate):
     """活動区分を作成"""
-    db_activity_category = models.ActivityCategory(**activity_category.dict())
+    db_activity_category = models.ActivityCategory(**activity_category.model_dump())
     db.add(db_activity_category)
     db.commit()
     db.refresh(db_activity_category)
@@ -889,7 +890,7 @@ def update_activity_category(db: Session, activity_category_id: int, activity_ca
     if db_activity_category is None:
         return None
 
-    update_data = activity_category.dict(exclude_unset=True)
+    update_data = activity_category.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_activity_category, field, value)
 
@@ -917,7 +918,7 @@ def delete_activity_category(db: Session, activity_category_id: int):
 # Schedule CRUD
 def create_schedule(db: Session, schedule: schemas.ScheduleCreate):
     """スケジュールを作成"""
-    db_schedule = models.Schedule(**schedule.dict())
+    db_schedule = models.Schedule(**schedule.model_dump())
     db.add(db_schedule)
     db.commit()
     db.refresh(db_schedule)
@@ -937,7 +938,7 @@ def get_schedules_by_month(db: Session, year: int, month: int):
     # 指定月の最初の日と最後の日を取得
     first_day = datetime(year, month, 1)
     last_day = datetime(year, month, monthrange(year, month)[1], 23, 59, 59)
-    
+
     # 期間を拡張：1日-7日前から末日+7日後まで
     start_date = first_day - timedelta(days=7)
     end_date = last_day + timedelta(days=7)
@@ -955,7 +956,7 @@ def get_schedules_by_date_range(db: Session, start_date: datetime, end_date: dat
         models.Schedule.is_deleted == False,
         models.Schedule.start_datetime < end_date
     ).order_by(models.Schedule.start_datetime).all()
-    
+
     # Python側で重複判定を行う
     result = []
     for schedule in schedules:
@@ -963,14 +964,14 @@ def get_schedules_by_date_range(db: Session, start_date: datetime, end_date: dat
         if schedule.is_all_day:
             result.append(schedule)
             continue
-            
+
         # 時間指定スケジュールの場合、終了時刻を計算
         end_datetime = schedule.start_datetime + timedelta(minutes=schedule.duration)
-        
+
         # スケジュールの終了時刻が指定期間の開始時刻より後にある場合
         if end_datetime > start_date:
             result.append(schedule)
-    
+
     return result
 
 def get_schedule(db: Session, schedule_id: int):
@@ -995,7 +996,7 @@ def update_schedule(db: Session, schedule_id: int, schedule: schemas.ScheduleUpd
     if db_schedule is None:
         return None
 
-    update_data = schedule.dict(exclude_unset=True)
+    update_data = schedule.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_schedule, field, value)
 
@@ -1021,7 +1022,7 @@ def get_schedules_by_activity_categories(db: Session, activity_category_ids: lis
     # 指定月の最初の日と最後の日を取得
     first_day = datetime(year, month, 1)
     last_day = datetime(year, month, monthrange(year, month)[1], 23, 59, 59)
-    
+
     # 期間を拡張：1日-7日前から末日+7日後まで
     start_date = first_day - timedelta(days=7)
     end_date = last_day + timedelta(days=7)
@@ -1122,7 +1123,7 @@ def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
     if db_goods is None:
         return None
 
-    update_data = goods.dict(exclude_unset=True)
+    update_data = goods.model_dump(exclude_unset=True)
 
     # 基本情報の更新
     for field in ['media_id', 'artist_id', 'title', 'release_date', 'memo', 'is_owned', 'code_number']:
@@ -1178,7 +1179,7 @@ def delete_goods(db: Session, goods_id: int):
 
 # アカウント管理用のCRUD操作
 def create_account(db: Session, account: schemas.AccountCreate):
-    db_account = models.Account(**account.dict())
+    db_account = models.Account(**account.model_dump())
     db.add(db_account)
     db.commit()
     db.refresh(db_account)
@@ -1206,7 +1207,7 @@ def update_account(db: Session, account_id: int, account: schemas.AccountUpdate)
     if db_account is None:
         return None
 
-    update_data = account.dict(exclude_unset=True)
+    update_data = account.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_account, field, value)
 
@@ -1229,14 +1230,14 @@ def authenticate_user(db: Session, username: str, password: str):
     account = get_account_by_username(db, username)
     if account is None:
         return None
-    
+
     # パスワードの検証（実際の運用ではハッシュ化して比較）
     if account.password == password:
         # 最終アクセス日時を更新
         account.last_access = datetime.utcnow()
         db.commit()
         return account
-    
+
     return None
 
 def update_session_info(db: Session, account_id: int, session_info: str):

@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List
-import base64
 import io
 from PIL import Image
 import cv2
@@ -19,6 +18,13 @@ from database import SessionLocal, engine
 import models
 import crud
 import schemas
+
+from type_req import rep_calculate_payment_periods_rec
+from type_req import rep_calculate_payment_periods
+from type_req import rep_get_payment_summary_rec
+from type_req import rep_parse_recipt
+
+from typing import cast
 
 # データベーステーブルを作成
 models.Base.metadata.create_all(bind=engine)
@@ -43,7 +49,7 @@ def get_db():
         db.close()
 
 # 支払い期間の計算関数
-def calculate_payment_periods():
+def calculate_payment_periods() -> rep_calculate_payment_periods:
     """現在日を基準に当月、翌月、翌々月の支払い期間を計算（23日～翌月22日）"""
     today = date.today()
 
@@ -71,6 +77,7 @@ def calculate_payment_periods():
     next_next_month_start = next_month_end + relativedelta(days=1)
     next_next_month_end = next_next_month_start + relativedelta(months=1) - relativedelta(days=1)
 
+
     return {
         'current_month': {
             'start': current_month_start,
@@ -97,9 +104,12 @@ def get_payment_summary(db: Session = Depends(get_db)):
         periods = calculate_payment_periods()
 
         # 各期間の支払い額を集計
-        summary = {}
+        summary: dict[str, rep_get_payment_summary_rec] = {}
 
-        for period_name, period_data in periods.items():
+        for nm, vl in periods.items():
+            period_name: str = nm
+            period_data: rep_calculate_payment_periods_rec = cast(rep_calculate_payment_periods_rec, vl)
+
             # 該当期間の取引を取得
             transactions = db.query(models.Transaction).filter(
                 models.Transaction.paid_date >= period_data['start'],
@@ -123,7 +133,7 @@ def get_payment_summary(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"支払い集計の取得に失敗しました: {str(e)}")
 
 # レシート解析関数
-def parse_receipt(image_data: bytes) -> dict:
+def parse_receipt(image_data: bytes) -> rep_parse_recipt:
     """
     レシート画像を解析して取引情報を抽出
     """
@@ -583,25 +593,25 @@ def get_debit_summary(db: Session = Depends(get_db)):
     try:
         from datetime import date
         from dateutil.relativedelta import relativedelta
-        
+
         # 現在日を基準に期間を設定
         today = date.today()
-        
+
         # 対象期間: 前月、当月、翌月、翌々月、さらに次の月
         target_months = []
         for i in range(-1, 4):  # -1, 0, 1, 2, 3
             target_date = today + relativedelta(months=i)
             target_months.append((target_date.year, target_date.month))
-        
+
         print(f"Debug: Target months: {target_months}")
-        
+
         # 締め日が0日ではない支払元を取得
         payment_sources = db.query(models.PaymentSource).filter(
             models.PaymentSource.closing_day > 0
         ).all()
-        
+
         print(f"Debug: Found {len(payment_sources)} payment sources with closing_day > 0")
-        
+
         # 各支払元の支払日を計算
         payment_dates = []
         for source in payment_sources:
@@ -620,45 +630,45 @@ def get_debit_summary(db: Session = Depends(get_db)):
                     })
                 else:
                     print(f"Debug: No payment date calculated for {year}-{month}")
-        
+
         print(f"Debug: Total payment dates calculated: {len(payment_dates)}")
-        
+
         # 重複を除去してソート
         unique_dates = {}
         for item in payment_dates:
             date_key = item['date'].strftime('%Y-%m-%d')
             if date_key not in unique_dates:
                 unique_dates[date_key] = item
-        
+
         sorted_dates = sorted(unique_dates.values(), key=lambda x: x['date'])
-        
+
         print(f"Debug: Unique payment dates after deduplication: {len(sorted_dates)}")
         for item in sorted_dates:
             print(f"Debug: Payment date: {item['date']}, Source: {item['source_name']}")
-        
+
         # 各支払日の取引金額を集計
         result = []
         for item in sorted_dates:
             payment_date = item['date']
-            
+
             # その支払日に関連する取引を取得
             transactions = db.query(models.Transaction).filter(
                 models.Transaction.payment_source_id == item['source_id'],
                 models.Transaction.paid_date == payment_date
             ).all()
-            
+
             total_amount = sum(tx.amount for tx in transactions)
-            
+
             result.append({
                 'payment_date': payment_date.strftime('%Y-%m-%d'),
                 'source_name': item['source_name'],
                 'total_amount': float(total_amount),
                 'transaction_count': len(transactions)
             })
-        
+
         print(f"Debug: Final result count: {len(result)}")
         return result
-        
+
     except Exception as e:
         print(f"Error in get_debit_summary: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -1076,7 +1086,7 @@ def read_schedules_by_week(start_date: str, db: Session = Depends(get_db)):
         # start_dateは "YYYY-MM-DD" 形式
         start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
         end_datetime = start_datetime + timedelta(days=7)
-        
+
         schedules = crud.get_schedules_by_date_range(db, start_datetime, end_datetime)
         result = []
         for schedule in schedules:
@@ -1249,14 +1259,14 @@ def request_random_number(request: schemas.LoginRequest, db: Session = Depends(g
     account = crud.get_account_by_username(db, username=request.username)
     if account is None:
         raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
-    
+
     # ランダム数を生成（1-1000の範囲）
     import random
     random_number = random.randint(1, 1000)
-    
+
     # アカウント情報を更新
     crud.update_random_number(db, account.id, random_number)
-    
+
     return schemas.RandomNumberResponse(
         success=True,
         random_number=random_number,
@@ -1273,27 +1283,27 @@ def verify_login(verify_request: schemas.LoginVerifyRequest, db: Session = Depen
             success=False,
             message="ユーザーが見つかりません"
         )
-    
+
     # ハッシュ値を生成して比較（データベースから取得したパスワードを使用）
     import hashlib
     expected_hash = hashlib.sha256(
         (verify_request.username + account.password + str(account.random_number)).encode()
     ).hexdigest()
-    
+
     if expected_hash != verify_request.hash_value:
         return schemas.LoginResponse(
             success=False,
             message="パスワードが正しくありません"
         )
-    
+
     # セッショントークンを生成
     import secrets
     session_token = secrets.token_urlsafe(32)
-    
+
     # セッション情報を更新
     session_info = {"token": session_token, "login_time": datetime.utcnow().isoformat()}
     crud.update_session_info(db, account.id, str(session_info))
-    
+
     return schemas.LoginResponse(
         success=True,
         message="ログインに成功しました",
