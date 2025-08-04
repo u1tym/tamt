@@ -237,7 +237,7 @@ const scheduleForm = ref({
 
 // メソッド
 function goBack() {
-  router.push('/')
+  router.push('/menu')
 }
 
 function setViewMode(mode: 'month' | 'week') {

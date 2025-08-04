@@ -103,7 +103,7 @@ const toggleTabs = () => {
 
 // トップメニューへ戻る
 const goToTopMenu = () => {
-  router.push('/')
+  router.push('/menu')
 }
 
 // ライフサイクル

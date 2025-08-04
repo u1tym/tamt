@@ -66,7 +66,7 @@ const holidayForm = ref({
 })
 
 function goBack() {
-  router.push('/')
+  router.push('/menu')
 }
 
 async function loadHolidays() {

@@ -17,7 +17,7 @@
           src="/images/PORTAL.jpg" 
           alt="PORTAL" 
           class="portal-icon" 
-          @click="$router.push('/')"
+          @click="$router.push('/menu')"
           title="トップメニューに戻る"
         />
       </div>
