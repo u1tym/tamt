@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import models
 import schemas
 from PIL import Image
@@ -125,7 +125,7 @@ def resize_image(image_data: bytes, max_size: int = 800) -> bytes:
 # PaymentSource CRUD
 
 def create_payment_source(db: Session, source: schemas.PaymentSourceCreate):
-    db_source = models.PaymentSource(**source.dict())
+    db_source = models.PaymentSource(**source.model_dump())
     db.add(db_source)
     db.commit()
     db.refresh(db_source)
@@ -143,7 +143,7 @@ def update_payment_source(db: Session, source_id: int, source: schemas.PaymentSo
         return None
 
     # データベースのレコードを更新
-    for field, value in source.dict().items():
+    for field, value in source.model_dump().items():
         setattr(db_source, field, value)
 
     db.commit()
@@ -1234,7 +1234,7 @@ def authenticate_user(db: Session, username: str, password: str):
     # パスワードの検証（実際の運用ではハッシュ化して比較）
     if account.password == password:
         # 最終アクセス日時を更新
-        account.last_access = datetime.utcnow()
+        account.last_access = datetime.now(timezone.utc)
         db.commit()
         return account
 
@@ -1247,7 +1247,7 @@ def update_session_info(db: Session, account_id: int, session_info: str):
         return False
 
     db_account.session_info = session_info
-    db_account.last_access = datetime.utcnow()
+    db_account.last_access = datetime.now(timezone.utc)
     db.commit()
     return True
 
@@ -1258,6 +1258,6 @@ def update_random_number(db: Session, account_id: int, random_number: int):
         return False
 
     db_account.random_number = random_number
-    db_account.last_access = datetime.utcnow()
+    db_account.last_access = datetime.now(timezone.utc)
     db.commit()
     return True
