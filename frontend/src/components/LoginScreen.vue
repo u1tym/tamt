@@ -32,14 +32,14 @@
           />
         </div>
         
-                       <button type="submit" class="login-button" :disabled="isLoading">
-                 {{ isLoading ? 'ログイン中...' : 'LOGIN' }}
-               </button>
+        <button type="submit" class="login-button" :disabled="isLoading">
+          {{ isLoading ? 'ログイン中...' : 'LOGIN' }}
+        </button>
              
-             <!-- エラーメッセージ表示 -->
-             <div v-if="errorMessage" class="error-message">
-               {{ errorMessage }}
-             </div>
+        <!-- エラーメッセージ表示 -->
+        <div v-if="errorMessage" class="error-message">
+          {{ errorMessage }}
+        </div>
       </form>
     </div>
   </div>
@@ -66,10 +66,10 @@ async function handleLogin() {
   errorMessage.value = ''
 
   try {
-         // ステップ1: ランダム数を要求
-     const randomResponse = await requestRandomNumber({
-       username: username.value
-     })
+    // ステップ1: ランダム数を要求
+    const randomResponse = await requestRandomNumber({
+      username: username.value
+    })
 
     if (!randomResponse.success) {
       errorMessage.value = 'ユーザーが見つかりません'
@@ -80,11 +80,11 @@ async function handleLogin() {
     // ステップ2: ハッシュ値を生成
     const hashValue = await generateHash(username.value, password.value, randomResponse.random_number)
 
-         // ステップ3: ログイン認証
-     const loginResponse = await verifyLogin({
-       username: username.value,
-       hash_value: hashValue
-     })
+    // ステップ3: ログイン認証
+    const loginResponse = await verifyLogin({
+      username: username.value,
+      hash_value: hashValue
+    })
 
     if (loginResponse.success) {
       // セッション情報を保存
