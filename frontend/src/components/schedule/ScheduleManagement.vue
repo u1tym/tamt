@@ -193,7 +193,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getActivityCategories, getSchedulesByMonth, getSchedulesByWeek, getHolidays } from '../../utils/api'
+import { getActivityCategories, getSchedulesByMonth, getSchedulesByWeek, getHolidays, buildApiUrl } from '../../utils/api'
 import ScheduleWeekly from './ScheduleWeekly.vue'
 import ScheduleMonthly from './ScheduleMonthly.vue'
 import ScheduleCategoryList from './ScheduleCategoryList.vue'

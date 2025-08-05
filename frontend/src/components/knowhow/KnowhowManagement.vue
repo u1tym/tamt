@@ -520,7 +520,8 @@ import {
   createMajorCategory,
   updateMajorCategory,
   createMiddleCategory,
-  updateMiddleCategory
+  updateMiddleCategory,
+  buildApiUrl
 } from '../../utils/api'
 
 interface Knowhow {

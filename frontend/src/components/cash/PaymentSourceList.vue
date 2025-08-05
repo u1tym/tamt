@@ -173,8 +173,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { 
   getPaymentSources,
   createPaymentSource,
-  updatePaymentSource as apiUpdatePaymentSource,
-  deletePaymentSource
+  updatePaymentSource as apiUpdatePaymentSource
 } from '../../utils/api'
 
 interface PaymentSource {

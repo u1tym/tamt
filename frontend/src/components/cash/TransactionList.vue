@@ -251,7 +251,7 @@
             <button
               v-if="isEditing"
               type="button"
-              @click="deleteTransaction"
+              @click="deleteTransactionFromDialog"
               class="btn btn-danger"
               :disabled="isSubmitting"
             >
@@ -682,6 +682,8 @@ const deleteTransactionFromDialog = async () => {
     isSubmitting.value = false
   }
 }
+
+
 
 // カメラ機能
 const openCamera = async () => {
