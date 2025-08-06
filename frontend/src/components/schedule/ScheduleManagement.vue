@@ -187,6 +187,14 @@
         </div>
       </div>
     </div>
+
+    <!-- TODOダイアログ -->
+    <TodoDialog
+      :show="showTodoDialog"
+      :schedules="schedules"
+      @close="showTodoDialog = false"
+      @update-todo="updateTodoStatus"
+    />
   </div>
 </template>
 
@@ -197,6 +205,7 @@ import { getActivityCategories, getSchedulesByMonth, getSchedulesByWeek, getHoli
 import ScheduleWeekly from './ScheduleWeekly.vue'
 import ScheduleMonthly from './ScheduleMonthly.vue'
 import ScheduleCategoryList from './ScheduleCategoryList.vue'
+import TodoDialog from './TodoDialog.vue'
 // Removed unused getCategoryColor import
 
 const router = useRouter()
@@ -210,6 +219,7 @@ const currentMonth = ref(new Date().getMonth() + 1)
 const startWithMonday = ref(true)
 const showScheduleModal = ref(false)
 const showConfigModal = ref(false)
+const showTodoDialog = ref(false)
 const editingSchedule = ref<any>(null)
 const viewMode = ref<'month' | 'week'>('month')
 
@@ -507,11 +517,62 @@ watch([viewMode, startWithMonday], () => {
   loadSchedules()
 })
 
+// TODOダイアログの表示判定
+const shouldShowTodoDialog = () => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const threeDaysLater = new Date(today)
+  threeDaysLater.setDate(today.getDate() + 3)
+  
+  const pastTodos = schedules.value.filter(schedule => 
+    schedule.schedule_type === 'TODO' && 
+    !schedule.is_todo_completed &&
+    new Date(schedule.start_datetime) < today
+  )
+  
+  const recentTodos = schedules.value.filter(schedule => 
+    schedule.schedule_type === 'TODO' && 
+    !schedule.is_todo_completed &&
+    new Date(schedule.start_datetime) >= today &&
+    new Date(schedule.start_datetime) <= threeDaysLater
+  )
+  
+  return pastTodos.length > 0 || recentTodos.length > 0
+}
+
+// TODOステータス更新
+async function updateTodoStatus(todo: any, isCompleted: boolean) {
+  try {
+    const scheduleData = {
+      ...todo,
+      is_todo_completed: isCompleted
+    }
+
+    await fetch(buildApiUrl(`/schedules/${todo.id}`), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(scheduleData)
+    })
+
+    await loadSchedules()
+  } catch (error) {
+    console.error('TODOステータスの更新に失敗しました:', error)
+  }
+}
+
 // 初期化
-onMounted(() => {
-  loadActivityCategories()
-  loadSchedules()
-  loadHolidays()
+onMounted(async () => {
+  await loadActivityCategories()
+  await loadSchedules()
+  await loadHolidays()
+  
+  // スケジュール読み込み後にTODOダイアログの表示を判定
+  if (shouldShowTodoDialog()) {
+    showTodoDialog.value = true
+  }
 })
 </script>
 
