@@ -150,34 +150,32 @@
                @mouseover="handleMouseOver($event, date, time)"
                @mouseout="handleMouseOut($event)"
              >
-               <div 
-                 v-for="schedule in getSchedulesAtTime(date, time)" 
-                 :key="schedule.id"
-                 class="schedule-item time-schedule"
-                 :class="getScheduleClass(schedule, date)"
-                 :style="{ 
-                   backgroundColor: getCategoryColor(schedule.activity_category_id, activityCategories),
-                   borderColor: getCategoryColor(schedule.activity_category_id, activityCategories),
-                   top: `${getScheduleTopOffset(schedule, time)}px`,
-                   height: `${schedule.duration}px`
-                 }"
-                 @click.stop="editSchedule(schedule)"
-                 :title="`${schedule.title}${schedule.location ? ' - ' + schedule.location : ''}`"
-               >
-                 <div class="schedule-time">{{ formatScheduleTime(schedule) }}</div>
-                 <div class="schedule-content">
-                   <!-- TODOタイプの場合はチェックボックスを表示 -->
-                   <span v-if="schedule.schedule_type === 'TODO'" class="todo-checkbox">
-                     <input 
-                       type="checkbox" 
-                       :checked="schedule.is_todo_completed" 
-                       disabled 
-                       class="todo-checkbox-input"
-                     />
-                   </span>
-                   <div class="schedule-title">{{ schedule.title }}</div>
-                 </div>
-               </div>
+                               <div 
+                  v-for="schedule in getSchedulesAtTime(date, time)" 
+                  :key="schedule.id"
+                  class="schedule-item time-schedule"
+                  :class="getScheduleClass(schedule, date)"
+                  :style="{ 
+                    backgroundColor: getCategoryColor(schedule.activity_category_id, activityCategories),
+                    borderColor: getCategoryColor(schedule.activity_category_id, activityCategories),
+                    top: `${getScheduleTopOffset(schedule, time)}px`,
+                    height: `${schedule.duration}px`
+                  }"
+                  @click.stop="editSchedule(schedule)"
+                  :title="`${schedule.title}${schedule.location ? ' - ' + schedule.location : ''}`"
+                >
+                  <div class="schedule-time">{{ formatScheduleTime(schedule) }}</div>
+                  <!-- TODOタイプの場合はチェックボックスを表示 -->
+                  <span v-if="schedule.schedule_type === 'TODO'" class="todo-checkbox">
+                    <input 
+                      type="checkbox" 
+                      :checked="schedule.is_todo_completed" 
+                      disabled 
+                      class="todo-checkbox-input"
+                    />
+                  </span>
+                  <div class="schedule-title">{{ schedule.title }}</div>
+                </div>
              </div>
           </div>
         </div>
@@ -991,12 +989,14 @@ function handleMouseUp() {
   padding: 2px 4px;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
 }
 
 .schedule-time {
   font-size: 0.7em;
   opacity: 0.9;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
+  font-weight: bold;
 }
 
 .schedule-title {
@@ -1006,6 +1006,7 @@ function handleMouseUp() {
   text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
+  margin-top: 1px;
 }
 
 .schedule-content {
@@ -1034,6 +1035,7 @@ function handleMouseUp() {
   align-items: center;
   margin-right: 4px;
   flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .todo-checkbox-input {
