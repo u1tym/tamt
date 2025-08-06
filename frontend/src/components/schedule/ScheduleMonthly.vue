@@ -61,6 +61,15 @@
                       <span class="schedule-time" v-if="!schedule.is_all_day">
                         {{ formatTime(schedule.start_datetime) }}
                       </span>
+                      <!-- TODOタイプの場合はチェックボックスを表示 -->
+                      <span v-if="schedule.schedule_type === 'TODO'" class="todo-checkbox">
+                        <input 
+                          type="checkbox" 
+                          :checked="schedule.is_todo_completed" 
+                          disabled 
+                          class="todo-checkbox-input"
+                        />
+                      </span>
                       <span class="schedule-title" v-if="!isMultiDayMiddle(schedule, date)">{{ schedule.title }}</span>
                     </div>
                   </div>
@@ -558,5 +567,26 @@ function editSchedule(schedule: any) {
   white-space: nowrap;
   flex: 1;
   min-width: 0;
+}
+
+.todo-checkbox {
+  display: flex;
+  align-items: center;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.todo-checkbox-input {
+  margin: 0;
+  cursor: default;
+  pointer-events: none;
+  width: 12px;
+  height: 12px;
+  accent-color: #4CAF50;
+}
+
+.todo-checkbox-input:checked {
+  background-color: #4CAF50;
+  border-color: #4CAF50;
 }
 </style> 
