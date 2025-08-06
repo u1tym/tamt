@@ -1102,23 +1102,52 @@ function handleMouseUp() {
   .view-controls {
     flex-direction: column;
     align-items: stretch;
+    margin-bottom: 15px;
+  }
+  
+  .view-toggle button {
+    padding: 0px 8px !important;
+    font-size: 0.85em !important;
+    height: 20px !important;
+    line-height: 20px !important;
+    margin: 0 !important;
+    border: none !important;
+    min-height: 20px !important;
+    box-sizing: border-box !important;
+  }
+  
+  .week-start-toggle button {
+    padding: 0px 6px !important;
+    font-size: 0.8em !important;
+    height: 18px !important;
+    line-height: 18px !important;
+    margin: 0 !important;
+    border: none !important;
+    min-height: 18px !important;
+    box-sizing: border-box !important;
   }
   
   .date-navigation {
     flex-direction: row;
-    gap: 10px;
-    padding: 8px;
-    margin-bottom: 15px;
+    gap: 8px;
+    padding: 2px 8px;
+    margin-bottom: 12px;
   }
   
   .nav-btn {
-    padding: 6px 12px;
-    font-size: 0.9em;
+    padding: 0px 8px !important;
+    font-size: 0.85em !important;
     flex-shrink: 0;
+    height: 20px !important;
+    line-height: 20px !important;
+    margin: 0 !important;
+    border: none !important;
+    min-height: 20px !important;
+    box-sizing: border-box !important;
   }
   
   .current-period {
-    font-size: 1em;
+    font-size: 0.95em;
     flex: 1;
     text-align: center;
   }

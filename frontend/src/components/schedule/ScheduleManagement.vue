@@ -846,4 +846,18 @@ onMounted(async () => {
   max-height: 70vh;
   overflow-y: auto;
 }
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .view-toggle button {
+    padding: 0px 8px !important;
+    font-size: 0.85em !important;
+    height: 20px !important;
+    line-height: 20px !important;
+    margin: 0 !important;
+    border: none !important;
+    min-height: 20px !important;
+    box-sizing: border-box !important;
+  }
+}
 </style>
