@@ -7,55 +7,55 @@
       </button>
     </div>
 
-    <!-- フィルタ -->
-    <div class="filter-section">
-      <div class="filter-row">
-        <div class="filter-group">
-          <label for="media-filter">メディア</label>
-          <select
-            id="media-filter"
-            v-model="filters.media_id"
-            class="filter-select"
-            @change="applyFilters"
-          >
-            <option value="">すべて</option>
-            <option v-for="media in mediaList" :key="media.id" :value="media.id">
-              {{ media.name }}
-            </option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label for="artist-filter">アーティスト</label>
-          <select
-            id="artist-filter"
-            v-model="filters.artist_id"
-            class="filter-select"
-            @change="applyFilters"
-          >
-            <option value="">すべて</option>
-            <option v-for="artist in artists" :key="artist.id" :value="artist.id">
-              {{ artist.name }}
-            </option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label for="owned-filter">所持状況</label>
-          <select
-            id="owned-filter"
-            v-model="filters.is_owned"
-            class="filter-select"
-            @change="applyFilters"
-          >
-            <option value="">すべて</option>
-            <option value="true">所持</option>
-            <option value="false">未所持</option>
-          </select>
-        </div>
-        <button @click="clearFilters" class="clear-filter-btn">
-          フィルタクリア
-        </button>
-      </div>
-    </div>
+         <!-- フィルタ -->
+     <div class="filter-section">
+       <div class="filter-row">
+         <div class="filter-group">
+           <label for="media-filter">メディア</label>
+           <select
+             id="media-filter"
+             v-model="filters.media_id"
+             class="filter-select"
+             @change="applyFilters"
+           >
+             <option value="">すべて</option>
+             <option v-for="media in mediaList" :key="media.id" :value="media.id">
+               {{ media.name }}
+             </option>
+           </select>
+         </div>
+         <div class="filter-group">
+           <label for="artist-filter">アーティスト</label>
+           <select
+             id="artist-filter"
+             v-model="filters.artist_id"
+             class="filter-select"
+             @change="applyFilters"
+           >
+             <option value="">すべて</option>
+             <option v-for="artist in artists" :key="artist.id" :value="artist.id">
+               {{ artist.name }}
+             </option>
+           </select>
+         </div>
+         <div class="filter-group" v-if="!isMobile">
+           <label for="owned-filter">所持状況</label>
+           <select
+             id="owned-filter"
+             v-model="filters.is_owned"
+             class="filter-select"
+             @change="applyFilters"
+           >
+             <option value="">すべて</option>
+             <option value="true">所持</option>
+             <option value="false">未所持</option>
+           </select>
+         </div>
+         <button @click="clearFilters" class="clear-filter-btn">
+           フィルタクリア
+         </button>
+       </div>
+     </div>
 
     <!-- GOODS一覧 -->
     <div class="table-wrapper">
@@ -854,24 +854,27 @@ onUnmounted(() => {
   margin-top: 20px;
 }
 
-@media (max-width: 768px) {
-  .filter-section {
-    padding: 12px;
-  }
-  
-  .filter-row {
-    gap: 12px;
-  }
-  
-  .filter-group {
-    min-width: 120px;
-    flex: 1;
-  }
-  
-  .clear-filter-btn {
-    padding: 8px 12px;
-    font-size: 12px;
-  }
+ @media (max-width: 768px) {
+   .filter-section {
+     padding: 12px;
+   }
+   
+   .filter-row {
+     gap: 12px;
+     flex-wrap: wrap;
+   }
+   
+   .filter-group {
+     min-width: 120px;
+     flex: 1;
+   }
+   
+   .clear-filter-btn {
+     padding: 8px 12px;
+     font-size: 12px;
+     align-self: end;
+     margin-top: 20px;
+   }
   
   .table-wrapper {
     margin-bottom: 16px;
