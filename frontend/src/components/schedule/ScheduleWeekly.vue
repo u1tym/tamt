@@ -100,6 +100,7 @@
               v-for="schedule in getAllDaySchedules(date)" 
               :key="schedule.id"
               class="schedule-item all-day-schedule"
+              :class="getScheduleClass(schedule, date)"
               :style="{ 
                 backgroundColor: getCategoryColor(schedule.activity_category_id, activityCategories),
                 borderColor: getCategoryColor(schedule.activity_category_id, activityCategories)
@@ -107,7 +108,16 @@
               @click.stop="editSchedule(schedule)"
               :title="`${schedule.title}${schedule.location ? ' - ' + schedule.location : ''}`"
             >
-              {{ schedule.title }}
+              <!-- TODOタイプの場合はチェックボックスを表示 -->
+              <span v-if="schedule.schedule_type === 'TODO'" class="todo-checkbox">
+                <input 
+                  type="checkbox" 
+                  :checked="schedule.is_todo_completed" 
+                  disabled 
+                  class="todo-checkbox-input"
+                />
+              </span>
+              <span class="schedule-title-text">{{ schedule.title }}</span>
             </div>
           </div>
         </div>
@@ -144,6 +154,7 @@
                  v-for="schedule in getSchedulesAtTime(date, time)" 
                  :key="schedule.id"
                  class="schedule-item time-schedule"
+                 :class="getScheduleClass(schedule, date)"
                  :style="{ 
                    backgroundColor: getCategoryColor(schedule.activity_category_id, activityCategories),
                    borderColor: getCategoryColor(schedule.activity_category_id, activityCategories),
@@ -154,7 +165,18 @@
                  :title="`${schedule.title}${schedule.location ? ' - ' + schedule.location : ''}`"
                >
                  <div class="schedule-time">{{ formatScheduleTime(schedule) }}</div>
-                 <div class="schedule-title">{{ schedule.title }}</div>
+                 <div class="schedule-content">
+                   <!-- TODOタイプの場合はチェックボックスを表示 -->
+                   <span v-if="schedule.schedule_type === 'TODO'" class="todo-checkbox">
+                     <input 
+                       type="checkbox" 
+                       :checked="schedule.is_todo_completed" 
+                       disabled 
+                       class="todo-checkbox-input"
+                     />
+                   </span>
+                   <div class="schedule-title">{{ schedule.title }}</div>
+                 </div>
                </div>
              </div>
           </div>
@@ -166,7 +188,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { getCategoryColor } from './ScheduleCommon'
+import { getCategoryColor, getScheduleClass } from './ScheduleCommon'
 
 // Props
 interface Props {
@@ -845,7 +867,8 @@ function handleMouseUp() {
 }
 
 .all-day-schedule {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
   margin-bottom: 2px;
   padding: 2px 4px;
@@ -863,6 +886,7 @@ function handleMouseUp() {
   top: auto !important;
   height: auto !important;
   z-index: 1;
+  gap: 4px;
 }
 
 .time-section {
@@ -956,6 +980,8 @@ function handleMouseUp() {
 
 .time-schedule {
   padding: 2px 4px;
+  display: flex;
+  flex-direction: column;
 }
 
 .schedule-time {
@@ -969,6 +995,59 @@ function handleMouseUp() {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.schedule-content {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.schedule-title-text {
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  display: block;
+}
+
+.todo-checkbox {
+  display: flex;
+  align-items: center;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.todo-checkbox-input {
+  margin: 0;
+  cursor: default;
+  pointer-events: none;
+  width: 12px;
+  height: 12px;
+  accent-color: #4CAF50;
+}
+
+.todo-checkbox-input:checked {
+  background-color: #4CAF50;
+  border-color: #4CAF50;
+}
+
+/* TODOタイプのスケジュールの完了状態のスタイル */
+.schedule-item.todo {
+  /* 背景色は動的に設定されるため、ここでは設定しない */
+}
+
+.schedule-item.completed {
+  opacity: 0.6;
+  text-decoration: line-through;
 }
 
 /* スクロール可能なエリア */
