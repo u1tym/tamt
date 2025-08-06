@@ -1,5 +1,5 @@
 <template>
-  <div class="schedule-weekly">
+  <div class="schedule-weekly" :class="{ 'view-mode-week': viewMode === 'week' }">
     <!-- 表示設定 -->
     <div class="view-controls">
       <div class="view-toggle">
@@ -629,11 +629,12 @@ function handleMouseUp() {
 </script>
 
 <style scoped>
-.schedule-weekly {
-  padding: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+  .schedule-weekly {
+    padding: 20px;
+    max-width: 100%;
+    margin: 0 auto;
+    overflow-x: hidden; /* 横スクロールを無効化 */
+  }
 
 .view-controls {
   display: flex;
@@ -724,13 +725,14 @@ function handleMouseUp() {
   color: #333;
 }
 
-.weekly-calendar {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  overflow: hidden;
-  background: white;
-  max-width: 100%; /* 最大幅を親要素に制限 */
-}
+  .weekly-calendar {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+    max-width: 100%; /* 最大幅を親要素に制限 */
+    overflow-x: hidden; /* 横スクロールを無効化 */
+  }
 
 .calendar-header {
   display: flex;
@@ -738,20 +740,20 @@ function handleMouseUp() {
   border-bottom: 1px solid #ddd;
 }
 
-.time-column-header {
-  width: 80px;
-  min-width: 80px;
-  border-right: 1px solid #ddd;
-  background: #f9f9f9;
-}
+  .time-column-header {
+    width: 60px;
+    min-width: 60px;
+    border-right: 1px solid #ddd;
+    background: #f9f9f9;
+  }
 
-.date-header {
-  flex: 1;
-  padding: 10px;
-  text-align: center;
-  border-right: 1px solid #ddd;
-  min-width: 120px;
-}
+  .date-header {
+    flex: 1;
+    padding: 8px 4px;
+    text-align: center;
+    border-right: 1px solid #ddd;
+    min-width: 80px;
+  }
 
 .date-header:last-child {
   border-right: none;
@@ -786,16 +788,16 @@ function handleMouseUp() {
   color: #d32f2f;
 }
 
-.date-day {
-  font-size: 0.9em;
-  color: #666;
-  margin-bottom: 4px;
-}
+  .date-day {
+    font-size: 0.8em;
+    color: #666;
+    margin-bottom: 2px;
+  }
 
-.date-number {
-  font-size: 1.2em;
-  font-weight: bold;
-}
+  .date-number {
+    font-size: 1.1em;
+    font-weight: bold;
+  }
 
 /* より具体的なセレクターで今日の日付のスタイルを適用 */
 .date-header .date-number.today,
@@ -821,13 +823,13 @@ function handleMouseUp() {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
-.holiday-name {
-  font-size: 0.7em;
-  color: #d32f2f;
-  margin-top: 2px;
-  font-weight: bold;
-  line-height: 1.2;
-}
+  .holiday-name {
+    font-size: 0.6em;
+    color: #d32f2f;
+    margin-top: 1px;
+    font-weight: bold;
+    line-height: 1.1;
+  }
 
 .calendar-body {
   display: flex;
@@ -842,17 +844,17 @@ function handleMouseUp() {
   min-height: 60px;
 }
 
-.all-day-label {
-  width: 80px;
-  min-width: 80px;
-  border-right: 1px solid #ddd;
-  background: #f9f9f9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  color: #666;
-}
+  .all-day-label {
+    width: 60px;
+    min-width: 60px;
+    border-right: 1px solid #ddd;
+    background: #f9f9f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #666;
+  }
 
 .all-day-cell {
   flex: 1;
@@ -902,23 +904,23 @@ function handleMouseUp() {
   overflow: hidden;
 }
 
-.time-column {
-  width: 80px;
-  min-width: 80px;
-  border-right: 1px solid #ddd;
-  background: #f9f9f9;
-  position: relative;
-}
+  .time-column {
+    width: 60px;
+    min-width: 60px;
+    border-right: 1px solid #ddd;
+    background: #f9f9f9;
+    position: relative;
+  }
 
-.time-slot {
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8em;
-  color: #666;
-  border-bottom: 1px solid #eee;
-}
+  .time-slot {
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7em;
+    color: #666;
+    border-bottom: 1px solid #eee;
+  }
 
 /* XX:00の時刻スロットは濃い実線 */
 .time-slot:nth-child(even) {
@@ -930,12 +932,12 @@ function handleMouseUp() {
   border-bottom: 1px dotted #ddd;
 }
 
-.schedule-column {
-  flex: 1;
-  border-right: 1px solid #ddd;
-  position: relative;
-  min-width: 120px;
-}
+  .schedule-column {
+    flex: 1;
+    border-right: 1px solid #ddd;
+    position: relative;
+    min-width: 80px;
+  }
 
 .schedule-column:last-child {
   border-right: none;
@@ -1153,15 +1155,56 @@ function handleMouseUp() {
   }
   
   .calendar-header {
-    font-size: 0.9em;
+    font-size: 0.75em;
   }
   
   .date-header {
-    min-width: 80px;
+    min-width: 45px;
+    padding: 4px 1px;
   }
   
   .schedule-column {
-    min-width: 80px;
+    min-width: 45px;
+  }
+  
+  .time-column-header {
+    width: 40px;
+    min-width: 40px;
+  }
+  
+  .all-day-label {
+    width: 40px;
+    min-width: 40px;
+  }
+  
+  .time-column {
+    width: 40px;
+    min-width: 40px;
+  }
+  
+  .time-slot {
+    font-size: 0.6em;
+  }
+  
+  /* 1週間表示の場合の特別な調整 */
+  .schedule-weekly .view-mode-week .date-header {
+    min-width: 40px;
+    padding: 3px 1px;
+  }
+  
+  .schedule-weekly .view-mode-week .schedule-column {
+    min-width: 40px;
+  }
+  
+  .schedule-weekly .view-mode-week .time-column-header,
+  .schedule-weekly .view-mode-week .all-day-label,
+  .schedule-weekly .view-mode-week .time-column {
+    width: 35px;
+    min-width: 35px;
+  }
+  
+  .schedule-weekly .view-mode-week .time-slot {
+    font-size: 0.55em;
   }
 }
 </style> 
