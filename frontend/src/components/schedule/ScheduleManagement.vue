@@ -592,6 +592,9 @@ onMounted(async () => {
   padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
+  height: 100vh;
+  overflow-y: hidden;
+  box-sizing: border-box;
 }
 
 .header-container {
@@ -662,6 +665,8 @@ onMounted(async () => {
 .main-content {
   display: flex;
   gap: 20px;
+  height: calc(100vh - 140px); /* ヘッダー分を引いた高さ */
+  overflow: hidden;
 }
 
 
@@ -670,6 +675,8 @@ onMounted(async () => {
 
 .calendar-section {
   flex: 1;
+  height: 100%;
+  overflow: hidden;
 }
 
 
@@ -705,6 +712,10 @@ onMounted(async () => {
   border: 1px solid #ddd;
   border-radius: 8px;
   overflow: hidden;
+  height: 100%;
+  overflow-y: hidden;
+  max-height: 100%;
+  box-sizing: border-box;
 }
 
 .monthly-view {
