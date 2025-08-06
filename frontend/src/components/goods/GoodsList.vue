@@ -59,69 +59,115 @@
 
     <!-- GOODS一覧 -->
     <div class="table-wrapper">
-      <!-- 固定ヘッダーテーブル -->
-      <table class="goods-table header-table">
-        <thead>
-          <tr>
-            <th style="text-align:center; width: 10%;">画像</th>
-            <th style="text-align:left; width: 20%;">タイトル</th>
-            <th style="text-align:center; width: 12%;">メディア</th>
-            <th style="text-align:center; width: 15%;">アーティスト</th>
-            <th class="sortable-header" style="text-align:center; width: 12%;" @click="toggleSort">
-              リリース日
-              <span class="sort-icon">
-                {{ sortOrder === 'desc' ? '▼' : '▲' }}
-              </span>
-            </th>
-            <th style="text-align:center; width: 8%;">所持</th>
-            <th style="text-align:center; width: 12%;">コード番号</th>
-            <th style="text-align:center; width: 11%;">操作</th>
-          </tr>
-        </thead>
-      </table>
-      
-      <!-- スクロール可能なボディテーブル -->
-      <div class="table-container">
-        <table class="goods-table body-table">
-          <tbody>
-            <tr
-              v-for="goods in goodsList"
-              :key="goods.id"
-              class="goods-row"
-              @click="editGoods(goods)"
-            >
-              <td style="text-align:center; width: 10%;" class="goods-image-cell">
-                <div class="goods-image">
-                  <img 
-                    v-if="goods.images && goods.images.length > 0" 
-                    :src="getImageSrc(goods.images[0])" 
-                    :alt="goods.title"
-                    @error="handleImageError"
-                  />
-                  <div v-else class="no-image">画像なし</div>
-                </div>
-              </td>
-              <td style="text-align:left; width: 20%;" class="goods-title-cell">{{ goods.title }}</td>
-              <td style="text-align:center; width: 12%;" class="goods-media-cell">{{ getMediaName(goods.media_id) }}</td>
-              <td style="text-align:center; width: 15%;" class="goods-artist-cell">{{ getArtistName(goods.artist_id) }}</td>
-              <td style="text-align:center; width: 12%;" class="goods-date-cell">{{ formatDate(goods.release_date) }}</td>
-              <td style="text-align:center; width: 8%;" class="goods-owned-cell">
-                <span v-if="goods.is_owned" class="owned-badge">✓</span>
-                <span v-else class="not-owned-badge">-</span>
-              </td>
-              <td style="text-align:center; width: 12%;" class="goods-code-cell">{{ goods.code_number || '-' }}</td>
-              <td style="text-align:center; width: 11%;" class="goods-actions-cell">
-                <button @click.stop="editGoods(goods)" class="edit-btn" title="編集">
-                  ✏️
-                </button>
-                <button @click.stop="deleteGoods(goods)" class="delete-btn" title="削除">
-                  🗑️
-                </button>
-              </td>
+      <!-- PC用テーブル -->
+      <div v-if="!isMobile">
+        <!-- 固定ヘッダーテーブル -->
+        <table class="goods-table header-table">
+          <thead>
+            <tr>
+              <th style="text-align:center; width: 10%;">画像</th>
+              <th style="text-align:left; width: 20%;">タイトル</th>
+              <th style="text-align:center; width: 12%;">メディア</th>
+              <th style="text-align:center; width: 15%;">アーティスト</th>
+              <th class="sortable-header" style="text-align:center; width: 12%;" @click="toggleSort">
+                リリース日
+                <span class="sort-icon">
+                  {{ sortOrder === 'desc' ? '▼' : '▲' }}
+                </span>
+              </th>
+              <th style="text-align:center; width: 8%;">所持</th>
+              <th style="text-align:center; width: 12%;">コード番号</th>
+              <th style="text-align:center; width: 11%;">操作</th>
             </tr>
-          </tbody>
+          </thead>
         </table>
+        
+        <!-- スクロール可能なボディテーブル -->
+        <div class="table-container">
+          <table class="goods-table body-table">
+            <tbody>
+              <tr
+                v-for="goods in goodsList"
+                :key="goods.id"
+                class="goods-row"
+                @click="editGoods(goods)"
+              >
+                <td style="text-align:center; width: 10%;" class="goods-image-cell">
+                  <div class="goods-image">
+                    <img 
+                      v-if="goods.images && goods.images.length > 0" 
+                      :src="getImageSrc(goods.images[0])" 
+                      :alt="goods.title"
+                      @error="handleImageError"
+                    />
+                    <div v-else class="no-image">画像なし</div>
+                  </div>
+                </td>
+                <td style="text-align:left; width: 20%;" class="goods-title-cell">{{ goods.title }}</td>
+                <td style="text-align:center; width: 12%;" class="goods-media-cell">{{ getMediaName(goods.media_id) }}</td>
+                <td style="text-align:center; width: 15%;" class="goods-artist-cell">{{ getArtistName(goods.artist_id) }}</td>
+                <td style="text-align:center; width: 12%;" class="goods-date-cell">{{ formatDate(goods.release_date) }}</td>
+                <td style="text-align:center; width: 8%;" class="goods-owned-cell">
+                  <span v-if="goods.is_owned" class="owned-badge">✓</span>
+                  <span v-else class="not-owned-badge">-</span>
+                </td>
+                <td style="text-align:center; width: 12%;" class="goods-code-cell">{{ goods.code_number || '-' }}</td>
+                <td style="text-align:center; width: 11%;" class="goods-actions-cell">
+                  <button @click.stop="editGoods(goods)" class="edit-btn" title="編集">
+                    ✏️
+                  </button>
+                  <button @click.stop="deleteGoods(goods)" class="delete-btn" title="削除">
+                    🗑️
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
+
+             <!-- スマホ用テーブル -->
+       <div v-else class="mobile-goods-list">
+         <div class="mobile-header">
+           <div class="mobile-header-cell">画像</div>
+           <div class="mobile-header-cell">情報</div>
+           <div class="mobile-header-cell">所持</div>
+         </div>
+         <div class="mobile-goods-items">
+           <div
+             v-for="goods in goodsList"
+             :key="goods.id"
+             class="mobile-goods-item"
+             @click="editGoods(goods)"
+           >
+             <div class="mobile-goods-image">
+               <img 
+                 v-if="goods.images && goods.images.length > 0" 
+                 :src="getImageSrc(goods.images[0])" 
+                 :alt="goods.title"
+                 @error="handleImageError"
+               />
+               <div v-else class="no-image">画像なし</div>
+             </div>
+             <div class="mobile-goods-info">
+               <div class="goods-info-line">
+                 <span class="goods-media">{{ getMediaName(goods.media_id) }}</span>
+                 <span class="goods-title">{{ goods.title }}</span>
+               </div>
+               <div class="goods-info-line">
+                 <span class="goods-artist">{{ getArtistName(goods.artist_id) }}</span>
+               </div>
+               <div class="goods-info-line">
+                 <span class="goods-code">{{ goods.code_number || '-' }}</span>
+               </div>
+             </div>
+             <div class="mobile-goods-owned">
+               <span v-if="goods.is_owned" class="owned-badge">✓</span>
+               <span v-else class="not-owned-badge">-</span>
+             </div>
+           </div>
+         </div>
+       </div>
     </div>
 
     <!-- 新規追加・編集ダイアログ -->
@@ -1340,6 +1386,147 @@ onUnmounted(() => {
   cursor: pointer;
   user-select: none;
 }
+
+/* スマホ用GOODS一覧スタイル */
+.mobile-goods-list {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  background: white;
+}
+
+.mobile-header {
+  display: grid;
+  grid-template-columns: 60px 1fr 60px;
+  background-color: #f5f5f5;
+  border-bottom: 2px solid #e0e0e0;
+  font-weight: 600;
+  color: #333;
+}
+
+.mobile-header-cell {
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 12px;
+  border-right: 1px solid #e0e0e0;
+}
+
+.mobile-header-cell:last-child {
+  border-right: none;
+}
+
+.mobile-goods-items {
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-goods-items::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-goods-item {
+  display: grid;
+  grid-template-columns: 60px 1fr 60px;
+  border-bottom: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  align-items: center;
+  min-height: 80px;
+}
+
+.mobile-goods-item:hover {
+  background-color: #f8f9fa;
+}
+
+.mobile-goods-item:last-child {
+  border-bottom: none;
+}
+
+.mobile-goods-image {
+  width: 50px;
+  height: 50px;
+  background-color: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+  margin: 0 auto;
+}
+
+.mobile-goods-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.mobile-goods-info {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.goods-info-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.goods-info-line:first-child {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.goods-media {
+  font-size: 11px;
+  color: #666;
+  background-color: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.goods-title {
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.3;
+  flex: 1;
+  word-break: break-word;
+}
+
+.goods-artist {
+  color: #666;
+  font-size: 12px;
+}
+
+.goods-code {
+  color: #666;
+  font-size: 11px;
+  font-family: monospace;
+  background-color: #f8f8f8;
+  padding: 1px 4px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.goods-date {
+  color: #666;
+  font-size: 11px;
+}
+
+.mobile-goods-owned {
+  text-align: center;
+}
+
+
 
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
