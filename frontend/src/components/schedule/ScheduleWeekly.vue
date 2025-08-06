@@ -196,13 +196,15 @@ interface Props {
   activityCategories?: any[]
   selectedCategories?: number[]
   holidays?: any[]
+  defaultViewMode?: '3days' | 'week'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   schedules: () => [],
   activityCategories: () => [],
   selectedCategories: () => [],
-  holidays: () => []
+  holidays: () => [],
+  defaultViewMode: 'week'
 })
 
 // Emits
@@ -214,7 +216,7 @@ const emit = defineEmits<{
 }>()
 
 // 状態管理
-const viewMode = ref<'3days' | 'week'>('week')
+const viewMode = ref<'3days' | 'week'>(props.defaultViewMode)
 const startWithMonday = ref(true)
 const currentDate = ref(new Date())
 
@@ -696,14 +698,14 @@ function handleMouseUp() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 10px;
+  margin-bottom: 15px;
+  padding: 8px 12px;
   background: #f9f9f9;
   border-radius: 8px;
 }
 
 .nav-btn {
-  padding: 8px 16px;
+  padding: 6px 14px;
   background: #4CAF50;
   color: white;
   border: none;
@@ -718,7 +720,7 @@ function handleMouseUp() {
 
 .current-period {
   font-weight: bold;
-  font-size: 1.1em;
+  font-size: 1em;
   color: #333;
 }
 
@@ -727,6 +729,7 @@ function handleMouseUp() {
   border-radius: 8px;
   overflow: hidden;
   background: white;
+  max-width: 100%; /* 最大幅を親要素に制限 */
 }
 
 .calendar-header {
@@ -854,12 +857,14 @@ function handleMouseUp() {
 .all-day-cell {
   flex: 1;
   border-right: 1px solid #ddd;
-  padding: 5px;
-  min-height: 50px;
+  padding: 3px;
+  min-height: 40px;
   background: #fafafa;
   position: relative;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* 横方向のオーバーフローを防ぐ */
+  min-width: 0; /* フレックスアイテムの最小幅を0に設定 */
 }
 
 .all-day-cell:last-child {
@@ -870,10 +875,10 @@ function handleMouseUp() {
   display: flex;
   align-items: center;
   width: 100%;
-  margin-bottom: 2px;
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-size: 0.8em;
+  margin-bottom: 1px;
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-size: 0.75em;
   cursor: pointer;
   color: white;
   white-space: nowrap;
@@ -884,9 +889,11 @@ function handleMouseUp() {
   left: auto !important;
   right: auto !important;
   top: auto !important;
-  height: auto !important;
+  height: 18px !important; /* 固定の高さを設定 */
   z-index: 1;
-  gap: 4px;
+  gap: 3px;
+  min-width: 0; /* フレックスアイテムの最小幅を0に設定 */
+  line-height: 1; /* 行の高さを最小に */
 }
 
 .time-section {
@@ -1017,6 +1024,7 @@ function handleMouseUp() {
   flex: 1;
   min-width: 0;
   display: block;
+  max-width: 100%; /* 最大幅を親要素に制限 */
 }
 
 .todo-checkbox {
@@ -1053,8 +1061,16 @@ function handleMouseUp() {
 /* スクロール可能なエリア */
 .time-section {
   overflow-y: auto;
-  max-height: 540px; /* 600px - 60px (all-day section) */
+  max-height: 550px; /* 600px - 50px (all-day section) */
   overflow-x: hidden; /* 横スクロールを隠す */
+  /* スクロールバーを非表示にする */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+/* Webkit系ブラウザ（Chrome, Safari, Edge）のスクロールバーを非表示 */
+.time-section::-webkit-scrollbar {
+  display: none;
 }
 
 .time-column {
@@ -1064,21 +1080,20 @@ function handleMouseUp() {
   background: #f9f9f9;
 }
 
-/* スクロールバーの幅を考慮して終日欄と時刻欄の幅を揃える */
+/* スクロールバーを非表示にしたため、幅の調整は不要 */
 .all-day-section {
   display: flex;
   border-bottom: 1px solid #ddd;
-  min-height: 60px;
-  padding-right: 17px; /* スクロールバーの幅分を追加 */
+  min-height: 50px;
   box-sizing: border-box;
+  overflow: hidden; /* 横方向のオーバーフローを防ぐ */
 }
 
-/* 日付ヘッダーも同様に調整 */
+/* 日付ヘッダー */
 .calendar-header {
   display: flex;
   background: #f5f5f5;
   border-bottom: 1px solid #ddd;
-  padding-right: 17px; /* スクロールバーの幅分を追加 */
   box-sizing: border-box;
 }
 
@@ -1090,8 +1105,22 @@ function handleMouseUp() {
   }
   
   .date-navigation {
-    flex-direction: column;
+    flex-direction: row;
     gap: 10px;
+    padding: 8px;
+    margin-bottom: 15px;
+  }
+  
+  .nav-btn {
+    padding: 6px 12px;
+    font-size: 0.9em;
+    flex-shrink: 0;
+  }
+  
+  .current-period {
+    font-size: 1em;
+    flex: 1;
+    text-align: center;
   }
   
   .calendar-header {

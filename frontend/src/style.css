@@ -71,7 +71,7 @@ button:focus-visible {
 /* スマホ用のスタイル */
 @media (max-width: 768px) {
   body {
-    background-color: #ffffff;
+    background-color: #f5f5f5;
   }
   
   h1 {

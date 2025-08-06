@@ -62,19 +62,20 @@
           />
         </div>
 
-        <!-- 週間表示 -->
-        <div v-else-if="viewMode === 'week'" class="weekly-view">
-          <ScheduleWeekly 
-            :schedules="schedules" 
-            :activity-categories="activityCategories"
-            :selected-categories="selectedCategories"
-            :holidays="holidays"
-            @edit-schedule="editSchedule"
-            @create-schedule="createSchedule"
-            @create-all-day-schedule="createAllDaySchedule"
-            @week-start-changed="onWeekStartChanged"
-          />
-        </div>
+                 <!-- 週間表示 -->
+         <div v-else-if="viewMode === 'week'" class="weekly-view">
+           <ScheduleWeekly 
+             :schedules="schedules" 
+             :activity-categories="activityCategories"
+             :selected-categories="selectedCategories"
+             :holidays="holidays"
+             :default-view-mode="isMobile() ? '3days' : 'week'"
+             @edit-schedule="editSchedule"
+             @create-schedule="createSchedule"
+             @create-all-day-schedule="createAllDaySchedule"
+             @week-start-changed="onWeekStartChanged"
+           />
+         </div>
       </div>
     </div>
 
@@ -221,7 +222,17 @@ const showScheduleModal = ref(false)
 const showConfigModal = ref(false)
 const showTodoDialog = ref(false)
 const editingSchedule = ref<any>(null)
-const viewMode = ref<'month' | 'week'>('month')
+// スマホかどうかを判定する関数
+const isMobile = () => {
+  return window.innerWidth <= 768
+}
+
+// デフォルトの表示モードを設定（スマホの場合は週間表示）
+const getDefaultViewMode = () => {
+  return isMobile() ? 'week' : 'month'
+}
+
+const viewMode = ref<'month' | 'week'>(getDefaultViewMode())
 
 const weekStartDate = ref('');
 
