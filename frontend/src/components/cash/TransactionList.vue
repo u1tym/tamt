@@ -138,7 +138,6 @@
               v-model="form.used_date"
               required
               class="form-input"
-              @change="fetchPaymentDate"
             />
           </div>
 
@@ -216,7 +215,6 @@
               v-model.number="form.payment_source_id"
               required
               class="form-select"
-              @change="fetchPaymentDate"
             >
               <option value="">選択してください</option>
               <option v-for="source in paymentSources" :key="source.id" :value="source.id">
@@ -227,10 +225,27 @@
 
           <div class="form-group">
             <label for="paid_date">支払日</label>
-            <div class="payment-date-display">
-              <span v-if="form.paid_date" class="payment-date-text">{{ form.paid_date }}</span>
-              <span v-else class="payment-date-placeholder">使用日と支出元を選択すると自動計算されます</span>
+            <div class="payment-date-input-container">
+              <input
+                id="paid_date"
+                type="date"
+                v-model="form.paid_date"
+                class="form-input"
+                placeholder="支払日を選択してください"
+              />
+              <button
+                type="button"
+                @click="fetchPaymentDate"
+                class="auto-calc-btn"
+                title="自動計算"
+                :disabled="!form.used_date || !form.payment_source_id"
+              >
+                🔄 自動計算
+              </button>
             </div>
+            <small class="payment-date-help">
+              使用日と支出元を選択して「自動計算」ボタンを押すか、手動で日付を選択してください
+            </small>
           </div>
 
           <div class="form-group">
@@ -558,7 +573,6 @@ const formatAmount = (amount: number | string) => {
 const fetchPaymentDate = async () => {
   // 使用日と支出元が両方選択されている場合のみ支払日を取得
   if (!form.value.used_date || !form.value.payment_source_id) {
-    form.value.paid_date = ''
     return
   }
 
@@ -570,7 +584,7 @@ const fetchPaymentDate = async () => {
     form.value.paid_date = data.paid_date
   } catch (e: any) {
     console.error('支払日取得エラー:', e)
-    form.value.paid_date = ''
+    // エラーが発生しても既存の値をクリアしない
   }
 }
 
@@ -1863,26 +1877,45 @@ onUnmounted(() => {
   box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
 }
 
-.payment-date-display {
-  padding: 12px;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  min-height: 20px;
+.payment-date-input-container {
   display: flex;
+  gap: 8px;
   align-items: center;
 }
 
-.payment-date-text {
-  color: #2e7d32;
-  font-weight: 500;
-  font-size: 14px;
+.payment-date-input-container .form-input {
+  flex: 1;
 }
 
-.payment-date-placeholder {
-  color: #6c757d;
+.auto-calc-btn {
+  padding: 8px 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  min-height: 44px;
+  transition: background-color 0.2s;
+}
+
+.auto-calc-btn:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.auto-calc-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.payment-date-help {
+  display: block;
+  margin-top: 4px;
+  color: #666;
+  font-size: 12px;
   font-style: italic;
-  font-size: 14px;
 }
 
 .form-textarea {
