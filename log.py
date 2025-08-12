@@ -11,6 +11,7 @@ import time
 import datetime
 import math
 import inspect
+import threading
 
 from typing import Literal
 from typing import Self
@@ -57,9 +58,11 @@ class Log:
 		dt = datetime.datetime.fromtimestamp( tm_int )
 		dt_str = '{0:%Y-%m-%d %H:%M:%S}'.format( dt ) + '.' + str( tm_mil ).zfill( 3 )
 
+		tid = threading.get_ident()
+
 		msg = ( dt_str
 			+ ' [' + level + '] '
-			+ '(' + str(self.tid) + ') '
+			+ '(' + str(tid) + ') '
 			+ filename + ':' + str(lineno) + ' ' + message )
 		if self.outflag:
 			print( msg )
