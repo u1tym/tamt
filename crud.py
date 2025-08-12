@@ -337,8 +337,15 @@ def create_transaction(db: Session, tx: schemas.TransactionCreate):
     db.refresh(db_tx)
     return db_tx
 
-def get_transactions(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Transaction).offset(skip).limit(limit).all()
+def get_transactions(db: Session, frdt: Optional[date] = None, todt: Optional[date] = None):
+    # res = db.query(models.Transaction).offset(skip).limit(limit).all()
+    query = db.query(models.Transaction)
+    if frdt is not None:
+        query = query.filter(models.Transaction.used_date >= frdt)
+    if todt is not None:
+        query = query.filter(models.Transaction.used_date <= todt)
+    res = query.all()
+    return res
 
 def get_transaction(db: Session, tx_id: int):
     return db.query(models.Transaction).filter(models.Transaction.id == tx_id).first()

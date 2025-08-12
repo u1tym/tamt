@@ -20,6 +20,8 @@ import models
 import crud
 import schemas
 
+from log import Log
+
 from type_req import rep_calculate_payment_periods_rec
 from type_req import rep_calculate_payment_periods
 from type_req import rep_get_payment_summary_rec
@@ -31,8 +33,11 @@ from typing import cast
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# データベーステーブルを作成
-models.Base.metadata.create_all(bind=engine)
+ulog = Log(0, "ulog")
+ulog.debug_on()
+
+# # データベーステーブルを作成
+# models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -50,7 +55,18 @@ app.add_middleware(
 async def log_session_info(request: Request, call_next):
     # cash、goods、holiday、knowhow、scheduleのAPIエンドポイントかチェック
     path = request.url.path
-    if any(keyword in path for keyword in ['/transactions', '/payment_sources', '/budgets', '/knowhows', '/persons', '/artists', '/media', '/goods', '/schedules', '/holidays']):
+    if any(keyword in path for keyword in [
+            '/transactions',
+            '/payment_sources',
+            '/budgets',
+            '/knowhows',
+            '/persons',
+            '/artists',
+            '/media',
+            '/goods',
+            '/schedules',
+            '/holidays',
+        ]):
         username = request.headers.get('X-Username', 'Unknown')
         session_token = request.headers.get('X-Session-Token', 'Unknown')
         logger.info(f"API Request - Path: {path}, Method: {request.method}, Username: {username}, Session Token: {session_token}")
@@ -75,7 +91,11 @@ def get_db():
 # 支払い期間の計算関数
 def calculate_payment_periods() -> rep_calculate_payment_periods:
     """現在日を基準に当月、翌月、翌々月の支払い期間を計算（23日～翌月22日）"""
+    
+    ulog.output("INF", "[ST] calculate_payment_periods()")
+
     today = date.today()
+    ulog.output("DBG", "基準日=" + str(today))
 
     # 当月の期間（直近の過去の23日から直近の次の22日まで）
     if today.day >= 23:
@@ -93,14 +113,22 @@ def calculate_payment_periods() -> rep_calculate_payment_periods:
             current_month_start = date(today.year, today.month - 1, 23)
         current_month_end = date(today.year, today.month, 22)
 
+    ulog.output("DBG", "基準期間 " + str(current_month_start) + "～" + str(current_month_end))
+
     # 翌月の期間
     next_month_start = current_month_end + relativedelta(days=1)
     next_month_end = next_month_start + relativedelta(months=1) - relativedelta(days=1)
+
+    ulog.output("DBG", "翌月期間 " + str(next_month_start) + "～" + str(next_month_end))
 
     # 翌々月の期間
     next_next_month_start = next_month_end + relativedelta(days=1)
     next_next_month_end = next_next_month_start + relativedelta(months=1) - relativedelta(days=1)
 
+    ulog.output("DBG", "翌々月期間 " + str(next_next_month_start) + "～" + str(next_next_month_end))
+
+
+    ulog.output("INF", "[ED] calculate_payment_periods()")
 
     return {
         'current_month': {
@@ -123,6 +151,9 @@ def calculate_payment_periods() -> rep_calculate_payment_periods:
 @app.get("/payment-summary", response_model=schemas.BaseResponse[dict])
 def get_payment_summary(db: Session = Depends(get_db), request: Request = None):
     """支払い額の集計を取得"""
+
+    ulog.output("INF", "[ST] get_payment_summary()")
+
     try:
         # 支払い期間を計算
         periods = calculate_payment_periods()
@@ -152,6 +183,9 @@ def get_payment_summary(db: Session = Depends(get_db), request: Request = None):
             }
 
         session_info = get_session_info(request)
+
+        ulog.output("INF", "[ED] get_payment_summary()")
+
         return schemas.BaseResponse(processing_result=True, session_info=session_info, data=summary)
 
     except Exception as e:
@@ -391,9 +425,21 @@ async def parse_receipt_endpoint(file: UploadFile = File(...)):
 # 既存のエンドポイント
 @app.get("/transactions", response_model=schemas.ListResponse[schemas.Transaction])
 def read_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
-    transactions = crud.get_transactions(db, skip=skip, limit=limit)
+    ulog.output("INF", "[ST] transaction()")
+
+    now: date = date.today()
+    frdt = now + timedelta(days = -45)
+    todt = now + timedelta(days = 1)
+
+    ulog.output("DBG", "検索対象期間 " + str(frdt) + "～" + str(todt))
+    transactions = crud.get_transactions(db, frdt, todt)
+
     session_info = get_session_info(request)
-    return schemas.ListResponse(processing_result=True, session_info=session_info, data=transactions)
+
+    res = schemas.ListResponse(processing_result=True, session_info=session_info, data=transactions)
+
+    ulog.output("INF", "[ED] transaction()")
+    return res
 
 @app.post("/transactions", response_model=schemas.BaseResponse[schemas.Transaction])
 def create_transaction(transaction: schemas.TransactionCreate, db: Session = Depends(get_db), request: Request = None):
