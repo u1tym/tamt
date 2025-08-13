@@ -248,11 +248,16 @@ export function getSchedulesForDate(date: Date | null, schedules: any[], selecte
   })
 
   // 複数日に跨るスケジュールを開始日順にソート
-  return schedulesForDate.sort((a, b) => {
+  const result = schedulesForDate.sort((a, b) => {
     const aDate = new Date(a.start_datetime)
     const bDate = new Date(b.start_datetime)
     return aDate.getTime() - bDate.getTime()
   })
+  console.log(date)
+  console.log(schedules)
+  console.log(selectedCategories)
+  console.log(result)
+  return result
 }
 
 // 複数日スケジュールの矢印表示用の関数

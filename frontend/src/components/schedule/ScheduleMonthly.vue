@@ -22,14 +22,14 @@
       </div>
     </div>
 
-    <!-- カレンダー本体 -->
+    <!-- カレンダー本体（日付以降） -->
     <div class="calendar-body">
       <div v-for="week in calendarWeeks" :key="week[0] ? week[0].toISOString() : 'empty'" class="calendar-week">
         <div
           v-for="date in week"
           :key="date ? date.toISOString() : 'empty'"
           class="calendar-day"
-                      :class="{ 
+          :class="{ 
               'other-month': !date || date.getMonth() !== currentMonth - 1,
               'sunday': date && date.getDay() === 0,
               'saturday': date && date.getDay() === 6,
@@ -37,59 +37,70 @@
             }"
           @click="date ? selectDate(date) : null"
         >
+          <!-- 日付 -->
           <div class="date-number" :class="{ 'today': date && isToday(date) }">{{ date ? date.getDate() : '' }}</div>
-                          <!-- 休日名称表示 -->
-                <div v-if="date && getHolidayName(date, props.holidays)" class="holiday-label">
-                  {{ getHolidayName(date, props.holidays) }}
-                </div>
-                <div class="schedule-items" style="position: relative">
-                  <div
-                    v-for="schedule in getSchedulesForDate(date, props.schedules, props.selectedCategories)"
-                    :key="schedule.id"
-                    class="schedule-item"
-                    :class="getScheduleClass(schedule, date)"
-                    :style="{
-                      position: 'absolute',
-                      width: '95%',
-                      top: (getArrowPosition(schedule, date, props.schedules)) + 'px',
-                      borderLeftColor: getCategoryColor(schedule.activity_category_id, props.activityCategories),
-                      backgroundColor: getCategoryBackgroundColor(schedule.activity_category_id, props.activityCategories)
-                    }"
-                    @click.stop="editSchedule(schedule)"
-                  >
-                    <div class="schedule-content">
-                      <span class="schedule-time" v-if="!schedule.is_all_day">
-                        {{ formatTime(schedule.start_datetime) }}
-                      </span>
-                      <!-- TODOタイプの場合はチェックボックスを表示 -->
-                      <span v-if="schedule.schedule_type === 'TODO'" class="todo-checkbox">
-                        <input 
-                          type="checkbox" 
-                          :checked="schedule.is_todo_completed" 
-                          disabled 
-                          class="todo-checkbox-input"
-                        />
-                      </span>
-                      <span class="schedule-title" v-if="!isMultiDayMiddle(schedule, date)">{{ schedule.title }}</span>
-                    </div>
-                  </div>
-                </div>
+          
+          <!-- 休日名称表示 -->
+          <div v-if="date && getHolidayName(date, props.holidays)" class="holiday-label">
+            {{ getHolidayName(date, props.holidays) }}
+          </div>
 
-                <!-- 複数日スケジュールの矢印表示（期間全体） -->
-                <div class="multi-day-arrows">
-                  <div
-                    v-for="schedule in getMultiDaySchedulesForDate(date, props.schedules, props.selectedCategories)"
-                    :key="`arrow-${schedule.id}`"
-                    class="schedule-arrow"
-                    :class="getArrowClass(schedule, date)"
-                    :style="{
-                      top: (getArrowPosition(schedule, date, props.schedules) + 42) + 'px',
-                      '--arrow-color': getCategoryColor(schedule.activity_category_id, props.activityCategories)
-                    }"
-                  >
-                    <div class="arrow-line" :style="{ backgroundColor: getCategoryColor(schedule.activity_category_id, props.activityCategories) }"></div>
-                  </div>
-                </div>
+          <!-- 予定表示欄 -->
+          <div class="schedule-items" style="position: relative">
+            <div
+              v-for="schedule in getSchedulesForDate(date, props.schedules, props.selectedCategories)"
+              :key="schedule.id"
+              class="schedule-item"
+              :class="getScheduleClass(schedule, date)"
+              :style="{
+                position: 'absolute',
+                width: '95%',
+                top: (getArrowPosition(schedule, date, props.schedules)) + 'px',
+                borderLeftColor: getCategoryColor(schedule.activity_category_id, props.activityCategories),
+                backgroundColor: getCategoryBackgroundColor(schedule.activity_category_id, props.activityCategories)
+              }"
+              @click.stop="editSchedule(schedule)"
+            >
+            
+              <!-- 予定 -->
+              <div class="schedule-content">
+                <!-- TODOタイプの場合はチェックボックスを表示 -->
+                <span v-if="schedule.schedule_type === 'TODO'" class="todo-checkbox">
+                  <input 
+                    type="checkbox" 
+                    :checked="schedule.is_todo_completed" 
+                    disabled 
+                    class="todo-checkbox-input"
+                  />
+                </span>
+
+                <!-- 終日タイプではない場合、時刻を表示 -->
+                <span class="schedule-time" v-if="!schedule.is_all_day">
+                  {{ formatTime(schedule.start_datetime) }}
+                </span>
+                
+                <!-- 予定の名称を表示 -->
+                <span class="schedule-title" v-if="!isMultiDayMiddle(schedule, date)">{{ schedule.title }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 複数日スケジュールの矢印表示（期間全体） -->
+          <div class="multi-day-arrows">
+            <div
+              v-for="schedule in getMultiDaySchedulesForDate(date, props.schedules, props.selectedCategories)"
+              :key="`arrow-${schedule.id}`"
+              class="schedule-arrow"
+              :class="getArrowClass(schedule, date)"
+              :style="{
+                top: (getArrowPosition(schedule, date, props.schedules) + 42) + 'px',
+                '--arrow-color': getCategoryColor(schedule.activity_category_id, props.activityCategories)
+              }"
+            >
+              <div class="arrow-line" :style="{ backgroundColor: getCategoryColor(schedule.activity_category_id, props.activityCategories) }"></div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -374,7 +385,7 @@ function editSchedule(schedule: any) {
 
 .holiday-label {
   position: absolute;
-  top: 4px;
+  top: 8px;
   right: 4px;
   background: #ff4444;
   color: white;

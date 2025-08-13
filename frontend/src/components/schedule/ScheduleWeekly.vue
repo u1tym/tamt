@@ -2,6 +2,7 @@
   <div class="schedule-weekly" :class="{ 'view-mode-week': viewMode === 'week' }">
     <!-- 表示設定 -->
     <div class="view-controls">
+      
       <div class="view-toggle">
         <button 
           :class="{ active: viewMode === '3days' }" 
@@ -9,12 +10,12 @@
         >
           3日表示
         </button>
-                 <button 
-           :class="{ active: viewMode === 'week' }" 
-           @click="setViewMode('week')"
-         >
-           1週間表示
-         </button>
+        <button 
+          :class="{ active: viewMode === 'week' }" 
+          @click="setViewMode('week')"
+        >
+          1週間表示
+        </button>
       </div>
       
       <div class="week-start-toggle" v-if="viewMode === 'week'">
