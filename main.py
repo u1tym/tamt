@@ -75,10 +75,25 @@ async def log_session_info(request: Request, call_next):
     return response
 
 # セッション情報を取得するヘルパー関数
-def get_session_info(request: Request) -> schemas.SessionInfo:
+def get_session_info(request: Request) -> bool:
+    ulog.output("INF", "[ST] get_session_info()")
+
     username = request.headers.get('X-Username', 'Unknown')
     session_token = request.headers.get('X-Session-Token', 'Unknown')
-    return schemas.SessionInfo(username=username, session_token=session_token)
+
+    ulog.output("DBG", "username = [" + username + "]")
+    ulog.output("DBG", "session_token = [" + session_token + "]")
+
+    db: Session = Depends(get_db)
+    acc = crud.get_account_by_username(db, username=username)
+
+    result: bool = False
+    res = schemas.SessionInfo(username=username, session_token=session_token)
+    if res.session_token != session_token:
+        result = True
+
+    ulog.output("INF", "[ED] get_session_info()")
+    return result
 
 # データベースセッションの依存関係
 def get_db():
@@ -427,6 +442,8 @@ async def parse_receipt_endpoint(file: UploadFile = File(...)):
 def read_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
     ulog.output("INF", "[ST] transaction()")
 
+    session_info = get_session_info(request)
+
     now: date = date.today()
     frdt = now + timedelta(days = -45)
     todt = now + timedelta(days = 1)
@@ -434,7 +451,6 @@ def read_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get
     ulog.output("DBG", "検索対象期間 " + str(frdt) + "～" + str(todt))
     transactions = crud.get_transactions(db, frdt, todt)
 
-    session_info = get_session_info(request)
 
     res = schemas.ListResponse(processing_result=True, session_info=session_info, data=transactions)
 
