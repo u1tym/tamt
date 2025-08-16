@@ -597,7 +597,7 @@ const fetchKnowhowTree = async () => {
 // 特定のKNOWHOWを取得
 const fetchKnowhow = async (id: number) => {
   try {
-    const res = await fetch(buildApiUrl(`/knowhows/${id}`))
+    const res = await fetch(buildApiUrl(`/knowhow/knowhows/${id}`))
     if (!res.ok) throw new Error('KNOWHOWの取得に失敗しました')
     const response = await res.json()
     return response.data
@@ -684,8 +684,8 @@ const saveKnowhow = async () => {
 
   try {
     const url = isEditing.value
-      ? buildApiUrl(`/knowhows/${editingKnowhowId.value}`)
-      : buildApiUrl('/knowhows')
+      ? buildApiUrl(`/knowhow/knowhows/${editingKnowhowId.value}`)
+      : buildApiUrl('/knowhow/knowhows')
 
     const method = isEditing.value ? 'PUT' : 'POST'
     const body = {
@@ -723,7 +723,7 @@ const deleteKnowhow = async (id: number) => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/knowhows/${id}`), {
+    const res = await fetch(buildApiUrl(`/knowhow/knowhows/${id}`), {
       method: 'DELETE'
     })
 
@@ -749,7 +749,7 @@ const moveKnowhowUp = async (id: number) => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/knowhows/${id}/move-up`), {
+    const res = await fetch(buildApiUrl(`/knowhow/knowhows/${id}/move-up`), {
       method: 'POST'
     })
 
@@ -772,7 +772,7 @@ const moveKnowhowDown = async (id: number) => {
   isSubmitting.value = true
 
   try {
-    const res = await fetch(buildApiUrl(`/knowhows/${id}/move-down`), {
+    const res = await fetch(buildApiUrl(`/knowhow/knowhows/${id}/move-down`), {
       method: 'POST'
     })
 
