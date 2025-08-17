@@ -999,7 +999,7 @@ const parseReceipt = async (imageBlob: Blob) => {
     formData.append('file', imageBlob, 'receipt.jpg')
 
     // APIに送信
-    const apiUrl = buildApiUrl('/parse-receipt')
+    const apiUrl = buildApiUrl('/cash/parse-receipt')
     console.log('レシート解析API URL:', apiUrl)
 
     const response = await fetch(apiUrl, {

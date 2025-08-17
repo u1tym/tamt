@@ -477,7 +477,7 @@ async function saveSchedule() {
     }
 
     if (editingSchedule.value) {
-      await fetch(buildApiUrl(`/schedules/${editingSchedule.value.id}`), {
+      await fetch(buildApiUrl(`/schedule/schedules/${editingSchedule.value.id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -485,7 +485,7 @@ async function saveSchedule() {
         body: JSON.stringify(scheduleData)
       })
     } else {
-      await fetch(buildApiUrl('/schedules'), {
+      await fetch(buildApiUrl('/schedule/schedules'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -505,7 +505,7 @@ async function deleteSchedule() {
   if (!editingSchedule.value || !confirm('このスケジュールを削除しますか？')) return
 
   try {
-    await fetch(buildApiUrl(`/schedules/${editingSchedule.value.id}`), {
+    await fetch(buildApiUrl(`/schedule/schedules/${editingSchedule.value.id}`), {
       method: 'DELETE'
     })
     closeScheduleModal()
@@ -560,7 +560,7 @@ async function updateTodoStatus(todo: any, isCompleted: boolean) {
       is_todo_completed: isCompleted
     }
 
-    await fetch(buildApiUrl(`/schedules/${todo.id}`), {
+    await fetch(buildApiUrl(`/schedule/schedules/${todo.id}`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
