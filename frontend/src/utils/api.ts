@@ -128,7 +128,7 @@ export const calculatePaymentDate = (data: any) => api.post('/cash/calculate-pay
 export const getBudgetNames = (dateStr: string) => api.get(`/cash/budget-names?date_str=${dateStr}`)
 
 // 商品管理用のAPI
-export const getGoods = (skip: number = 0, limit: number = 100) => api.get(`/goods/goods?skip=${skip}&limit=${limit}`)
+export const getGoods = (skip: number = 0, limit: number = 1000) => api.get(`/goods/goods?skip=${skip}&limit=${limit}`)
 export const getGoodsWithDetails = (id: number) => api.get(`/goods/goods/${id}/with-details`)
 export const createGoods = (data: any) => api.post('/goods/goods', data)
 export const updateGoods = (id: number, data: any) => api.put(`/goods/goods/${id}`, data)
