@@ -6,7 +6,7 @@ from datetime import date as datetime_date
 
 from sqlalchemy.orm import Mapped, mapped_column
 from typing import List
-from typing import Optional, Union
+from typing import Optional
 
 Base = declarative_base()
 

@@ -12,13 +12,15 @@ from sqlalchemy.orm import Session
 import crud
 import schemas
 
+from typing import Any
+
 router = APIRouter()
 
 # スケジュール管理用のAPIエンドポイント
 
 # ActivityCategory API
 @router.get("/activity-categories", response_model=schemas.ListResponse[schemas.ActivityCategory])
-def read_activity_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
+def read_activity_categories(request: Request, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """活動区分一覧を取得"""
     activity_categories = crud.get_activity_categories(db, skip=skip, limit=limit)
     session_info = get_session_info(request)
@@ -33,7 +35,7 @@ def read_activity_category(activity_category_id: int, db: Session = Depends(get_
     return db_activity_category
 
 @router.post("/activity-categories", response_model=schemas.BaseResponse[schemas.ActivityCategory])
-def create_activity_category(activity_category: schemas.ActivityCategoryCreate, db: Session = Depends(get_db), request: Request = None):
+def create_activity_category(request: Request, activity_category: schemas.ActivityCategoryCreate, db: Session = Depends(get_db)):
     """活動区分を作成"""
     result = crud.create_activity_category(db=db, activity_category=activity_category)
     session_info = get_session_info(request)
@@ -49,7 +51,7 @@ def update_activity_category(activity_category_id: int, activity_category: schem
     return schemas.BaseResponse(processing_result=True, session_info=session_info, data=db_activity_category)
 
 @router.delete("/activity-categories/{activity_category_id}", response_model=schemas.SimpleResponse)
-def delete_activity_category(activity_category_id: int, db: Session = Depends(get_db), request: Request = None):
+def delete_activity_category(request: Request, activity_category_id: int, db: Session = Depends(get_db)):
     """活動区分を削除"""
     success = crud.delete_activity_category(db, activity_category_id=activity_category_id)
     if not success:
@@ -59,20 +61,20 @@ def delete_activity_category(activity_category_id: int, db: Session = Depends(ge
 
 # Schedule API
 @router.get("/schedules", response_model=schemas.ListResponse[schemas.Schedule])
-def read_schedules(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), request: Request = None):
+def read_schedules(request: Request, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """スケジュール一覧を取得"""
     schedules = crud.get_schedules(db, skip=skip, limit=limit)
     session_info = get_session_info(request)
     return schemas.ListResponse(processing_result=True, session_info=session_info, data=schedules)
 
 @router.get("/schedules/month/{year}/{month}", response_model=schemas.ListResponse[schemas.ScheduleWithCategory])
-def read_schedules_by_month(year: int, month: int, db: Session = Depends(get_db), request: Request = None):
+def read_schedules_by_month(request: Request, year: int, month: int, db: Session = Depends(get_db)):
     """指定月のスケジュールを取得"""
     schedules = crud.get_schedules_by_month(db, year=year, month=month)
-    result = []
+    result: list[Any] = []
     for schedule in schedules:
         category = crud.get_activity_category(db, schedule.activity_category_id)
-        schedule_dict = {
+        schedule_dict: dict[str, Any] = {
             'id': schedule.id,
             'title': schedule.title,
             'start_datetime': schedule.start_datetime,
@@ -95,15 +97,18 @@ def read_schedules_by_month(year: int, month: int, db: Session = Depends(get_db)
 @router.get("/schedules/filtered/{year}/{month}")
 def read_schedules_by_activity_categories(year: int, month: int, category_ids: str, db: Session = Depends(get_db)):
     """指定された活動区分のスケジュールを取得"""
+
+    result: list[Any] = []
+
     if not category_ids:
-        return []
+        return result
 
     category_id_list = [int(id.strip()) for id in category_ids.split(',') if id.strip()]
     schedules = crud.get_schedules_by_activity_categories(db, category_id_list, year, month)
-    result = []
+    
     for schedule in schedules:
         category = crud.get_activity_category(db, schedule.activity_category_id)
-        schedule_dict = {
+        schedule_dict: dict[str, Any] = {
             'id': schedule.id,
             'title': schedule.title,
             'start_datetime': schedule.start_datetime,
@@ -123,7 +128,7 @@ def read_schedules_by_activity_categories(year: int, month: int, category_ids: s
     return result
 
 @router.get("/schedules/week/{start_date}", response_model=schemas.ListResponse[schemas.ScheduleWithCategory])
-def read_schedules_by_week(start_date: str, db: Session = Depends(get_db), request: Request = None):
+def read_schedules_by_week(request: Request, start_date: str, db: Session = Depends(get_db)):
     """指定週のスケジュールを取得"""
     try:
         # start_dateは "YYYY-MM-DD" 形式
@@ -159,12 +164,15 @@ def read_schedules_by_week(start_date: str, db: Session = Depends(get_db), reque
 @router.get("/schedules/{schedule_id}", response_model=schemas.ScheduleWithCategory)
 def read_schedule(schedule_id: int, db: Session = Depends(get_db)):
     """特定のスケジュールを取得"""
+
+    result: dict[str, Any] = {}
+
     schedule = crud.get_schedule(db, schedule_id=schedule_id)
     if schedule is None:
         raise HTTPException(status_code=404, detail="Schedule not found")
 
     category = crud.get_activity_category(db, schedule.activity_category_id)
-    return {
+    result = {
         'id': schedule.id,
         'title': schedule.title,
         'start_datetime': schedule.start_datetime,
@@ -180,16 +188,17 @@ def read_schedule(schedule_id: int, db: Session = Depends(get_db)):
         'updated_at': schedule.updated_at,
         'activity_category': category
     }
+    return result
 
 @router.post("/schedules", response_model=schemas.BaseResponse[schemas.Schedule])
-def create_schedule(schedule: schemas.ScheduleCreate, db: Session = Depends(get_db), request: Request = None):
+def create_schedule(request: Request, schedule: schemas.ScheduleCreate, db: Session = Depends(get_db)):
     """スケジュールを作成"""
     result = crud.create_schedule(db=db, schedule=schedule)
     session_info = get_session_info(request)
     return schemas.BaseResponse(processing_result=True, session_info=session_info, data=result)
 
 @router.put("/schedules/{schedule_id}", response_model=schemas.BaseResponse[schemas.Schedule])
-def update_schedule(schedule_id: int, schedule: schemas.ScheduleUpdate, db: Session = Depends(get_db), request: Request = None):
+def update_schedule(request: Request, schedule_id: int, schedule: schemas.ScheduleUpdate, db: Session = Depends(get_db)):
     """スケジュールを更新"""
     db_schedule = crud.update_schedule(db, schedule_id=schedule_id, schedule=schedule)
     if db_schedule is None:
@@ -198,7 +207,7 @@ def update_schedule(schedule_id: int, schedule: schemas.ScheduleUpdate, db: Sess
     return schemas.BaseResponse(processing_result=True, session_info=session_info, data=db_schedule)
 
 @router.delete("/schedules/{schedule_id}", response_model=schemas.SimpleResponse)
-def delete_schedule(schedule_id: int, db: Session = Depends(get_db), request: Request = None):
+def delete_schedule(request: Request, schedule_id: int, db: Session = Depends(get_db)):
     """スケジュールを削除"""
     success = crud.delete_schedule(db, schedule_id=schedule_id)
     if not success:

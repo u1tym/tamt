@@ -289,10 +289,10 @@ def normalize_order_indexes(db: Session, target_year: int, target_month: int):
     db.commit()
     return budgets
 
-def copy_budgets_from_year_month(db: Session, source_year: int, source_month: int, target_year: int, target_month: int):
+def copy_budgets_from_year_month(db: Session, source_year: int, source_month: int, target_year: int, target_month: int) -> list[models.Budget]:
     """指定された年月の予算を別の年月にコピー"""
     source_budgets = get_budgets_by_year_month(db, source_year, source_month)
-    copied_budgets = []
+    copied_budgets: list[models.Budget] = []
 
     # コピー先の最大順序を取得
     max_order = db.query(models.Budget).filter(
@@ -327,6 +327,8 @@ def create_transaction(db: Session, tx: schemas.TransactionCreate):
     # フロントエンドから支払日が送信されていない場合は自動計算
     if tx.paid_date is None:
         source = get_payment_source(db, tx.payment_source_id)
+        if source is None:
+            return None
         paid_date = calculate_paid_date(tx.used_date, source.closing_day, source.pay_month_diff, source.pay_day)
     else:
         paid_date = tx.paid_date
@@ -959,7 +961,7 @@ def get_schedules_by_month(db: Session, year: int, month: int):
         models.Schedule.start_datetime <= end_date
     ).order_by(models.Schedule.start_datetime).all()
 
-def get_schedules_by_date_range(db: Session, start_date: datetime, end_date: datetime):
+def get_schedules_by_date_range(db: Session, start_date: datetime, end_date: datetime) -> list[models.Schedule]:
     """指定期間のスケジュールを取得"""
     # まず、指定期間の終了時刻より前に開始するすべてのスケジュールを取得
     schedules = db.query(models.Schedule).filter(
@@ -968,7 +970,7 @@ def get_schedules_by_date_range(db: Session, start_date: datetime, end_date: dat
     ).order_by(models.Schedule.start_datetime).all()
 
     # Python側で重複判定を行う
-    result = []
+    result: list[models.Schedule] = []
     for schedule in schedules:
         # 終日スケジュールの場合は常に含める
         if schedule.is_all_day:
