@@ -21,10 +21,9 @@ import schemas
 import sys
 import os
 
-sys.path.append(os.path.dirname(__file__))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from common import get_db, get_session_info
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from type_req import rep_calculate_payment_periods_rec
 from type_req import rep_calculate_payment_periods
 from type_req import rep_get_payment_summary_rec
@@ -33,11 +32,12 @@ from type_req import rep_parse_recipt
 from log import Log
 
 from typing import cast
+from typing import Any, Optional
 
 router = APIRouter()
 
-@router.get("/payment-summary", response_model=schemas.BaseResponse[dict])
-def get_payment_summary(db: Session = Depends(get_db), request: Request = None):
+@router.get("/payment-summary", response_model=schemas.BaseResponse[dict[str, Any]])
+def get_payment_summary(request: Request, db: Session = Depends(get_db)):
     """支払い額の集計を取得"""
 
     ulog = request.app.state.ulog
@@ -660,13 +660,13 @@ def get_debit_summary(db: Session = Depends(get_db), request: Request = None):
     except Exception as e:
         print(f"Error in get_debit_summary: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-    
+
 
 
 # 支払い期間の計算関数
 def calculate_payment_periods(ulog: Log) -> rep_calculate_payment_periods:
     """現在日を基準に当月、翌月、翌々月の支払い期間を計算（23日～翌月22日）"""
-    
+
     ulog.output("INF", "[ST] calculate_payment_periods()")
 
     today = date.today()

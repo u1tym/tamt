@@ -1,34 +1,19 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request
+from fastapi import FastAPI, Request, Depends
 from routers import router as api_router
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from sqlalchemy import text
-from typing import List
-import io
-from PIL import Image
-import cv2
-import numpy as np
-import pytesseract
-import re
-from datetime import datetime, date, timedelta
-from dateutil.relativedelta import relativedelta
-from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError
-import logging
 
-from database import SessionLocal, engine
-import models
-import crud
-import schemas
+from sqlalchemy.orm import Session
+
+# import crud
+
+import logging
 
 from log import Log
 
-from type_req import rep_calculate_payment_periods_rec
-from type_req import rep_calculate_payment_periods
-from type_req import rep_get_payment_summary_rec
-from type_req import rep_parse_recipt
+from typing import Any
+from typing import Callable
 
-from typing import cast
+from common import get_db
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
@@ -56,25 +41,21 @@ app.add_middleware(
 
 # セッション情報をログ出力するミドルウェア
 @app.middleware("http")
-async def log_session_info(request: Request, call_next):
+async def log_session_info(request: Request, call_next: Callable[[Any], Any], db: Session = Depends(get_db)) -> Any:
     # cash、goods、holiday、knowhow、scheduleのAPIエンドポイントかチェック
     path = request.url.path
+    ulog.output("INF", "path=[" + path + "]")
+
     if any(keyword in path for keyword in [
-            '/transactions',
-            '/payment_sources',
-            '/budgets',
-            '/knowhows',
-            '/persons',
-            '/artists',
-            '/media',
-            '/goods',
-            '/schedules',
-            '/holidays',
+        '/cash', '/goods', '/holiday', '/knowhow', '/schedule',
         ]):
         username = request.headers.get('X-Username', 'Unknown')
         session_token = request.headers.get('X-Session-Token', 'Unknown')
+        ulog.output("INF", "user=[" + username + "] session=[" + session_token + "]")
+
+        # db_acc = crud.get_account_by_username()
         logger.info(f"API Request - Path: {path}, Method: {request.method}, Username: {username}, Session Token: {session_token}")
-    
+
     response = await call_next(request)
     return response
 

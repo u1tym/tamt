@@ -11,10 +11,8 @@ from typing import List
 import sys
 import os
 
-sys.path.append(os.path.dirname(__file__))
-from common import get_db
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from common import get_db
 from database import SessionLocal
 
 router = APIRouter()

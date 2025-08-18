@@ -38,7 +38,7 @@ class Log:
 			self.f.close()
 
 
-	def output(self: Self, level: Literal["ERR", "INF", "WRN", "DBG"], message: str) -> None:
+	def output(self: Self, level: Literal["ERR", "ST ", "END", "INF", "WRN", "DBG"], message: str) -> None:
 
 		if ( self.ondebug == False ) and ( level == "DBG" ):
 			return
