@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 # import crud
 
 import logging
+import argparse
 
 from log import Log
 
@@ -14,6 +15,13 @@ from typing import Any
 from typing import Callable
 
 from common import get_db
+from models import Base
+from database import engine
+
+# コマンドライン引数の解析
+parser = argparse.ArgumentParser()
+parser.add_argument('--migration', action='store_true', help='データベーステーブルを作成する')
+args, unknown = parser.parse_known_args()
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
@@ -22,8 +30,13 @@ logger = logging.getLogger(__name__)
 ulog = Log(0, "ulog")
 ulog.debug_on()
 
-# # データベーステーブルを作成
-# models.Base.metadata.create_all(bind=engine)
+# データベーステーブルを作成（--migrationオプションが指定された場合のみ）
+if args.migration:
+    logger.info("データベーステーブルを作成します...")
+    Base.metadata.create_all(bind=engine)
+    logger.info("データベーステーブルの作成が完了しました")
+else:
+    logger.info("--migrationオプションが指定されていないため、テーブル作成をスキップします")
 
 app = FastAPI()
 app.include_router(api_router)
