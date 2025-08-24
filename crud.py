@@ -7,6 +7,7 @@ from PIL import Image
 import io
 
 from typing import Optional
+from typing import TypedDict
 
 class ArtistWithPerson(TypedDict):
     id: int
@@ -14,6 +15,22 @@ class ArtistWithPerson(TypedDict):
     created_at: datetime
     updated_at: datetime
     persons: list[models.Person]
+
+class GoodsWithDetail(TypedDict):
+    id: int
+    media_id: int
+    artist_id: int
+    title: str
+    release_date: date
+    memo: str
+    is_owned: bool
+    code_number: str
+    is_deleted: bool
+    created_at: datetime
+    updated_at: datetime
+    media: models.Media
+    artist: ArtistWithPerson
+    images: list[models.GoodsImage]
 
 # 支払日自動計算
 def calculate_paid_date(used_date: date, closing_day: int, pay_month_diff: int, pay_day: int) -> date:
@@ -1108,22 +1125,8 @@ def get_goods(db: Session, goods_id: int) -> Optional[models.Goods]:
         models.Goods.is_deleted == False
     ).first()
 
-from typing import TypedDict
-class GoodsWithDetail(TypedDict):
-    id: int
-    media_id: int
-    artist_id: int
-    title: str
-    release_date: date
-    memo: str
-    is_owned: bool
-    code_number: str
-    is_deleted: bool
-    created_at: datetime
-    updated_at: datetime
-    media: models.Media
-    artist: ArtistWithPerson
-    images: list[models.GoodsImage]
+
+
 
 
 def get_goods_with_details(db: Session, goods_id: int) -> Optional[GoodsWithDetail]:
@@ -1136,12 +1139,12 @@ def get_goods_with_details(db: Session, goods_id: int) -> Optional[GoodsWithDeta
     media = get_media(db, goods.media_id)
     if media is None:
         return None
-    
+
     # アーティスト情報を取得（パーソン情報含む）
     artist_with_persons = get_artist_with_persons(db, goods.artist_id)
     if artist_with_persons is None:
         return None
-    
+
     # 画像情報を取得
     images = db.query(models.GoodsImage).filter(
         models.GoodsImage.goods_id == goods_id
