@@ -1,0 +1,72 @@
+crud移行
+
+# 現在の方式（そのまま動作）
+import crud
+result = crud.create_payment_source(db, source)
+
+# 新しい方式（段階的に移行）
+from crud import create_payment_source
+result = create_payment_source(db, source)
+
+現在の状態を維持
+crud.pyはそのまま残す
+新しいcrud/ディレクトリのファイルも並行して存在
+段階的な移行
+既存のコードでimport crudを使用している箇所を特定
+一つずつ新しいインポート方式に変更
+動作確認後に次のファイルに移行
+最終的な削除
+すべてのコードが新しい方式に移行完了後
+crud.pyを削除
+
+
+
+
+分割結果
+以下のようにmodels.pyを機能別に分割しました：
+
+1. models/models_base.py - 共通のBaseクラスとインポート
+  Baseクラス
+  SQLAlchemyのインポート
+
+2. models/models_cash.py - 現金管理関連
+  PaymentSource（支払元）
+  Transaction（取引）
+  Budget（予算）
+
+3. models/models_knowhow.py - ナレッジ管理関連
+  MajorCategory（大項目）
+  MiddleCategory（中項目）
+  Knowhow（ナレッジ）
+
+4. models/models_goods.py - グッズ管理関連
+  Person（人物）
+  Artist（アーティスト）
+  ArtistPerson（アーティスト-人物関連）
+  Media（メディア）
+  Goods（グッズ）
+  GoodsImage（グッズ画像）
+
+5. models/models_schedule.py - スケジュール管理関連
+  ActivityCategory（活動区分）
+  Schedule（スケジュール）
+  Holiday（祝日）
+
+6. models/models_account.py - アカウント管理関連
+  Account（アカウント）
+
+7. models/__init__.py - エクスポート設定
+  すべてのモデルを一箇所からインポート可能
+
+
+# 従来の方法（変更不要）
+import models
+
+# 新しい方法（より明確）
+from models import PaymentSource, Budget, Transaction
+
+
+注意点
+models.pyもcrud.pyと同様に、既存のコードとの互換性を保つため、元のファイルは残したままにしておくことをお勧めします。段階的に移行することで、安全にリファクタリングを進めることができます。
+これにより、モデルの管理がより整理され、各機能の責任が明確に分離されました。
+
