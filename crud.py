@@ -8,6 +8,13 @@ import io
 
 from typing import Optional
 
+class ArtistWithPerson(TypedDict):
+    id: int
+    name: str
+    created_at: datetime
+    updated_at: datetime
+    persons: list[models.Person]
+
 # 支払日自動計算
 def calculate_paid_date(used_date: date, closing_day: int, pay_month_diff: int, pay_day: int) -> date:
     print(f"DEBUG: calculate_paid_date called with used_date: {used_date}, closing_day: {closing_day}, pay_month_diff: {pay_month_diff}, pay_day: {pay_day}")
@@ -134,7 +141,7 @@ def create_payment_source(db: Session, source: schemas.PaymentSourceCreate):
 def get_payment_sources(db: Session):
     return db.query(models.PaymentSource).all()
 
-def get_payment_source(db: Session, source_id: int):
+def get_payment_source(db: Session, source_id: int) -> Optional[models.PaymentSource]:
     return db.query(models.PaymentSource).filter(models.PaymentSource.id == source_id).first()
 
 def update_payment_source(db: Session, source_id: int, source: schemas.PaymentSourceCreate):
@@ -367,6 +374,8 @@ def update_transaction(db: Session, tx_id: int, tx: schemas.TransactionUpdate):
     elif 'used_date' in update_data or 'payment_source_id' in update_data:
         # 使用日または支出元が変更された場合は再計算
         source = get_payment_source(db, update_data.get('payment_source_id', db_tx.payment_source_id))
+        if source is None:
+            return None
         used_date = update_data.get('used_date', db_tx.used_date)
         paid_date = calculate_paid_date(used_date, source.closing_day, source.pay_month_diff, source.pay_day)
         update_data['paid_date'] = paid_date
@@ -751,7 +760,9 @@ def get_artists(db: Session, skip: int = 0, limit: int = 100):
 def get_artist(db: Session, artist_id: int):
     return db.query(models.Artist).filter(models.Artist.id == artist_id).first()
 
-def get_artist_with_persons(db: Session, artist_id: int):
+
+
+def get_artist_with_persons(db: Session, artist_id: int) -> Optional[ArtistWithPerson]:
     """パーソン情報を含むアーティストを取得"""
     artist = get_artist(db, artist_id)
     if artist is None:
@@ -762,13 +773,14 @@ def get_artist_with_persons(db: Session, artist_id: int):
         models.ArtistPerson.artist_id == artist_id
     ).all()
 
-    return {
+    result: ArtistWithPerson = {
         'id': artist.id,
         'name': artist.name,
         'created_at': artist.created_at,
         'updated_at': artist.updated_at,
         'persons': persons
     }
+    return result
 
 def update_artist(db: Session, artist_id: int, artist: schemas.ArtistUpdate):
     db_artist = get_artist(db, artist_id)
@@ -811,7 +823,7 @@ def create_media(db: Session, media: schemas.MediaCreate):
 def get_media_list(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Media).order_by(models.Media.name).offset(skip).limit(limit).all()
 
-def get_media(db: Session, media_id: int):
+def get_media(db: Session, media_id: int) -> Optional[models.Media]:
     return db.query(models.Media).filter(models.Media.id == media_id).first()
 
 def update_media(db: Session, media_id: int, media: schemas.MediaUpdate):
@@ -1090,13 +1102,31 @@ def get_goods_list(db: Session, skip: int = 0, limit: int = 100):
 
     return result
 
-def get_goods(db: Session, goods_id: int):
+def get_goods(db: Session, goods_id: int) -> Optional[models.Goods]:
     return db.query(models.Goods).filter(
         models.Goods.id == goods_id,
         models.Goods.is_deleted == False
     ).first()
 
-def get_goods_with_details(db: Session, goods_id: int):
+from typing import TypedDict
+class GoodsWithDetail(TypedDict):
+    id: int
+    media_id: int
+    artist_id: int
+    title: str
+    release_date: date
+    memo: str
+    is_owned: bool
+    code_number: str
+    is_deleted: bool
+    created_at: datetime
+    updated_at: datetime
+    media: models.Media
+    artist: ArtistWithPerson
+    images: list[models.GoodsImage]
+
+
+def get_goods_with_details(db: Session, goods_id: int) -> Optional[GoodsWithDetail]:
     """詳細情報を含むGOODSを取得"""
     goods = get_goods(db, goods_id)
     if goods is None:
@@ -1104,16 +1134,20 @@ def get_goods_with_details(db: Session, goods_id: int):
 
     # メディア情報を取得
     media = get_media(db, goods.media_id)
-
+    if media is None:
+        return None
+    
     # アーティスト情報を取得（パーソン情報含む）
     artist_with_persons = get_artist_with_persons(db, goods.artist_id)
-
+    if artist_with_persons is None:
+        return None
+    
     # 画像情報を取得
     images = db.query(models.GoodsImage).filter(
         models.GoodsImage.goods_id == goods_id
     ).order_by(models.GoodsImage.display_order).all()
 
-    return {
+    result: GoodsWithDetail = {
         'id': goods.id,
         'media_id': goods.media_id,
         'artist_id': goods.artist_id,
@@ -1129,6 +1163,7 @@ def get_goods_with_details(db: Session, goods_id: int):
         'artist': artist_with_persons,
         'images': images
     }
+    return result
 
 def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
     db_goods = get_goods(db, goods_id)
@@ -1143,7 +1178,7 @@ def update_goods(db: Session, goods_id: int, goods: schemas.GoodsUpdate):
             setattr(db_goods, field, update_data[field])
 
     # 画像の更新
-    saved_images = []
+    saved_images: list[models.GoodsImage] = []
     if 'images' in update_data:
         # 既存の画像を削除
         db.query(models.GoodsImage).filter(
