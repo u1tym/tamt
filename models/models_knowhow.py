@@ -1,4 +1,4 @@
-from .models_base import Base, Integer, String, Text, Boolean, DateTime, ForeignKey, func, Mapped, mapped_column, List, datetime
+from .models_base import Base, Integer, String, Text, Boolean, DateTime, ForeignKey, func, Mapped, mapped_column, List, datetime, relationship
 
 class MajorCategory(Base):
     __tablename__ = 'major_categories'

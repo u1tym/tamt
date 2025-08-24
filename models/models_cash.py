@@ -1,4 +1,4 @@
-from .models_base import Base, Integer, String, Date, DateTime, func, Mapped, mapped_column, List, datetime, datetime_date
+from .models_base import Base, Integer, String, Date, DateTime, ForeignKey, func, Mapped, mapped_column, List, datetime, datetime_date, relationship
 
 class PaymentSource(Base):
     __tablename__ = 'payment_sources'

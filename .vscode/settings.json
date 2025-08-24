@@ -1,5 +1,6 @@
 {
     "python.languageServer": "Pylance",
     "python.analysis.typeCheckingMode": "strict",
-    "python.analysis.extraPaths": ["typings"]
+    "python.analysis.extraPaths": ["typings"],
+    "python.defaultInterpreterPath": "${workspaceFolder}\\env\\Scripts\\python.exe"
 }

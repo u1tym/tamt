@@ -1,4 +1,4 @@
-from .models_base import Base, Integer, String, Text, Boolean, DateTime, Date, ForeignKey, LargeBinary, func, Mapped, mapped_column, List, datetime, datetime_date
+from .models_base import Base, Integer, String, Text, Boolean, DateTime, Date, ForeignKey, LargeBinary, func, Mapped, mapped_column, List, datetime, datetime_date, relationship
 
 class Person(Base):
     __tablename__ = 'persons'

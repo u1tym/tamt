@@ -1,4 +1,4 @@
-from .models_base import Base, Integer, String, Text, Boolean, DateTime, Date, ForeignKey, func, Mapped, mapped_column, List, datetime, datetime_date, timezone
+from .models_base import Base, Integer, String, Text, Boolean, DateTime, Date, ForeignKey, func, Mapped, mapped_column, List, datetime, datetime_date, timezone, relationship
 
 class ActivityCategory(Base):
     __tablename__ = 'activity_categories'
