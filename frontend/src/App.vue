@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import ApiStatusMonitor from './components/ApiStatusMonitor.vue'
 // This file now only serves as a router view container
 </script>
 
 <template>
   <router-view />
+  <ApiStatusMonitor />
 </template>
 
 <style scoped>

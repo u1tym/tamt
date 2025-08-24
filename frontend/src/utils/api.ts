@@ -4,7 +4,7 @@ export const getApiBaseUrl = (): string => {
   if (import.meta.env.DEV) {
     const currentHost = window.location.hostname
     const currentPort = window.location.port
-    
+
     // フロントエンドが5901ポートの場合、バックエンドは5902ポート
     if (currentPort === '5901') {
       return `http://${currentHost}:5902`
@@ -28,66 +28,354 @@ const getSessionInfo = () => {
   return { username, sessionToken }
 }
 
-// APIクライアントの設定
+// APIリクエストの設定
+const API_CONFIG = {
+  timeout: 30000, // 30秒
+  maxRetries: 3,
+  retryDelay: 1000, // 1秒
+  enableLogging: import.meta.env.DEV
+}
+
+// ログ機能
+const log = (level: 'info' | 'warn' | 'error', message: string, data?: any) => {
+  if (!API_CONFIG.enableLogging) return
+
+  const timestamp = new Date().toISOString()
+  const logMessage = `[API ${level.toUpperCase()}] ${timestamp}: ${message}`
+
+  switch (level) {
+    case 'info':
+      console.log(logMessage, data)
+      break
+    case 'warn':
+      console.warn(logMessage, data)
+      break
+    case 'error':
+      console.error(logMessage, data)
+      break
+  }
+}
+
+// タイムアウト付きfetch
+const fetchWithTimeout = async (url: string, options: RequestInit, timeout: number): Promise<Response> => {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeout}ms`)
+    }
+    throw error
+  }
+}
+
+// リトライ機能付きタスク実行
+const executeWithRetry = async <T>(
+  task: () => Promise<T>,
+  maxRetries: number = API_CONFIG.maxRetries,
+  retryDelay: number = API_CONFIG.retryDelay
+): Promise<T> => {
+  let lastError: Error
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await task()
+    } catch (error) {
+      lastError = error as Error
+
+      if (attempt === maxRetries) {
+        log('error', `Task failed after ${maxRetries} attempts`, { error: lastError.message })
+        throw lastError
+      }
+
+      log('warn', `Task failed (attempt ${attempt}/${maxRetries}), retrying in ${retryDelay}ms`, { error: lastError.message })
+      await new Promise(resolve => setTimeout(resolve, retryDelay))
+
+      // 指数バックオフ（リトライ間隔を徐々に増加）
+      retryDelay *= 1.5
+    }
+  }
+
+  throw lastError!
+}
+
+// シーケンシャル実行のためのキューシステム（強化版）
+class ApiQueue {
+  private queue: Array<{
+    id: string
+    task: () => Promise<any>
+    resolve: (value: any) => void
+    reject: (error: any) => void
+    timestamp: number
+  }> = []
+  private isProcessing = false
+  private requestId = 0
+
+  async add<T>(task: () => Promise<T>): Promise<T> {
+    const id = `req_${++this.requestId}`
+    const timestamp = Date.now()
+
+    log('info', `Adding request to queue`, { id, queueLength: this.queue.length })
+
+    return new Promise((resolve, reject) => {
+      this.queue.push({
+        id,
+        task,
+        resolve,
+        reject,
+        timestamp
+      })
+      this.processQueue()
+    })
+  }
+
+  private async processQueue() {
+    if (this.isProcessing || this.queue.length === 0) {
+      return
+    }
+
+    this.isProcessing = true
+    log('info', `Starting queue processing`, { queueLength: this.queue.length })
+
+    while (this.queue.length > 0) {
+      const request = this.queue.shift()
+      if (request) {
+        const { id, task, resolve, reject, timestamp } = request
+        const processingTime = Date.now() - timestamp
+
+        log('info', `Processing request`, { id, processingTime, queueLength: this.queue.length })
+
+        try {
+          const result = await executeWithRetry(task)
+          log('info', `Request completed successfully`, { id })
+          resolve(result)
+        } catch (error) {
+          log('error', `Request failed`, { id, error: (error as Error).message })
+          reject(error)
+        }
+      }
+    }
+
+    this.isProcessing = false
+    log('info', `Queue processing completed`)
+  }
+
+  // キューの状態を取得
+  getStatus() {
+    return {
+      isProcessing: this.isProcessing,
+      queueLength: this.queue.length,
+      totalRequests: this.requestId
+    }
+  }
+
+  // キューをクリア（緊急時用）
+  clear() {
+    const clearedCount = this.queue.length
+    this.queue.forEach(request => {
+      request.reject(new Error('Queue cleared'))
+    })
+    this.queue = []
+    log('warn', `Queue cleared`, { clearedCount })
+  }
+}
+
+// グローバルAPIキューインスタンス
+const apiQueue = new ApiQueue()
+
+// APIクライアントの設定（シーケンシャル実行）
 const api = {
   get: async (endpoint: string) => {
-    const { username, sessionToken } = getSessionInfo()
-    const response = await fetch(buildApiUrl(endpoint), {
-      headers: {
-        'X-Username': username,
-        'X-Session-Token': sessionToken,
-      },
+    return apiQueue.add(async () => {
+      const { username, sessionToken } = getSessionInfo()
+      log('info', `GET request`, { endpoint })
+
+      const response = await fetchWithTimeout(
+        buildApiUrl(endpoint),
+        {
+          headers: {
+            'X-Username': username,
+            'X-Session-Token': sessionToken,
+          },
+        },
+        API_CONFIG.timeout
+      )
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      log('info', `GET request completed`, { endpoint, status: response.status })
+      return result
     })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return response.json()
   },
+
   post: async (endpoint: string, data: any) => {
-    const { username, sessionToken } = getSessionInfo()
-    const response = await fetch(buildApiUrl(endpoint), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Username': username,
-        'X-Session-Token': sessionToken,
-      },
-      body: JSON.stringify(data),
+    return apiQueue.add(async () => {
+      const { username, sessionToken } = getSessionInfo()
+      log('info', `POST request`, { endpoint, dataSize: JSON.stringify(data).length })
+
+      const response = await fetchWithTimeout(
+        buildApiUrl(endpoint),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Username': username,
+            'X-Session-Token': sessionToken,
+          },
+          body: JSON.stringify(data),
+        },
+        API_CONFIG.timeout
+      )
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      log('info', `POST request completed`, { endpoint, status: response.status })
+      return result
     })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return response.json()
   },
+
   put: async (endpoint: string, data: any) => {
-    const { username, sessionToken } = getSessionInfo()
-    const response = await fetch(buildApiUrl(endpoint), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Username': username,
-        'X-Session-Token': sessionToken,
-      },
-      body: JSON.stringify(data),
+    return apiQueue.add(async () => {
+      const { username, sessionToken } = getSessionInfo()
+      log('info', `PUT request`, { endpoint, dataSize: JSON.stringify(data).length })
+
+      const response = await fetchWithTimeout(
+        buildApiUrl(endpoint),
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Username': username,
+            'X-Session-Token': sessionToken,
+          },
+          body: JSON.stringify(data),
+        },
+        API_CONFIG.timeout
+      )
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      log('info', `PUT request completed`, { endpoint, status: response.status })
+      return result
     })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return response.json()
   },
+
   delete: async (endpoint: string) => {
-    const { username, sessionToken } = getSessionInfo()
-    const response = await fetch(buildApiUrl(endpoint), {
-      method: 'DELETE',
-      headers: {
-        'X-Username': username,
-        'X-Session-Token': sessionToken,
-      },
+    return apiQueue.add(async () => {
+      const { username, sessionToken } = getSessionInfo()
+      log('info', `DELETE request`, { endpoint })
+
+      const response = await fetchWithTimeout(
+        buildApiUrl(endpoint),
+        {
+          method: 'DELETE',
+          headers: {
+            'X-Username': username,
+            'X-Session-Token': sessionToken,
+          },
+        },
+        API_CONFIG.timeout
+      )
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      log('info', `DELETE request completed`, { endpoint, status: response.status })
+      return result
     })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+  }
+}
+
+// キュー状態を監視する関数（デバッグ用）
+export const getApiQueueStatus = () => {
+  return apiQueue.getStatus()
+}
+
+// キューをクリアする関数（緊急時用）
+export const clearApiQueue = () => {
+  apiQueue.clear()
+}
+
+// バッチ処理用のヘルパー関数
+export const batchApiCalls = async <T>(
+  calls: Array<() => Promise<T>>,
+  onProgress?: (completed: number, total: number) => void
+): Promise<T[]> => {
+  const results: T[] = []
+  const total = calls.length
+
+  for (let i = 0; i < calls.length; i++) {
+    try {
+      const result = await calls[i]()
+      results.push(result)
+      onProgress?.(i + 1, total)
+    } catch (error) {
+      log('error', `Batch call failed at index ${i}`, { error: (error as Error).message })
+      throw error
     }
-    return response.json()
+  }
+
+  return results
+}
+
+// プログレス監視付きAPI呼び出し
+export const createProgressMonitor = () => {
+  let completed = 0
+  let total = 0
+  let startTime = 0
+
+  return {
+    start: (totalCalls: number) => {
+      completed = 0
+      total = totalCalls
+      startTime = Date.now()
+      log('info', `Progress monitor started`, { total: totalCalls })
+    },
+
+    increment: () => {
+      completed++
+      const progress = (completed / total) * 100
+      const elapsed = Date.now() - startTime
+      const estimatedTotal = elapsed * (total / completed)
+      const remaining = estimatedTotal - elapsed
+
+      log('info', `Progress update`, {
+        completed,
+        total,
+        progress: `${progress.toFixed(1)}%`,
+        elapsed: `${(elapsed / 1000).toFixed(1)}s`,
+        remaining: `${(remaining / 1000).toFixed(1)}s`
+      })
+
+      return { completed, total, progress, elapsed, remaining }
+    },
+
+    getStatus: () => ({
+      completed,
+      total,
+      progress: total > 0 ? (completed / total) * 100 : 0,
+      elapsed: Date.now() - startTime,
+      isComplete: completed >= total
+    })
   }
 }
 
@@ -110,7 +398,7 @@ export const updateBudget = (id: number, data: any) => api.put(`/cash/budgets/${
 export const deleteBudget = (id: number) => api.delete(`/cash/budgets/${id}`)
 export const moveBudgetUp = (id: number) => api.post(`/cash/budgets/${id}/move-up`, {})
 export const moveBudgetDown = (id: number) => api.post(`/cash/budgets/${id}/move-down`, {})
-export const copyBudgets = (sourceYear: number, sourceMonth: number, targetYear: number, targetMonth: number) => 
+export const copyBudgets = (sourceYear: number, sourceMonth: number, targetYear: number, targetMonth: number) =>
   api.post(`/cash/budgets/copy?source_year=${sourceYear}&source_month=${sourceMonth}&target_year=${targetYear}&target_month=${targetMonth}`, {})
 
 // 取引管理用のAPI
@@ -176,7 +464,7 @@ export const deleteMiddleCategory = (id: number) => api.delete(`/knowhow/middle-
 export const getSchedules = (skip: number = 0, limit: number = 100) => api.get(`/schedule/schedules?skip=${skip}&limit=${limit}`)
 export const getSchedulesByMonth = (year: number, month: number) => api.get(`/schedule/schedules/month/${year}/${month}`)
 export const getSchedulesByWeek = (startDate: string) => api.get(`/schedule/schedules/week/${startDate}`)
-export const getSchedulesByActivityCategories = (year: number, month: number, categoryIds: string) => 
+export const getSchedulesByActivityCategories = (year: number, month: number, categoryIds: string) =>
   api.get(`/schedule/schedules/filtered/${year}/${month}?category_ids=${categoryIds}`)
 export const createSchedule = (data: any) => api.post('/schedule/schedules', data)
 export const updateSchedule = (id: number, data: any) => api.put(`/schedule/schedules/${id}`, data)
@@ -184,4 +472,4 @@ export const deleteSchedule = (id: number) => api.delete(`/schedule/schedules/${
 export const getActivityCategories = (skip: number = 0, limit: number = 100) => api.get(`/schedule/activity-categories?skip=${skip}&limit=${limit}`)
 export const createActivityCategory = (data: any) => api.post('/schedule/activity-categories', data)
 export const updateActivityCategory = (id: number, data: any) => api.put(`/schedule/activity-categories/${id}`, data)
-export const deleteActivityCategory = (id: number) => api.delete(`/schedule/activity-categories/${id}`) 
+export const deleteActivityCategory = (id: number) => api.delete(`/schedule/activity-categories/${id}`)
