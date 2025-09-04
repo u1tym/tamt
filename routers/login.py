@@ -29,6 +29,7 @@ def request_random_number(request_data: schemas.LoginRequest, request: Request, 
     # ユーザー名でアカウントを検索
     account = crud.get_account_by_username(db, username=request_data.username)
     if account is None:
+        ulog.output("ERR", meth + " アカウントがありません。")
         raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
 
     # ランダム数を生成（1-1000の範囲）
@@ -60,6 +61,7 @@ def verify_login(verify_request: schemas.LoginVerifyRequest, request: Request, d
 
     account = crud.get_account_by_username(db, username=verify_request.username)
     if account is None:
+        ulog.output("ERR", meth + " アカウントがありません。")
         return schemas.LoginResponse(
             success=False,
             message="ユーザーが見つかりません"
@@ -71,7 +73,11 @@ def verify_login(verify_request: schemas.LoginVerifyRequest, request: Request, d
         (verify_request.username + account.password + str(account.random_number)).encode()
     ).hexdigest()
 
+    ulog.output("INF", meth + " " + "正 " + expected_hash)
+    ulog.output("INF", meth + " " + "要 " + verify_request.hash_value)
+
     if expected_hash != verify_request.hash_value:
+        ulog.outout("INF", meth + " " + "パスワード不正です。")
         return schemas.LoginResponse(
             success=False,
             message="パスワードが正しくありません"
@@ -84,6 +90,8 @@ def verify_login(verify_request: schemas.LoginVerifyRequest, request: Request, d
     # セッション情報を更新
     session_info = {"token": session_token, "login_time": datetime.now(timezone.utc).isoformat()}
     crud.update_session_info(db, account.id, str(session_info))
+
+    ulog.outout("INF", meth + " " + "セッショントークン=[" + session_token + "]")
 
     ulog.output("END", meth)
     return schemas.LoginResponse(
