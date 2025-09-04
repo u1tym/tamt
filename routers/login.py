@@ -77,7 +77,7 @@ def verify_login(verify_request: schemas.LoginVerifyRequest, request: Request, d
     ulog.output("INF", meth + " " + "要 " + verify_request.hash_value)
 
     if expected_hash != verify_request.hash_value:
-        ulog.outout("INF", meth + " " + "パスワード不正です。")
+        ulog.output("INF", meth + " " + "パスワード不正です。")
         return schemas.LoginResponse(
             success=False,
             message="パスワードが正しくありません"
@@ -91,7 +91,7 @@ def verify_login(verify_request: schemas.LoginVerifyRequest, request: Request, d
     session_info = {"token": session_token, "login_time": datetime.now(timezone.utc).isoformat()}
     crud.update_session_info(db, account.id, str(session_info))
 
-    ulog.outout("INF", meth + " " + "セッショントークン=[" + session_token + "]")
+    ulog.output("INF", meth + " " + "セッショントークン=[" + session_token + "]")
 
     ulog.output("END", meth)
     return schemas.LoginResponse(
